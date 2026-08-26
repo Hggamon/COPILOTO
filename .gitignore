@@ -1,0 +1,7 @@
+# Solo index.html va a este repositorio publico (GitHub Pages).
+# Todo lo demas se queda fuera a proposito: el manual tiene derechos de autor,
+# las copias de seguridad y los documentos internos no son para publicar,
+# y la carpeta de capturas del telefono puede tener fotos personales.
+*
+!index.html
+!.gitignore
