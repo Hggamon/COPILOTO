@@ -1133,17 +1133,26 @@
 
   #se5000-reposo .se5000-clock { color: var(--se-display-fg); }
 
-  #se5000-reposo-cta {
+  .se5000-tray-strip {
     margin-top: 6px;
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Reutiliza .se5000-tray (misma pinta que las bandejas del marco en marcha) a un
+     tamaño algo mayor, porque aquí son el único gesto para arrancar — hace falta que
+     se noten como objetivo de un toque largo. */
+  #se5000-reposo .se5000-tray {
+    width: clamp(30px, 8vw, 40px);
+    height: clamp(24px, 6vh, 32px);
+    font-size: clamp(12px, 2.6vw, 15px);
+  }
+
+  .se5000-tray-hint {
     font-family: var(--font-label);
-    font-size: clamp(12px, 2.4vw, 14px);
-    font-weight: 700;
-    color: var(--accent-fg);
-    background: var(--accent);
-    border: none;
-    border-radius: 9px;
-    padding: 0.6em 1.4em;
-    cursor: pointer;
+    font-size: 10.5px;
+    color: var(--fg-dim);
+    text-align: center;
   }
 
   /* --- Entradas manuales al iniciar, actividad por actividad --- */
@@ -1306,17 +1315,27 @@
 
   <!-- Reposo real, réplica SE5000: con la tarjeta fuera el aparato está en descanso,
        mostrando el pictograma de cama y las horas que lleva el vehículo quieto — Hugo,
-       25/8 noche. Solo para el arranque/reinicio del conductor 1, no para "+ conductor 2". -->
+       25/8 noche. Pantalla pasiva compartida: se ve mientras no hay ningún flujo de
+       tarjeta en curso (se5000ActiveFlow === null), sea cual sea el conductor. -->
   <div id="se5000-reposo" hidden>
     <svg class="se5000-pic" aria-hidden="true"><use href="#pic-rest"></use></svg>
     <div class="se5000-display-label">quieto desde hace</div>
     <div class="se5000-clock" id="se5000-reposo-clock">0:00</div>
-    <button id="se5000-reposo-cta" type="button">empezar</button>
+    <!-- Meter la tarjeta = mantener pulsada la bandeja ~3s, igual que el aparato real
+         (manual pp.16-19) — sustituye al botón "empezar" de antes. Hugo, 26/8. -->
+    <div class="se5000-tray-strip">
+      <button class="se5000-tray" id="setup-tray-1" type="button" aria-label="bandeja conductor 1">1</button>
+      <button class="se5000-tray" id="setup-tray-2" type="button" aria-label="bandeja conductor 2">2</button>
+    </div>
+    <div class="se5000-tray-hint">mantén pulsada la bandeja para meter la tarjeta</div>
   </div>
 
   <!-- Entradas manuales al iniciar, tramo a tramo — no un número suelto. Réplica del
        flujo real de "¿Descansó hasta ahora?" + entradas manuales (manual pp.17-23),
-       adaptado: sin país/lugar (fuera de alcance de esta app), solo actividad y duración. -->
+       adaptado: sin país/lugar (fuera de alcance de esta app), solo actividad y duración.
+       Reutilizado tal cual para el conductor 2 (mismos nodos, ver se5000ActiveFlow) —
+       Hugo, 26/8: "cada tarjeta dispara sus propias preguntas". -->
+  <span id="se5000-manual-anchor" hidden></span>
   <div id="se5000-manual" hidden>
     <div id="se5000-manual-summary"></div>
     <button id="se5000-manual-shortcut" type="button">descansé todo este tiempo</button>
@@ -1531,6 +1550,10 @@
     <div id="export-btn" class="status-pill">exportar registro</div>
   </div>
   <div id="nav-tacografo">◂ Volver al tacógrafo</div>
+  <!-- Reiniciar se ha quitado de la pantalla del tacógrafo (vista SE5000): en el
+       aparato real no existe ese botón, se cierra jornada sacando la tarjeta. Se deja
+       aquí, fuera de esa pantalla, solo para pruebas — Hugo, 26/8, punto 5. -->
+  <div id="ayuda-reset-btn" class="status-pill">reiniciar (solo pruebas)</div>
   <div id="geo-diag-panel" hidden></div>
 </div>
 
@@ -1712,6 +1735,7 @@
   var inM = document.getElementById("in-m");
   var clockEl = document.getElementById("clock");
   var resetCorner = document.getElementById("reset-corner");
+  var ayudaResetBtn = document.getElementById("ayuda-reset-btn");
   var diagPanel = document.getElementById("diag-panel");
   var pauseBtn = document.getElementById("pause-btn");
   var resumeBtn = document.getElementById("resume-btn");
@@ -1765,6 +1789,8 @@
   var pauseClassifyAnchor = document.getElementById("pause-classify-anchor");
   var gapClassifyAnchor = document.getElementById("gap-classify-anchor");
   var jornadaDialogAnchor = document.getElementById("jornada-dialog-anchor");
+  var se5000ManualAnchor = document.getElementById("se5000-manual-anchor");
+  var se5000ManualEl = document.getElementById("se5000-manual");
   var se5000DialogDock = document.getElementById("se5000-dialog-dock");
   var exportBtn = document.getElementById("export-btn");
   var navAyudaBtn = document.getElementById("nav-ayuda");
@@ -1781,7 +1807,6 @@
   var deadline = null;
   var tickTimer = null;
   var thresholdTimers = [];
-  var resetArmedAt = 0;
   var announced = { amber: false, red: false, zero: false };
   var wakeLock = null;
   var audioCtx = null;
@@ -2818,8 +2843,13 @@
   }
 
   function renderDoubleCrewUI() {
-    dcAddBtn.hidden = doubleCrewOn;
+    // En la vista SE5000, meter/sacar la tarjeta del conductor 2 pasa por la bandeja
+    // (insertCard/ejectCard) — "+ conductor 2" y "quitar" quedan superados por ese gesto
+    // y se ocultan (Hugo, 26/8, punto 4). Los dos botones de "conductor 1"/"conductor 2"
+    // siguen para elegir a quién se mira, que no tiene equivalente en la bandeja física.
+    dcAddBtn.hidden = doubleCrewOn || se5000Mode;
     dcSelector.hidden = !doubleCrewOn;
+    dcRemoveBtn.hidden = se5000Mode;
     if (doubleCrewOn) {
       for (var i = 0; i < dcSelectorBtns.length; i++) {
         var btn = dcSelectorBtns[i];
@@ -3384,67 +3414,81 @@
 
   // Reiniciar solo afecta al conductor ACTIVO en este momento (decidido antes de
   // programar tripulación doble) — el otro conductor sigue su propio ciclo sin tocarse.
-  resetCorner.addEventListener("click", function (e) {
-    e.stopPropagation();
-    var now = Date.now();
-    if (now - resetArmedAt < 2000) {
-      // A quién va destinada la próxima entrada en la pantalla de ajuste: el mismo
-      // conductor que se acaba de reiniciar (Reiniciar solo afecta al activo).
-      setupTargetDriver = isDriver2Active() ? 2 : 1;
-      setupPromptEl.textContent = isDriver2Active()
-        ? "¿Cuánto lleva conducido el CONDUCTOR 2?"
-        : "¿Cuánto llevas conducido según el tacógrafo?";
-      if (isDriver2Active()) {
-        localStorage.removeItem(STORAGE_KEY_2);
-        localStorage.removeItem(FLAGS_KEY_2);
-        clearPauseState2();
-        announced2.amber = false;
-        announced2.red = false;
-        announced2.zero = false;
-        paused2 = false;
-        pauseSource2 = null;
-        pausedRemainingMs2 = null;
-        pauseClassification2 = null;
-        if (tickTimer2) clearInterval(tickTimer2);
-        clearThresholdTimers2();
-        deadline2 = null;
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(FLAGS_KEY);
-        clearPauseState();
-        announced.amber = false;
-        announced.red = false;
-        announced.zero = false;
-        paused = false;
-        pauseSource = null;
-        pausedRemainingMs = null;
-        pauseClassification = null;
-        stopGeoWatch();
-        stopDiagRefresh();
-        releaseWakeLock();
-        if (tickTimer) clearInterval(tickTimer);
-        clearThresholdTimers();
-        deadline = null;
-      }
-      countdownScreen.hidden = true;
-      countdownScreen.classList.remove("state-normal", "state-amber", "state-red", "state-red-dim");
-      setupScreen.hidden = false;
-      inH.value = "0";
-      inM.value = "00";
-      resetArmedAt = 0;
-      renderPauseUI(false, null, null);
-      renderDiagnostics();
-      renderDoubleCrewUI();
-      se5000SetupPhase = "reposo";
-      renderSetupView();
+  // Extraído a función compartida (26/8, tarjetas): en la vista SE5000 este botón ya no
+  // vive en la pantalla del tacógrafo (el aparato real no lo tiene — cerrar jornada es
+  // sacar la tarjeta), pero se conserva para pruebas detrás de Ayuda, mismo
+  // comportamiento, otro sitio — Hugo, 26/8, punto 5.
+  function performDriverReset() {
+    // A quién va destinada la próxima entrada en la pantalla de ajuste: el mismo
+    // conductor que se acaba de reiniciar (Reiniciar solo afecta al activo).
+    setupTargetDriver = isDriver2Active() ? 2 : 1;
+    setupPromptEl.textContent = isDriver2Active()
+      ? "¿Cuánto lleva conducido el CONDUCTOR 2?"
+      : "¿Cuánto llevas conducido según el tacógrafo?";
+    if (isDriver2Active()) {
+      localStorage.removeItem(STORAGE_KEY_2);
+      localStorage.removeItem(FLAGS_KEY_2);
+      clearPauseState2();
+      announced2.amber = false;
+      announced2.red = false;
+      announced2.zero = false;
+      paused2 = false;
+      pauseSource2 = null;
+      pausedRemainingMs2 = null;
+      pauseClassification2 = null;
+      if (tickTimer2) clearInterval(tickTimer2);
+      clearThresholdTimers2();
+      deadline2 = null;
     } else {
-      resetArmedAt = now;
-      resetCorner.textContent = "¿reiniciar? toca de nuevo";
-      setTimeout(function () {
-        if (resetCorner.textContent !== "reiniciar") resetCorner.textContent = "reiniciar";
-      }, 2000);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(FLAGS_KEY);
+      clearPauseState();
+      announced.amber = false;
+      announced.red = false;
+      announced.zero = false;
+      paused = false;
+      pauseSource = null;
+      pausedRemainingMs = null;
+      pauseClassification = null;
+      stopGeoWatch();
+      stopDiagRefresh();
+      releaseWakeLock();
+      if (tickTimer) clearInterval(tickTimer);
+      clearThresholdTimers();
+      deadline = null;
     }
-  });
+    countdownScreen.hidden = true;
+    countdownScreen.classList.remove("state-normal", "state-amber", "state-red", "state-red-dim");
+    setupScreen.hidden = false;
+    inH.value = "0";
+    inM.value = "00";
+    renderPauseUI(false, null, null);
+    renderDiagnostics();
+    renderDoubleCrewUI();
+    se5000ActiveFlow = null;
+    renderSetupView();
+  }
+
+  function wireResetButton(btnEl, defaultLabel) {
+    var armedAt = 0;
+    btnEl.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var now = Date.now();
+      if (now - armedAt < 2000) {
+        armedAt = 0;
+        btnEl.textContent = defaultLabel;
+        performDriverReset();
+      } else {
+        armedAt = now;
+        btnEl.textContent = "¿reiniciar? toca de nuevo";
+        setTimeout(function () {
+          if (btnEl.textContent !== defaultLabel) btnEl.textContent = defaultLabel;
+        }, 2000);
+      }
+    });
+  }
+  wireResetButton(resetCorner, "reiniciar");
+  wireResetButton(ayudaResetBtn, "reiniciar (solo pruebas)");
 
   dcAddBtn.addEventListener("click", function (e) {
     e.stopPropagation();
@@ -4947,8 +4991,13 @@
 
   var VIEW_MODE_KEY = "copiloto-vista-se5000";
   var QUIET_SINCE_KEY = "copiloto-quieto-desde";
+  var QUIET_SINCE_KEY_2 = "copiloto-quieto-desde-2";
   var se5000Mode = localStorage.getItem(VIEW_MODE_KEY) === "on";
-  var se5000SetupPhase = "reposo"; // "reposo" | "manual" — solo aplica a setupTargetDriver === 1
+  // Qué conductor está a mitad de meter la tarjeta ahora mismo: null (nadie, se ve la
+  // pantalla pasiva de reposo) | 1 | 2. Sustituye a la vieja se5000SetupPhase — ahora
+  // el mismo #se5000-manual sirve para cualquiera de los dos conductores (Hugo, 26/8:
+  // "cada tarjeta dispara sus propias preguntas", mismos nodos, no duplicados).
+  var se5000ActiveFlow = null;
 
   var viewToggleBtn = document.getElementById("view-toggle");
   var classicViewEl = document.getElementById("classic-view");
@@ -4965,12 +5014,12 @@
   var se5000NavOk = document.getElementById("se5000-nav-ok");
   var se5000Tray1 = document.getElementById("se5000-tray-1");
   var se5000Tray2 = document.getElementById("se5000-tray-2");
+  var setupTray1 = document.getElementById("setup-tray-1");
+  var setupTray2 = document.getElementById("setup-tray-2");
 
   var setupBrandEl = document.getElementById("setup-brand");
   var se5000ReposoEl = document.getElementById("se5000-reposo");
   var se5000ReposoClockEl = document.getElementById("se5000-reposo-clock");
-  var se5000ReposoCta = document.getElementById("se5000-reposo-cta");
-  var se5000ManualEl = document.getElementById("se5000-manual");
   var se5000ManualSummaryEl = document.getElementById("se5000-manual-summary");
   var se5000ManualShortcutBtn = document.getElementById("se5000-manual-shortcut");
   var se5000ManualPickerEl = document.getElementById("se5000-manual-picker");
@@ -4988,25 +5037,34 @@
   var se5000ManualQuietSince = null;
 
   // "Tiempo que lleva el vehículo quieto" — ancla en el inicio del tramo abierto que
-  // dejó el último "reiniciar" (el motor de intervalos ya lo tiene, no hace falta un
-  // reloj aparte). Sin ningún intervalo todavía (primerísimo uso) se ancla a este
-  // instante y se recuerda, para no recalcular "ahora" en cada pintado.
-  function getQuietSinceTs() {
-    var iv = openInterval();
+  // dejó la última tarjeta sacada (el motor de intervalos ya lo tiene, no hace falta un
+  // reloj aparte). Sin ningún intervalo todavía (primerísimo uso, o conductor 2 al que
+  // nunca se le ha metido tarjeta) se ancla a este instante y se recuerda, para no
+  // recalcular "ahora" en cada pintado. Genérica desde el 26/8 (tarjetas) — arr/key
+  // propios de cada conductor, mismo comportamiento de siempre para el 1.
+  function getQuietSinceTsOf(arr, key) {
+    var iv = openIntervalOf(arr);
     if (iv) return iv.inicio;
-    var raw = parseInt(localStorage.getItem(QUIET_SINCE_KEY), 10);
+    var raw = parseInt(localStorage.getItem(key), 10);
     if (!isNaN(raw)) return raw;
     var now = Date.now();
-    localStorage.setItem(QUIET_SINCE_KEY, String(now));
+    localStorage.setItem(key, String(now));
     return now;
+  }
+  function getQuietSinceTs() {
+    return getQuietSinceTsOf(intervalsSolo, QUIET_SINCE_KEY);
   }
 
   // Realoja un grupo de elementos (p. ej. el aviso + los botones de un diálogo) dentro
   // del display SE5000 mientras estén visibles y esa vista esté activa — o los devuelve
   // a su sitio de siempre (justo delante de anchorEl) en caso contrario. Mismos nodos,
   // nunca copias: mover con appendChild conserva los manejadores de clic tal cual.
-  function se5000SyncDockGroup(els, anchorEl, visibleEl) {
-    var shouldDock = se5000Mode && !visibleEl.hidden;
+  // requireCountdown (26/8, tarjetas): algunos grupos —la entrada manual del conductor
+  // 2 al "recoger al compañero a mitad de ruta"— solo deben engancharse al display
+  // mientras el contador está en pantalla; si es el arranque conjunto y todavía estamos
+  // en la pantalla de ajuste, el propio #setup ya es su sitio natural.
+  function se5000SyncDockGroup(els, anchorEl, visibleEl, requireCountdown) {
+    var shouldDock = se5000Mode && !visibleEl.hidden && (!requireCountdown || !countdownScreen.hidden);
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       if (shouldDock) {
@@ -5019,16 +5077,19 @@
   }
 
   // Los tres diálogos compartidos (clasificar pausa, hueco sin clasificar, inicio de
-  // jornada) — Hugo, 26/8: "que los diálogos se pinten dentro del display, con el
-  // contenido de debajo oculto del todo mientras el mensaje esté". Se llama después de
-  // cualquier cambio que pueda alterar cuál de los tres está visible. El hidden del
-  // dock se calcula a partir de lo que ya sabemos (shouldDock de cada grupo) y no
-  // releyendo el DOM, para no depender de que el entorno soporte .children de verdad.
+  // jornada) más la entrada manual de tarjeta cuando hace falta engancharla al display
+  // en marcha (conductor 2 entrando a mitad de ruta) — Hugo, 26/8: "que los diálogos se
+  // pinten dentro del display, con el contenido de debajo oculto del todo mientras el
+  // mensaje esté". Se llama después de cualquier cambio que pueda alterar cuál de ellos
+  // está visible. El hidden del dock se calcula a partir de lo que ya sabemos (shouldDock
+  // de cada grupo) y no releyendo el DOM, para no depender de que el entorno soporte
+  // .children de verdad.
   function se5000SyncDialogDocks() {
     var anyDocked = false;
     if (se5000SyncDockGroup([pauseStatusEl, pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl)) anyDocked = true;
     if (se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl)) anyDocked = true;
     if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl)) anyDocked = true;
+    if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true)) anyDocked = true;
     se5000DialogDock.hidden = !anyDocked;
   }
 
@@ -5041,6 +5102,12 @@
     // esta vista está activa, en vez de flotar con el estilo clásico. Hugo, 26/8: "en el
     // aparato real esos diálogos salen dentro del display, no flotando fuera".
     countdownScreen.classList.toggle("se5000-skin", se5000Mode);
+    // "+ conductor 2" y "reiniciar" desaparecen de la pantalla del tacógrafo en la vista
+    // SE5000: las bandejas los sustituyen (insertCard/ejectCard). La vista clásica sigue
+    // intacta, con los dos botones de siempre. Reiniciar sigue disponible para pruebas
+    // detrás de Ayuda (#ayuda-reset-btn) — Hugo, 26/8, puntos 4 y 5.
+    resetCorner.hidden = se5000Mode;
+    renderDoubleCrewUI();
     se5000SyncDialogDocks();
     renderSetupView();
     renderSe5000View();
@@ -5053,18 +5120,17 @@
     applyViewMode();
   });
 
-  // --- Reposo + entradas manuales (sustituyen al formulario clásico solo para el
-  // arranque/reinicio del conductor 1 — "+ conductor 2" sigue usando el formulario de
-  // siempre, ver renderSetupView). ---
+  // --- Reposo (pantalla pasiva, tarjeta fuera) + entradas manuales al meter cualquiera
+  // de las dos tarjetas — ver insertCard()/ejectCard() más abajo. La vista clásica
+  // sigue con su formulario y su "+ conductor 2" de siempre, sin tocar. ---
   function renderSetupView() {
-    var showSe5000Setup = se5000Mode && setupTargetDriver === 1;
-    setupForm.hidden = showSe5000Setup;
-    setupBrandEl.hidden = showSe5000Setup;
-    setupPromptEl.hidden = showSe5000Setup;
-    se5000ReposoEl.hidden = !(showSe5000Setup && se5000SetupPhase === "reposo");
-    se5000ManualEl.hidden = !(showSe5000Setup && se5000SetupPhase === "manual");
-    if (!showSe5000Setup) return;
-    if (se5000SetupPhase === "reposo") renderSe5000Reposo();
+    setupForm.hidden = se5000Mode;
+    setupBrandEl.hidden = se5000Mode;
+    setupPromptEl.hidden = se5000Mode;
+    se5000ReposoEl.hidden = !(se5000Mode && se5000ActiveFlow === null);
+    se5000ManualEl.hidden = !(se5000Mode && se5000ActiveFlow !== null);
+    if (!se5000Mode) return;
+    if (se5000ActiveFlow === null) renderSe5000Reposo();
     else renderSe5000Manual();
   }
 
@@ -5073,15 +5139,173 @@
     se5000ReposoClockEl.textContent = formatRemaining(Date.now() - since);
   }
 
-  se5000ReposoCta.addEventListener("click", function (e) {
-    e.stopPropagation();
-    se5000ManualQuietSince = getQuietSinceTs();
+  // Gesto real del aparato (manual pp.16-19): mantener pulsada la bandeja unos 3s mete
+  // la tarjeta; una pulsación breve, sin mantener, la saca. onLongPress solo se dispara
+  // si el dedo sigue encima al cumplirse el plazo; si se suelta antes, es un toque.
+  // Nota de pruebas: setTimeout está anulado en el arnés de Node (nunca dispara), así
+  // que esta mecánica de temporizador no es verificable ahí — se prueban directamente
+  // insertCard()/ejectCard() (expuestas en __t) y este gesto se comprueba a mano en
+  // Chrome real, mismo criterio que el resto de temporizadores de esta app.
+  var TRAY_LONG_PRESS_MS = 3000;
+  function bindTrayGesture(el, onLongPress, onTap) {
+    var timer = null;
+    var fired = false;
+    function start(e) {
+      fired = false;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { fired = true; timer = null; onLongPress(); }, TRAY_LONG_PRESS_MS);
+    }
+    function end(e) {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (!fired) onTap();
+      fired = false;
+    }
+    function cancel(e) {
+      if (timer) { clearTimeout(timer); timer = null; }
+      fired = false;
+    }
+    el.addEventListener("mousedown", start);
+    el.addEventListener("touchstart", start);
+    el.addEventListener("mouseup", end);
+    el.addEventListener("touchend", end);
+    el.addEventListener("mouseleave", cancel);
+    el.addEventListener("touchcancel", cancel);
+  }
+
+  // Arranca la entrada manual del conductor n (1 o 2) al meter su tarjeta — mismo flujo
+  // para los dos, "¿Descansó hasta ahora?" simplificado a actividad+duración (fuera de
+  // alcance país/lugar aquí, eso lo hace el propio inicio/fin de jornada). Se ancla al
+  // tiempo quieto de SU PROPIO registro (intervalsSolo/intervalsSolo2): para un arranque
+  // conjunto es el mismo hueco que el otro conductor, contado con actividades propias;
+  // para "recoger a mitad de ruta" con el registro del compañero vacío, se ancla a ahora
+  // mismo (ver getQuietSinceTsOf) y la entrada manual queda prácticamente vacía, que es
+  // lo correcto: no hay nada que redistribuir de un conductor que se acaba de sumar.
+  function startCardInsertFlow(n) {
+    var arr = (n === 2) ? intervalsSolo2 : intervalsSolo;
+    var key = (n === 2) ? QUIET_SINCE_KEY_2 : QUIET_SINCE_KEY;
+    se5000ManualQuietSince = getQuietSinceTsOf(arr, key);
     se5000ManualCursor = se5000ManualQuietSince;
     se5000ManualSegments = [];
     se5000ManualCls = "rest";
-    se5000SetupPhase = "manual";
+    se5000ActiveFlow = n;
     renderSetupView();
-  });
+    se5000SyncDialogDocks();
+    renderSe5000Manual();
+  }
+
+  // Orquestación de las bandejas (manual pp.16-19, "Situación con dos conductores").
+  // Todo lo que es orden RECOMENDADO se avisa con announce() pero nunca bloquea —
+  // "se recomienda encarecidamente" no es "no podrá". Lo único que bloquea de verdad es
+  // sacar la tarjeta conduciendo, porque el aparato real bloquea la bandeja físicamente.
+  function insertCard(n) {
+    if (se5000ActiveFlow !== null) { announce("Termina primero la entrada de la tarjeta que está en curso."); return; }
+    ensureAudioCtx();
+    if (n === 1) {
+      if (deadline !== null) return; // ya insertada
+      startCardInsertFlow(1);
+    } else {
+      if (doubleCrewOn) return; // ya insertada
+      // Arranque conjunto desde parado (bandeja 2 primero, deadline===null todavía) no
+      // lleva aviso: es justo el orden que recomienda el manual. Si el conductor 1 ya
+      // circula, esto es "recoger al compañero a mitad de ruta" — o, si de hecho iba a
+      // ser un arranque conjunto y se metió antes la 1, es el mismo caso visto desde el
+      // otro lado; no se puede distinguir uno de otro con seguridad, así que se avisa
+      // siempre en este orden, sin bloquear.
+      if (deadline !== null) {
+        announce("Se recomienda meter antes la bandeja 2 en un arranque conjunto. Continuando igualmente.");
+      }
+      startCardInsertFlow(2);
+    }
+  }
+
+  function ejectCard(n) {
+    if (se5000ActiveFlow !== null) { announce("Termina primero la entrada de la tarjeta que está en curso."); return; }
+    var driving = (n === 2)
+      ? (doubleCrewOn && deadline2 !== null && !paused2)
+      : (deadline !== null && !paused);
+    if (driving) {
+      announce("No se puede sacar la tarjeta mientras conduces. El aparato real bloquea la bandeja con el vehículo en marcha — para primero.");
+      return;
+    }
+    if (n === 2) {
+      if (!doubleCrewOn) return; // no había tarjeta 2 puesta
+      if (deadline !== null) {
+        // El conductor 1 sigue con su tarjeta puesta: sacar antes la 2 es el orden
+        // contrario al recomendado (1 antes que 2).
+        announce("Se recomienda sacar antes la bandeja 1, esperar a que expulse, y luego la 2.");
+      }
+      closeIntervalOf(intervalsSolo2, Date.now());
+      saveIntervals2();
+      if (tickTimer2) clearInterval(tickTimer2);
+      clearThresholdTimers2();
+      clearPauseState2();
+      localStorage.removeItem(STORAGE_KEY_2);
+      localStorage.removeItem(FLAGS_KEY_2);
+      localStorage.removeItem(QUIET_SINCE_KEY_2);
+      deadline2 = null;
+      paused2 = false;
+      pauseSource2 = null;
+      pausedRemainingMs2 = null;
+      pauseClassification2 = null;
+      doubleCrewOn = false;
+      activeDriver = 1;
+      saveDoubleCrew();
+      renderDoubleCrewUI();
+      if (deadline === null) {
+        // El conductor 1 ya se había ido antes (esta era la última tarjeta puesta) —
+        // vuelve a la pantalla de ajuste, igual que al sacar la del 1 en solitario.
+        countdownScreen.hidden = true;
+        countdownScreen.classList.remove("state-normal", "state-amber", "state-red", "state-red-dim");
+        setupScreen.hidden = false;
+        renderPauseUI(false, null, null);
+        renderDiagnostics();
+        renderSetupView();
+      }
+    } else {
+      if (deadline === null) return; // no había tarjeta 1 puesta
+      closeIntervalOf(intervalsSolo, Date.now());
+      saveIntervals();
+      stopGeoWatch();
+      stopDiagRefresh();
+      releaseWakeLock();
+      if (tickTimer) clearInterval(tickTimer);
+      clearThresholdTimers();
+      clearPauseState();
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(FLAGS_KEY);
+      localStorage.removeItem(QUIET_SINCE_KEY);
+      deadline = null;
+      paused = false;
+      pauseSource = null;
+      pausedRemainingMs = null;
+      pauseClassification = null;
+      announced.amber = false;
+      announced.red = false;
+      announced.zero = false;
+      if (doubleCrewOn) {
+        // El compañero sigue con la tarjeta puesta (orden recomendado: 1 antes que 2) —
+        // la pantalla pasa a mostrar sus números, sin volver a la pantalla de ajuste. El
+        // aparato real sigue funcionando con la tarjeta que queda dentro.
+        if (activeDriver !== 2) switchActiveDriver(2);
+        renderDoubleCrewUI();
+      } else {
+        countdownScreen.hidden = true;
+        countdownScreen.classList.remove("state-normal", "state-amber", "state-red", "state-red-dim");
+        setupScreen.hidden = false;
+        renderPauseUI(false, null, null);
+        renderDiagnostics();
+        renderDoubleCrewUI();
+        renderSetupView();
+      }
+    }
+    se5000SyncDialogDocks();
+    renderSe5000View();
+  }
+
+  bindTrayGesture(se5000Tray1, function () { insertCard(1); }, function () { ejectCard(1); });
+  bindTrayGesture(se5000Tray2, function () { insertCard(2); }, function () { ejectCard(2); });
+  bindTrayGesture(setupTray1, function () { insertCard(1); }, function () { ejectCard(1); });
+  bindTrayGesture(setupTray2, function () { insertCard(2); }, function () { ejectCard(2); });
 
   function se5000ManualRemainingMs() {
     return Math.max(0, Date.now() - se5000ManualCursor);
@@ -5142,23 +5366,48 @@
   // seleccionada, sustituye el tramo abierto que dejó el último "reiniciar" por los
   // tramos precisos contados a mano (observado:false, igual que un hueco reconstruido —
   // §7 regla 1: se sabe ahora, no se midió en su momento) y arranca la jornada.
+  // Genérica desde el 26/8 (tarjetas): opera sobre el registro del conductor cuyo flujo
+  // está activo (se5000ActiveFlow), igual para el 1 y el 2 — "cada tarjeta dispara sus
+  // propias preguntas", mismo tratamiento para las dos (Hugo, 26/8, punto 4).
   function finishSe5000ManualEntry() {
+    var n = se5000ActiveFlow;
+    var arr = (n === 2) ? intervalsSolo2 : intervalsSolo;
+    var save = (n === 2) ? saveIntervals2 : saveIntervals;
+    var key = (n === 2) ? QUIET_SINCE_KEY_2 : QUIET_SINCE_KEY;
     var remaining = se5000ManualRemainingMs();
     if (remaining > 0) {
       se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: Date.now(), actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
     }
-    if (intervalsSolo.length && intervalsSolo[intervalsSolo.length - 1].fin === null) {
-      intervalsSolo.pop();
+    if (arr.length && arr[arr.length - 1].fin === null) {
+      arr.pop();
     }
     for (var i = 0; i < se5000ManualSegments.length; i++) {
-      intervalsSolo.push(se5000ManualSegments[i]);
+      arr.push(se5000ManualSegments[i]);
     }
-    saveIntervals();
-    localStorage.removeItem(QUIET_SINCE_KEY);
-    se5000SetupPhase = "reposo";
+    save();
+    localStorage.removeItem(key);
+    se5000ActiveFlow = null;
     ensureAudioCtx();
-    resetDiagnostics();
-    startCountdown(Date.now() + BLOCK_MS);
+    if (n === 2) {
+      startCountdown2(Date.now() + BLOCK_MS);
+      doubleCrewOn = true;
+      saveDoubleCrew();
+      renderDoubleCrewUI();
+    } else {
+      resetDiagnostics();
+      startCountdown(Date.now() + BLOCK_MS);
+    }
+    // renderSetupView() es quien de verdad apaga #se5000-manual (su hidden depende de
+    // se5000ActiveFlow, ya puesto a null arriba) — sin esta llamada se queda enganchado
+    // al display para siempre, tapando el contador en marcha. Se llama siempre, sea cual
+    // sea la pantalla que estuviera activa: si el contador ya estaba en pantalla
+    // (conductor 2 al recoger al compañero a mitad de ruta), esto solo oculta el
+    // formulario, sin tocar #setup/#countdown; si seguíamos en #setup (arranque conjunto,
+    // o el 1 en solitario) y era el 2 el que se acaba de meter, la vista vuelve a reposo
+    // pasivo hasta que entre también la 1 — startCountdown (conductor 1) ya se encarga de
+    // pasar a #countdown por su cuenta antes de llegar aquí.
+    renderSetupView();
+    se5000SyncDialogDocks();
     renderSe5000View();
   }
 
@@ -5205,15 +5454,11 @@
   se5000NavDown.addEventListener("click", function (e) { e.stopPropagation(); tgDdsDownBtn.click(); renderSe5000View(); });
   se5000NavOk.addEventListener("click", function (e) { e.stopPropagation(); tgActivityBtn.click(); renderSe5000View(); });
 
-  function se5000SelectTray(n) {
-    if (n === 2 && !doubleCrewOn) { dcAddBtn.click(); return; }
-    if (!doubleCrewOn) return;
-    for (var i = 0; i < dcSelectorBtns.length; i++) {
-      if (parseInt(dcSelectorBtns[i].getAttribute("data-driver"), 10) === n) { dcSelectorBtns[i].click(); return; }
-    }
-  }
-  se5000Tray1.addEventListener("click", function (e) { e.stopPropagation(); se5000SelectTray(1); renderSe5000View(); });
-  se5000Tray2.addEventListener("click", function (e) { e.stopPropagation(); se5000SelectTray(2); renderSe5000View(); });
+  // La bandeja ya no sirve para elegir a quién se mira (eso era una taquigrafía de esta
+  // app, sin verificar contra el manual — Hugo, 26/8, lo sustituye por el gesto real de
+  // meter/sacar tarjeta, ver bindTrayGesture()/insertCard()/ejectCard() más arriba). Para
+  // ver los números del que no está en pantalla ahora mismo sigue estando #dc-selector
+  // ("conductor 1"/"conductor 2"), que no forma parte del marco físico replicado.
 
   applyViewMode();
 
