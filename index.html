@@ -464,7 +464,8 @@
   }
 
   #jornada-si, #jornada-no, #jornada-manual-none,
-  #jornada-country-ok, #jornada-region-ok {
+  #jornada-country-ok, #jornada-region-ok,
+  #eject-confirm-yes, #eject-confirm-no {
     font-family: var(--font-label);
     font-size: clamp(12px, 2.2vw, 15px);
     font-weight: 600;
@@ -474,6 +475,37 @@
     border-radius: 10px;
     padding: 0.5em 0.9em;
     cursor: pointer;
+  }
+
+  /* Confirmación de "sacar tarjeta" — misma posición fija y centrada que #jornada-dialog,
+     mismo motivo (pantalla sin scroll). Hugo, 27/8, punto A4. */
+  #eject-confirm {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 80vw;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: clamp(16px, 3vh, 28px);
+  }
+
+  #eject-confirm-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  #eject-confirm-yes {
+    color: #e05252;
+    border-color: #e05252;
   }
 
   /* Selector de lista con flechas — país y provincia/comunidad. Sin teclado, igual que
@@ -873,7 +905,8 @@
   /* #jornada-dialog llega con position:fixed centrado en el viewport (para la vista
      clásica) — dentro del dock tiene que comportarse como un hijo normal del flujo, o
      ignoraría por completo su nuevo sitio. */
-  #se5000-dialog-dock #jornada-dialog {
+  #se5000-dialog-dock #jornada-dialog,
+  #se5000-dialog-dock #eject-confirm {
     position: static;
     background: transparent;
     border: none;
@@ -1005,22 +1038,19 @@
     background: #000;
   }
 
-  /* Franja inferior, ancho completo: dos ranuras largas (bandejas de tarjeta reales, no
-     botones) con los selectores 1/2 pequeños entre medias — así es como se ve en la
-     foto, no como dos botones grandes lado a lado. */
+  /* Franja inferior, ancho completo: cada bandeja ES la ranura de insertar la tarjeta —
+     Hugo, 27/8, punto A3: "las bandejas son demasiado pequeñas en móvil... puedes
+     utilizar lo que vendría a ser la ranura de insertar la tarjeta para que sea el
+     botón". Deja de ser fiel a la foto del aparato (dos ranuras finas + selectores
+     diminutos) a propósito, en favor de un objetivo táctil real en un camión en marcha —
+     desviación consciente de la réplica visual, documentada en ESTADO.md. Separación
+     visible entre las dos para no cruzar el dedo a la del otro conductor.
+     ------------------------------------------------------------------------ */
   .se5000-bottom-strip {
     display: flex;
-    align-items: center;
-    gap: clamp(4px, 1vw, 6px);
+    align-items: stretch;
+    gap: clamp(10px, 3vw, 16px);
     flex: 0 0 auto;
-  }
-
-  .se5000-slot {
-    flex: 1;
-    height: clamp(6px, 1.6vh, 9px);
-    background: #000;
-    border-radius: 3px;
-    border: 1px solid #2a2820;
   }
 
   .se5000-tray {
@@ -1028,13 +1058,59 @@
     background: var(--se-key);
     color: #a8a493;
     border: 1px solid #3a362c;
-    border-radius: 4px;
-    width: clamp(16px, 4.2vw, 22px);
-    height: clamp(13px, 3vh, 17px);
-    font-size: clamp(7.5px, 1.7vw, 9.5px);
+    border-radius: 8px;
+    font-size: clamp(13px, 3vw, 16px);
     font-weight: 700;
     cursor: pointer;
     flex: 0 0 auto;
+    /* Sin selección de texto ni menú de "mantener pulsado" del navegador, y sin que el
+       toque se interprete como scroll/zoom — Hugo, 27/8, punto A2. */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Tamaño táctil real (64-72px de alto) para las dos bandejas que sirven de gesto de
+     inserción/extracción — la del marco en marcha y las del reposo pasivo. */
+  .se5000-tray-wide {
+    flex: 1 1 0;
+    height: clamp(64px, 16vh, 72px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .se5000-tray-slot {
+    width: 60%;
+    height: 5px;
+    background: #000;
+    border-radius: 3px;
+    border: 1px solid #2a2820;
+  }
+
+  .se5000-tray-label {
+    font-size: clamp(15px, 3.4vw, 18px);
+  }
+
+  /* Relleno de progreso durante los 3s de mantener pulsado — Hugo, 27/8, punto A3.
+     --tray-progress lo escribe bindTrayGesture() en directo (0 a 1). */
+  .se5000-tray::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    left: 0;
+    width: calc(var(--tray-progress, 0) * 100%);
+    background: rgba(217, 164, 65, 0.35);
+    pointer-events: none;
+  }
+
+  .se5000-tray.tray-holding {
+    border-color: var(--accent);
   }
 
   /* Monocromo, como el aparato real (sin acento de color en ningún botón) — la bandeja
@@ -1116,6 +1192,30 @@
     color: var(--se-display-fg);
   }
 
+  #countdown.se5000-skin #eject-confirm {
+    background: var(--se-display-bg);
+    border: 3px solid var(--se-bezel);
+    border-top: 3px solid #7a2f2f;
+  }
+
+  #countdown.se5000-skin #eject-confirm .status-pill {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--se-display-fg);
+    border-color: var(--se-display-dim);
+  }
+
+  #countdown.se5000-skin #eject-confirm-no {
+    color: var(--se-display-fg);
+    border-color: var(--se-display-dim);
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  #countdown.se5000-skin #eject-confirm-yes {
+    color: #7a2f2f;
+    border-color: #7a2f2f;
+    background: rgba(0, 0, 0, 0.06);
+  }
+
   /* --- Reposo SE5000 en #setup: cama + tiempo quieto, como el aparato real sin
      tarjeta insertada — no la pantalla de ajuste clásica. --- */
   #se5000-reposo {
@@ -1133,19 +1233,13 @@
 
   #se5000-reposo .se5000-clock { color: var(--se-display-fg); }
 
+  /* Mismo tamaño táctil real que la franja del marco en marcha (.se5000-tray-wide) —
+     aquí son el único gesto para arrancar. */
   .se5000-tray-strip {
     margin-top: 6px;
+    width: 100%;
     display: flex;
-    gap: 10px;
-  }
-
-  /* Reutiliza .se5000-tray (misma pinta que las bandejas del marco en marcha) a un
-     tamaño algo mayor, porque aquí son el único gesto para arrancar — hace falta que
-     se noten como objetivo de un toque largo. */
-  #se5000-reposo .se5000-tray {
-    width: clamp(30px, 8vw, 40px);
-    height: clamp(24px, 6vh, 32px);
-    font-size: clamp(12px, 2.6vw, 15px);
+    gap: clamp(10px, 3vw, 16px);
   }
 
   .se5000-tray-hint {
@@ -1324,8 +1418,14 @@
     <!-- Meter la tarjeta = mantener pulsada la bandeja ~3s, igual que el aparato real
          (manual pp.16-19) — sustituye al botón "empezar" de antes. Hugo, 26/8. -->
     <div class="se5000-tray-strip">
-      <button class="se5000-tray" id="setup-tray-1" type="button" aria-label="bandeja conductor 1">1</button>
-      <button class="se5000-tray" id="setup-tray-2" type="button" aria-label="bandeja conductor 2">2</button>
+      <button class="se5000-tray se5000-tray-wide" id="setup-tray-1" type="button" aria-label="bandeja conductor 1">
+        <span class="se5000-tray-slot" aria-hidden="true"></span>
+        <span class="se5000-tray-label">1</span>
+      </button>
+      <button class="se5000-tray se5000-tray-wide" id="setup-tray-2" type="button" aria-label="bandeja conductor 2">
+        <span class="se5000-tray-slot" aria-hidden="true"></span>
+        <span class="se5000-tray-label">2</span>
+      </button>
     </div>
     <div class="se5000-tray-hint">mantén pulsada la bandeja para meter la tarjeta</div>
   </div>
@@ -1442,10 +1542,14 @@
         </div>
       </div>
       <div class="se5000-bottom-strip">
-        <div class="se5000-slot"></div>
-        <button class="se5000-tray" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">1</button>
-        <button class="se5000-tray" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">2</button>
-        <div class="se5000-slot"></div>
+        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">
+          <span class="se5000-tray-slot" aria-hidden="true"></span>
+          <span class="se5000-tray-label">1</span>
+        </button>
+        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">
+          <span class="se5000-tray-slot" aria-hidden="true"></span>
+          <span class="se5000-tray-label">2</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1507,6 +1611,18 @@
     </div>
   </div>
   <span id="jornada-dialog-anchor" hidden></span>
+
+  <!-- Confirmación al sacar la tarjeta (toque breve en la bandeja) — Hugo, 27/8, punto
+       A4: "un roce en un bache no puede cerrar la jornada". Cancelable, nunca un cierre
+       directo. -->
+  <div id="eject-confirm" hidden>
+    <div class="status-pill">¿Sacar la tarjeta y cerrar jornada?</div>
+    <div id="eject-confirm-buttons">
+      <button id="eject-confirm-yes" type="button">Sí, sacar tarjeta</button>
+      <button id="eject-confirm-no" type="button">Cancelar</button>
+    </div>
+  </div>
+  <span id="eject-confirm-anchor" hidden></span>
 
   <div id="tap-hint">toca la pantalla para escucharlo</div>
   <div id="reset-corner">reiniciar</div>
@@ -1664,11 +1780,29 @@
   var SPLIT_BREAK_FIRST_MS = 15 * 60 * 1000;  // primera parte de una pausa partida válida del art. 7 (¡ojo!: no confundir con el partido de descanso diario de abajo, que es 3h+9h)
   var SPLIT_BREAK_SECOND_MS = 30 * 60 * 1000; // segunda parte, en ese orden
   var JORNADA_START_KEY = "copiloto-jornada-start-" + DRIVER_ID; // ventana de jornada: desde el fin del último descanso diario/semanal válido
-  // Amplitud máxima de una jornada: dato de Hugo por experiencia de cabina (25/8, no está
-  // en el manual del SE5000 porque esta pastilla es capa nuestra, no algo que el tacógrafo
-  // muestre). Solo se usa para el color de la píldora — no bloquea ni avisa por voz nada
-  // nuevo, eso queda para cuando se decida construirlo de verdad.
-  var JORNADA_MAX_MS = 15 * 60 * 60 * 1000;
+  // La ventana de jornada es un RESULTADO (referencia − descanso exigido), no una
+  // constante fija — Hugo, 27/8, punto B1: "elimina cualquier 15h escrito fijo en el
+  // código". Ver jornadaReferenceMs()/jornadaRestFloorMs()/jornadaWindowMs() más abajo.
+  //
+  // art. 8(2): un conductor solo debe tomar un nuevo descanso diario dentro de las 24h
+  // siguientes al fin del anterior.
+  var SINGLE_REFERENCE_MS = 24 * 60 * 60 * 1000;
+  // art. 8(5): "no obstante lo dispuesto en el apartado 2, en caso de la conducción en
+  // equipo... los conductores deberán haberse tomado un nuevo período de descanso diario
+  // de al menos 9 horas en el espacio de 30 horas desde el fin de su período de descanso
+  // diario o semanal anterior" — referencia ampliada a 30h, un único suelo de descanso
+  // (9h), no el régimen de reducidos/normal del apartado 2.
+  var MULTI_MANNING_REFERENCE_MS = 30 * 60 * 60 * 1000;
+  // art. 4(o): "conducción en equipo" exige al menos dos conductores durante TODO el
+  // período de conducción entre dos descansos, salvo, como mucho, la primera hora
+  // ("optativa"; el resto, "obligatoria"). Si el compañero se sube pasada esa primera
+  // hora del período de jornada actual, el período entero deja de poder calificar como
+  // conducción en equipo — ya faltó a la presencia obligatoria antes de sumarse. El
+  // margen de gracia se cuenta desde jornadaStartAt (el ancla del período, art. 8(2)),
+  // no desde que se mete la segunda tarjeta. Hugo, 27/8: "hoy pasa a doble sin mirar el
+  // reloj y eso da tiempo de más".
+  var MULTI_MANNING_GRACE_MS = 60 * 60 * 1000;
+  var DRIVER2_JOINED_KEY = "copiloto-driver2-joined-at";
   var JORNADA_WARN_MS = 15 * 60 * 1000;
   var JORNADA_DIALOG_KEY = "copiloto-jornada-dialog-" + DRIVER_ID; // paso pendiente del diálogo de inicio de jornada (§4), si lo hay
   var JORNADA_LOG_KEY = "copiloto-jornada-log-" + DRIVER_ID; // [{ startedAt, pais, region }] — historial de países declarados al iniciar jornada
@@ -1791,6 +1925,10 @@
   var jornadaDialogAnchor = document.getElementById("jornada-dialog-anchor");
   var se5000ManualAnchor = document.getElementById("se5000-manual-anchor");
   var se5000ManualEl = document.getElementById("se5000-manual");
+  var ejectConfirmEl = document.getElementById("eject-confirm");
+  var ejectConfirmAnchor = document.getElementById("eject-confirm-anchor");
+  var ejectConfirmYesBtn = document.getElementById("eject-confirm-yes");
+  var ejectConfirmNoBtn = document.getElementById("eject-confirm-no");
   var se5000DialogDock = document.getElementById("se5000-dialog-dock");
   var exportBtn = document.getElementById("export-btn");
   var navAyudaBtn = document.getElementById("nav-ayuda");
@@ -1835,6 +1973,7 @@
   var intervalsSolo2 = null;  // mismo modelo, conductor 2
   var fourH30ResetAt2 = null; // ídem, conductor 2
   var jornadaStartAt = null;  // timestamp de fin del último descanso diario/semanal válido — arranque de la ventana de jornada actual
+  var driver2JoinedAt = null; // timestamp de la última vez que se metió la tarjeta del conductor 2 — art. 4(o)/8(5), ver multiManningQualifies()
   var jornadaDialogStep = null; // null | "ask" | "country" | "manual" — paso actual del diálogo de inicio de jornada (§4)
   var jornadaLog = null;      // [{ startedAt, pais, region }]
   var restBlockActive = null; // { startTs, warned } | null — bloque de "descanso" (solo, no disponibilidad) en curso
@@ -3658,8 +3797,15 @@
   intervalsSolo2 = loadIntervals2();
   fourH30ResetAt2 = loadFourH30ResetAt2();
   jornadaStartAt = loadJornadaStartAt();
+  driver2JoinedAt = loadDriver2JoinedAt();
   jornadaDialogStep = loadJornadaDialogStep();
   jornadaLog = loadJornadaLog();
+  // Adelantado desde más abajo en el arranque (antes solo se cargaba después de toda la
+  // secuencia de restauración): jornadaRestFloorMs() ya lo necesita en cuanto
+  // restoreActiveCountdown() pinta la píldora de jornada por primera vez, unas líneas
+  // más abajo — con reducedRests todavía a null ahí revienta. Encontrado por la propia
+  // suite de reinicio (test-restart-daily-tick.js), no a ojo.
+  reducedRests = loadReducedRests();
 
   var saved = localStorage.getItem(STORAGE_KEY);
   var savedPauseRaw = localStorage.getItem(PAUSE_KEY);
@@ -4059,6 +4205,14 @@
   function saveJornadaStartAt() {
     localStorage.setItem(JORNADA_START_KEY, String(jornadaStartAt));
   }
+  function loadDriver2JoinedAt() {
+    var raw = parseInt(localStorage.getItem(DRIVER2_JOINED_KEY), 10);
+    return isNaN(raw) ? null : raw;
+  }
+  function saveDriver2JoinedAt() {
+    if (driver2JoinedAt === null) localStorage.removeItem(DRIVER2_JOINED_KEY);
+    else localStorage.setItem(DRIVER2_JOINED_KEY, String(driver2JoinedAt));
+  }
 
   function fmtDuration(ms) {
     var totalMinutes = Math.floor(Math.max(0, ms) / 60000);
@@ -4067,15 +4221,82 @@
     return (hh > 0 ? hh + "h " : "") + mm + "min";
   }
 
+  // Art. 4(o): la conducción en equipo exige al menos dos conductores durante TODO el
+  // período salvo, como mucho, la primera hora. Si el compañero se sube pasada esa
+  // primera hora del período de jornada actual (jornadaStartAt), el período entero deja
+  // de poder calificar — no se puede cumplir "el resto obligatorio" si ya faltó antes.
+  function multiManningQualifies() {
+    if (!doubleCrewOn || driver2JoinedAt === null || jornadaStartAt === null) return false;
+    return (driver2JoinedAt - jornadaStartAt) <= MULTI_MANNING_GRACE_MS;
+  }
+
+  // La referencia del período: 30h en conducción en equipo cualificada (art. 8(5)), 24h
+  // en cualquier otro caso (art. 8(2)) — recalculada en vivo, no congelada al insertar la
+  // tarjeta: si el compañero saca su tarjeta, la referencia vuelve a 24h desde ese
+  // momento, del lado seguro (PROYECTO.md, regla 1: ante la duda, del lado malo).
+  function jornadaReferenceMs() {
+    return multiManningQualifies() ? MULTI_MANNING_REFERENCE_MS : SINGLE_REFERENCE_MS;
+  }
+
+  // El descanso mínimo que hay que completar dentro de la referencia: siempre 9h en
+  // conducción en equipo cualificada (art. 8(5), un único suelo, sin régimen de
+  // reducidos); en solitario, 9h mientras queden reducciones esta semana (art. 8(6)),
+  // 11h en cuanto se agoten las 3 (art. 4(g)) — Hugo, 27/8, punto B1: "la línea de 9h
+  // desaparece cuando el conductor ya ha gastado las 3 reducciones de la semana".
+  function jornadaRestFloorMs() {
+    if (multiManningQualifies()) return REDUCED_DAILY_MIN_MS;
+    return (reducedRests.count >= WEEKLY_REDUCED_MAX) ? REGULAR_DAILY_MIN_MS : REDUCED_DAILY_MIN_MS;
+  }
+
+  // ventana = referencia − descanso — Hugo, 27/8, punto B1: "elimina cualquier 15h
+  // escrito fijo en el código". El resultado es el número que manda para el color de la
+  // píldora (el tope legal real); en modo simple con reducciones todavía disponibles,
+  // renderJornadaUI() muestra ADEMÁS el tope de 11h como dato informativo, sin que sea
+  // este el que decide el color — mientras quede la opción de un reducido de 9h, ese es
+  // el límite real, el de 11h es solo la fecha límite para conservar la opción de no
+  // gastar una reducción.
+  function jornadaWindowMs() {
+    return jornadaReferenceMs() - jornadaRestFloorMs();
+  }
+
   function renderJornadaUI() {
     if (jornadaStartAt === null) {
       jornadaStatusEl.hidden = true;
       return;
     }
     var elapsed = Date.now() - jornadaStartAt;
-    jornadaStatusEl.textContent = "jornada: " + fmtDuration(elapsed);
+    var windowMs = jornadaWindowMs();
+    var topeTs = jornadaStartAt + windowMs;
+    if (multiManningQualifies()) {
+      // B1: doble tripulación cualificada — ventana de 21h (30h − 9h, art. 8(5)) para
+      // EMPEZAR el descanso, que es el número que manda para el color de aviso (regla 1
+      // de PROYECTO.md: ante la duda, del lado malo — avisar con el margen más
+      // conservador, nunca el más permisivo). Se muestra además el límite del propio
+      // período de 30h (por cuándo debe estar COMPLETO el descanso, no solo empezado) —
+      // Hugo, 27/8: ejemplo de prueba obligatorio, "tarjeta a las 05:00 en doble → tope a
+      // las 11:00 del día siguiente" (05:00 + 30h).
+      var referenceTs = jornadaStartAt + MULTI_MANNING_REFERENCE_MS;
+      jornadaStatusEl.textContent = "jornada (doble, ref. 30h): " + fmtDuration(elapsed) +
+        " · empezar descanso de 9h antes de las " + fmtLocalDateTime(topeTs) +
+        " · período de 30h termina a las " + fmtLocalDateTime(referenceTs);
+    } else {
+      var showReduced = reducedRests.count < WEEKLY_REDUCED_MAX;
+      if (showReduced) {
+        var window11 = SINGLE_REFERENCE_MS - REGULAR_DAILY_MIN_MS;
+        var tope11Ts = jornadaStartAt + window11;
+        jornadaStatusEl.textContent = "jornada: " + fmtDuration(elapsed) +
+          " · 9h antes de las " + fmtLocalDateTime(topeTs) +
+          " · o 11h antes de las " + fmtLocalDateTime(tope11Ts);
+      } else {
+        // Las 3 reducciones de la semana ya se gastaron: la línea de 9h desaparece y la
+        // ventana pasa sola de 15h a 13h (jornadaWindowMs() ya lo calcula solo, al
+        // exigir 11h en vez de 9h en jornadaRestFloorMs()).
+        jornadaStatusEl.textContent = "jornada (sin reducidos disponibles): " + fmtDuration(elapsed) +
+          " · descanso de 11h antes de las " + fmtLocalDateTime(topeTs);
+      }
+    }
     jornadaStatusEl.hidden = false;
-    applyWarnLevel(jornadaStatusEl, warnLevel(JORNADA_MAX_MS - elapsed, JORNADA_WARN_MS));
+    applyWarnLevel(jornadaStatusEl, warnLevel(windowMs - elapsed, JORNADA_WARN_MS));
   }
 
   function loadJornadaDialogStep() {
@@ -4533,6 +4754,29 @@
     }
 
     return category;
+  }
+
+  // Reproduce las entradas manuales como si se hubieran vivido en tiempo real, tramo a
+  // tramo en orden — mismo motor que ya clasifica un descanso en vivo
+  // (classifyCompletedRestBlockOf), para que un descanso contado a mano tenga exactamente
+  // las mismas consecuencias (anclar jornadaStartAt, contar como reducido, abrir
+  // compensación) que uno vivido con el GPS en marcha. Solo para el conductor "solo"
+  // (único con ventana de jornada por ahora). `arr` ya tiene TODOS los segmentos
+  // empujados de golpe — para que classifyCompletedRestBlockOf (que mira el penúltimo
+  // descanso cerrado, buscando un partido 3+9 válido) no vea tramos que en el replay
+  // todavía no han "pasado", se le pasa una vista truncada hasta el tramo que se está
+  // clasificando en cada vuelta, nunca el array completo. Hugo, 27/8, punto B2.
+  function replayManualRestClassification(segments, arr) {
+    var baseLen = arr.length - segments.length;
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      if (seg.actividad !== "rest") continue;
+      var upTo = arr.slice(0, baseLen + i + 1);
+      classifyCompletedRestBlockOf(seg.fin - seg.inicio, seg.fin, upTo, reducedRests, compLedger, function (endTs2) {
+        jornadaStartAt = endTs2;
+        saveJornadaStartAt();
+      });
+    }
   }
 
   function checkCompensationDeadlinesOf(compArr, now, driverLabel) {
@@ -4998,6 +5242,8 @@
   // el mismo #se5000-manual sirve para cualquiera de los dos conductores (Hugo, 26/8:
   // "cada tarjeta dispara sus propias preguntas", mismos nodos, no duplicados).
   var se5000ActiveFlow = null;
+  // Toque breve en la bandeja pendiente de confirmar (null = nada pendiente) — A4, 27/8.
+  var pendingEjectDriver = null;
 
   var viewToggleBtn = document.getElementById("view-toggle");
   var classicViewEl = document.getElementById("classic-view");
@@ -5063,8 +5309,13 @@
   // 2 al "recoger al compañero a mitad de ruta"— solo deben engancharse al display
   // mientras el contador está en pantalla; si es el arranque conjunto y todavía estamos
   // en la pantalla de ajuste, el propio #setup ya es su sitio natural.
-  function se5000SyncDockGroup(els, anchorEl, visibleEl, requireCountdown) {
-    var shouldDock = se5000Mode && !visibleEl.hidden && (!requireCountdown || !countdownScreen.hidden);
+  // forceUndock (27/8, A4): la confirmación de sacar tarjeta manda mientras esté
+  // pendiente — un display tan pequeño no puede apilar debajo otro diálogo que quede
+  // fuera de la vista sin hacer scroll. true fuerza a este grupo a soltar el dock (si ya
+  // estaba dentro, vuelve a su sitio de siempre) sin tocar su propia visibilidad de
+  // verdad — solo cambia DÓNDE se pinta mientras dure la confirmación.
+  function se5000SyncDockGroup(els, anchorEl, visibleEl, requireCountdown, forceUndock) {
+    var shouldDock = !forceUndock && se5000Mode && !visibleEl.hidden && (!requireCountdown || !countdownScreen.hidden);
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       if (shouldDock) {
@@ -5086,10 +5337,17 @@
   // .children de verdad.
   function se5000SyncDialogDocks() {
     var anyDocked = false;
-    if (se5000SyncDockGroup([pauseStatusEl, pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl)) anyDocked = true;
-    if (se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl)) anyDocked = true;
-    if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl)) anyDocked = true;
-    if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true)) anyDocked = true;
+    // La confirmación de sacar tarjeta manda mientras esté pendiente — Hugo, 27/8, punto
+    // A4: un display tan pequeño no puede apilar la confirmación DEBAJO de otro diálogo
+    // (p. ej. clasificar la pausa) donde quede fuera de la vista sin hacer scroll. Igual
+    // que en el aparato real, "un mensaje ocupa el display entero y sustituye lo que
+    // había" — mientras haya una confirmación pendiente, es lo único que se engancha.
+    var ejectPending = pendingEjectDriver !== null;
+    if (se5000SyncDockGroup([pauseStatusEl, pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl, false, ejectPending)) anyDocked = true;
+    if (se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl, false, ejectPending)) anyDocked = true;
+    if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl, false, ejectPending)) anyDocked = true;
+    if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true, ejectPending)) anyDocked = true;
+    if (se5000SyncDockGroup([ejectConfirmEl], ejectConfirmAnchor, ejectConfirmEl)) anyDocked = true;
     se5000DialogDock.hidden = !anyDocked;
   }
 
@@ -5147,25 +5405,85 @@
   // insertCard()/ejectCard() (expuestas en __t) y este gesto se comprueba a mano en
   // Chrome real, mismo criterio que el resto de temporizadores de esta app.
   var TRAY_LONG_PRESS_MS = 3000;
+  // Tolerancia al movimiento del dedo mientras se mantiene pulsado — Hugo, 27/8, punto
+  // A2: "en un camión en marcha el dedo se mueve siempre y con la cancelación estricta
+  // no se completa ni un gesto". No cancela al primer touchmove, solo si el
+  // desplazamiento supera lo que cabría en un roce accidental (25-30px).
+  var TRAY_MOVE_TOLERANCE_PX = 28;
+
   function bindTrayGesture(el, onLongPress, onTap) {
     var timer = null;
+    var raf = null;
     var fired = false;
+    var startX = 0, startY = 0;
+
+    function pointerXY(e) {
+      if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+      return { x: e.clientX || 0, y: e.clientY || 0 };
+    }
+
+    function setProgress(frac) {
+      el.style.setProperty("--tray-progress", String(frac < 0 ? 0 : (frac > 1 ? 1 : frac)));
+    }
+
+    function paintProgress(startTime) {
+      if (timer === null) return;
+      setProgress((Date.now() - startTime) / TRAY_LONG_PRESS_MS);
+      raf = (typeof requestAnimationFrame === "function") ? requestAnimationFrame(function () { paintProgress(startTime); }) : null;
+    }
+
+    function clearHold() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (raf && typeof cancelAnimationFrame === "function") { cancelAnimationFrame(raf); }
+      raf = null;
+      setProgress(0);
+      el.classList.remove("tray-holding");
+    }
+
     function start(e) {
+      // Sin esto, en móvil el touchstart dispara scroll/zoom/selección del navegador a
+      // mitad de gesto y lo corta — Hugo, 27/8, punto A2.
+      if (e.cancelable && e.preventDefault) e.preventDefault();
       fired = false;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(function () { fired = true; timer = null; onLongPress(); }, TRAY_LONG_PRESS_MS);
+      var p = pointerXY(e);
+      startX = p.x;
+      startY = p.y;
+      clearHold();
+      el.classList.add("tray-holding");
+      var startTime = Date.now();
+      timer = setTimeout(function () {
+        fired = true;
+        clearHold();
+        if (navigator.vibrate) navigator.vibrate(60); // Hugo, 27/8, punto A3: vibración corta al completarse la inserción
+        onLongPress();
+      }, TRAY_LONG_PRESS_MS);
+      paintProgress(startTime);
     }
+
+    function move(e) {
+      if (timer === null) return;
+      var p = pointerXY(e);
+      var dx = p.x - startX, dy = p.y - startY;
+      if ((dx * dx + dy * dy) > (TRAY_MOVE_TOLERANCE_PX * TRAY_MOVE_TOLERANCE_PX)) clearHold();
+    }
+
     function end(e) {
-      if (timer) { clearTimeout(timer); timer = null; }
-      if (!fired) onTap();
+      var wasHolding = timer !== null;
+      clearHold();
+      if (wasHolding && !fired) onTap();
       fired = false;
     }
+
     function cancel(e) {
-      if (timer) { clearTimeout(timer); timer = null; }
+      clearHold();
       fired = false;
     }
+
     el.addEventListener("mousedown", start);
-    el.addEventListener("touchstart", start);
+    el.addEventListener("touchstart", start, { passive: false });
+    el.addEventListener("mousemove", move);
+    el.addEventListener("touchmove", move, { passive: true });
     el.addEventListener("mouseup", end);
     el.addEventListener("touchend", end);
     el.addEventListener("mouseleave", cancel);
@@ -5214,17 +5532,67 @@
       if (deadline !== null) {
         announce("Se recomienda meter antes la bandeja 2 en un arranque conjunto. Continuando igualmente.");
       }
+      // Ancla del margen de gracia de 60 min (art. 4(o)/8(5), ver multiManningQualifies())
+      // — el momento físico de meter la tarjeta, no cuando termine de responder las
+      // preguntas del flujo de entrada manual.
+      driver2JoinedAt = Date.now();
+      saveDriver2JoinedAt();
+      // A1/B1, Hugo 27/8: "pasados los 60 min, esa jornada no puede constituir doble
+      // tripulación: mantiene la referencia de 24h, avisa al conductor y lo registra
+      // así". Comprobación directa por tiempo (no vía multiManningQualifies(), que
+      // además exige doubleCrewOn — todavía a false en este punto, antes de que
+      // finishSe5000ManualEntry() lo active).
+      if (jornadaStartAt !== null && (driver2JoinedAt - jornadaStartAt) > MULTI_MANNING_GRACE_MS) {
+        announce("Atención: el compañero se ha subido pasada la primera hora de la jornada. No cuenta como conducción en equipo — se mantiene la referencia de 24 horas.");
+      }
       startCardInsertFlow(2);
     }
   }
 
-  function ejectCard(n) {
-    if (se5000ActiveFlow !== null) { announce("Termina primero la entrada de la tarjeta que está en curso."); return; }
-    var driving = (n === 2)
+  // Toque breve en la bandeja: SOLICITA sacar la tarjeta, no la saca — Hugo, 27/8, punto
+  // A4: "un roce en un bache no puede cerrar la jornada". Vuelve a comprobar el bloqueo
+  // de conducción aquí (no solo en requestEject) por si ha pasado tiempo entre pedir y
+  // confirmar y el vehículo se ha puesto en marcha mientras tanto — mismo criterio que
+  // el resto de la app, nunca fiarse de un estado leído hace un rato.
+  function isDrivingNow(n) {
+    return (n === 2)
       ? (doubleCrewOn && deadline2 !== null && !paused2)
       : (deadline !== null && !paused);
-    if (driving) {
+  }
+
+  function requestEject(n) {
+    if (se5000ActiveFlow !== null) { announce("Termina primero la entrada de la tarjeta que está en curso."); return; }
+    if (isDrivingNow(n)) {
       announce("No se puede sacar la tarjeta mientras conduces. El aparato real bloquea la bandeja con el vehículo en marcha — para primero.");
+      return;
+    }
+    if (n === 2) { if (!doubleCrewOn) return; } else { if (deadline === null) return; }
+    pendingEjectDriver = n;
+    renderEjectConfirm();
+  }
+
+  function renderEjectConfirm() {
+    ejectConfirmEl.hidden = pendingEjectDriver === null;
+    se5000SyncDialogDocks();
+  }
+
+  ejectConfirmYesBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var n = pendingEjectDriver;
+    pendingEjectDriver = null;
+    renderEjectConfirm();
+    if (n !== null) performEject(n);
+  });
+
+  ejectConfirmNoBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    pendingEjectDriver = null;
+    renderEjectConfirm();
+  });
+
+  function performEject(n) {
+    if (isDrivingNow(n)) {
+      announce("No se puede sacar la tarjeta: ha empezado a conducir mientras confirmabas. Para primero.");
       return;
     }
     if (n === 2) {
@@ -5242,6 +5610,8 @@
       localStorage.removeItem(STORAGE_KEY_2);
       localStorage.removeItem(FLAGS_KEY_2);
       localStorage.removeItem(QUIET_SINCE_KEY_2);
+      driver2JoinedAt = null;
+      saveDriver2JoinedAt();
       deadline2 = null;
       paused2 = false;
       pauseSource2 = null;
@@ -5301,6 +5671,9 @@
     se5000SyncDialogDocks();
     renderSe5000View();
   }
+
+  // Entrada pública del gesto de toque breve — pide confirmación, nunca cierra directo.
+  function ejectCard(n) { requestEject(n); }
 
   bindTrayGesture(se5000Tray1, function () { insertCard(1); }, function () { ejectCard(1); });
   bindTrayGesture(se5000Tray2, function () { insertCard(2); }, function () { ejectCard(2); });
@@ -5384,6 +5757,15 @@
     for (var i = 0; i < se5000ManualSegments.length; i++) {
       arr.push(se5000ManualSegments[i]);
     }
+    // B2, Hugo 27/8: "el período se ancla al fin del descanso anterior (art. 8.2 y 8.5),
+    // no a la entrada de la tarjeta — usa la tarjeta solo como respaldo". Si alguno de
+    // los tramos que se acaban de contar a mano es un descanso diario válido, ancla
+    // jornadaStartAt a SU fin real — no al momento de meter la tarjeta. Si ninguno lo es,
+    // no se toca nada aquí: jornadaStartAt se queda como estaba (puede que ya vencido, y
+    // entonces avisará en cuanto arranque la cuenta) — el fallback de "ahora" que hace
+    // startCountdown() cuando jornadaStartAt sigue sin valor es solo para el primerísimo
+    // uso de la app, nunca para pisar un período ya en curso.
+    if (n === 1) replayManualRestClassification(se5000ManualSegments, arr);
     save();
     localStorage.removeItem(key);
     se5000ActiveFlow = null;
@@ -5428,12 +5810,20 @@
       se5000MainPic.setAttribute("href", SE5000_PICS.driving);
       se5000MainClock.style.color = "";
     } else {
-      var openIv = d2 ? openInterval2() : openInterval();
-      var since = openIv ? openIv.inicio : Date.now();
-      se5000LabelTop.textContent = "llevas";
-      se5000MainClock.textContent = formatRemaining(Date.now() - since);
-      se5000LabelBottom.textContent = "en " + activityLabel(cls || "availability");
+      // B4, Hugo 27/8: "el bloque de ≥30 min de la pausa partida es una cuenta atrás
+      // contra las 4h30 de conducción, no un acumulado" — antes se mostraba el tiempo
+      // transcurrido en la actividad actual ("llevas 0:20"), que no es el dato que
+      // importa: lo que hay que ver es cuánta conducción queda bancada del bloque de
+      // 4h30 (pausedRemainingMs, congelado desde que se paró), igual que ya hace la
+      // vista clásica durante la pausa. Coincide además con la pantalla real del SE5000
+      // (manual pp.24-25, "Tomarse un descanso": muestra el tiempo restante junto al
+      // bloque de conducción que queda, nunca tiempo transcurrido).
+      var frozenRemaining = d2 ? pausedRemainingMs2 : pausedRemainingMs;
+      se5000LabelTop.textContent = "te quedan";
+      se5000MainClock.textContent = formatRemaining(frozenRemaining);
+      se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls || "availability");
       se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.availability);
+      se5000MainClock.style.color = "";
     }
 
     se5000SubEl.textContent = tgDdsEl.textContent;
