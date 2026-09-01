@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Copiloto de cabina — Reloj de conducción</title>
 <style>
   :root {
@@ -986,6 +988,53 @@
     padding: 2px 5px;
     border-radius: 4px;
     max-width: 100%;
+  }
+
+  /* #pause-status y #gap-status tienen su propia regla por id (clamp(13px,2.6vw,16px) y
+     similar) pensada para la pantalla clásica a tamaño completo — esa regla por id gana
+     por especificidad a .status-pill de arriba, así que nunca se encogían aquí dentro.
+     Encontrado inspeccionando el bezel real a 390px de ancho (1/9): el texto largo de
+     "a la espera de movimiento · faltan Xh Ymin para 9h" desbordaba el display entero y
+     descuadraba el marco (se veía casi el doble de alto de lo que marca su aspect-ratio
+     31/10). Mismo tamaño que ya usa .status-pill aquí dentro, para que quepa. */
+  #se5000-dialog-dock #pause-status,
+  #se5000-dialog-dock #gap-status {
+    font-size: clamp(6px, 1.4vw, 8px);
+    padding: 2px 5px;
+    border-radius: 4px;
+    max-width: 100%;
+    margin-top: 0;
+  }
+
+  /* Misma corrección para la entrada manual cuando queda enganchada al display (Bloque
+     1, conductor 2 a mitad de ruta) — sus tamaños (11-13px) estaban pensados para la
+     pantalla de ajuste a tamaño completo, no para la franja del bezel. */
+  #se5000-dialog-dock #se5000-manual-summary,
+  #se5000-dialog-dock #se5000-manual-divider {
+    font-size: clamp(5px, 1.2vw, 7px);
+  }
+  #se5000-dialog-dock .se5000-manual-btn {
+    font-size: clamp(5px, 1.1vw, 6.5px);
+    padding: 0.3em 0.2em;
+  }
+  #se5000-dialog-dock .se5000-manual-btn .se5000-pic {
+    width: 12px;
+    height: 12px;
+  }
+  #se5000-dialog-dock #se5000-manual-duration input {
+    width: 2em;
+    font-size: clamp(6px, 1.4vw, 8px);
+  }
+  #se5000-dialog-dock #se5000-manual-actions button,
+  #se5000-dialog-dock #se5000-manual-shortcut,
+  #se5000-dialog-dock #se5000-manual-undo {
+    font-size: clamp(5px, 1.2vw, 7px);
+    padding: 0.35em 0.4em;
+  }
+  #se5000-dialog-dock #se5000-manual-log,
+  #se5000-dialog-dock .se5000-manual-log-row {
+    font-size: clamp(5px, 1.1vw, 6.5px);
+    max-height: 8vh;
   }
 
   #se5000-dialog-dock #pause-classify,
