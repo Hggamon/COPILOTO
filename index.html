@@ -827,6 +827,18 @@
     --se-display-fg: #2b2a22;
     --se-display-dim: #6b6858;
     --se-key: #100f0c;
+
+    /* Menú de 4 entradas (manual p.15) y sus pantallas (LUGARES, Carga/descarga,
+       selector de país/comunidad) — todos los tamaños y tipografías nuevos de esta
+       pieza, agrupados aquí en un solo sitio para poder ajustarlos sin tocar la
+       estructura (Hugo, 1/9). Misma escala que ya usaba .se5000-display-title/-sub. */
+    --se-menu-title-fs: clamp(5.5px, 1.2vw, 7px);
+    --se-menu-item-fs: clamp(6px, 1.5vw, 8px);
+    --se-menu-notice-fs: clamp(5.5px, 1.2vw, 7px);
+    --se-menu-gap: clamp(1px, 0.4vh, 2px);
+    --se-menu-pad: clamp(3px, 1vh, 6px);
+    --se-key-activity-fs: clamp(7px, 1.9vw, 10px);
+    --se-key-activity-size: clamp(20px, 5.5vw, 26px);
   }
 
   /* Envoltorio transparente: no debe cambiar en nada el layout de la vista clásica
@@ -869,6 +881,17 @@
     align-items: center;
     gap: clamp(10px, 2vh, 18px);
     padding: 8px 16px;
+  }
+
+  /* CONFIGURAC. → Pantalla invertida (manual p.34): "hay dos modos de pantalla: fondo
+     oscuro con el texto claro, o luz de fondo con el texto oscuro" — solo la pantalla
+     LCD del propio aparato, no el resto de la app. Redefine las mismas variables que ya
+     usan .se5000-display/#se5000-menu/#se5000-dialog-dock, así que cascada sola sin
+     tocar ninguna otra regla. */
+  #se5000-view.se5000-inverted {
+    --se-display-bg: #2b2a22;
+    --se-display-fg: #d9d6c4;
+    --se-display-dim: #948f78;
   }
 
   /* Proporción y composición calcadas de la foto de producto real (comparación directa
@@ -1088,6 +1111,14 @@
   }
 
   .se5000-key:active { transform: scale(0.94); }
+
+  /* OK mantenido pulsado en la pantalla DTD (manual p.29) — mismo nombre de clase que ya
+     usan las bandejas (bindTrayGesture), aquí solo un aviso de borde, sin barra de
+     relleno (el botón es redondo y pequeño, no una franja ancha). */
+  #se5000-nav-ok.tray-holding {
+    border-color: var(--accent);
+    background: #241f14;
+  }
 
   /* Mitad derecha: tapa de la impresora — decorativa, no hace nada al tocarla (no hay
      nada que imprimir en un móvil). Hugo decidió mantenerla igualmente: es la mitad del
@@ -1455,6 +1486,206 @@
     white-space: pre-line;
     max-height: 15vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Bloque 1 (1/9) — corrección y borrado de entradas manuales, manual pp.21-23. */
+  #se5000-manual-undo {
+    font-family: var(--font-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg-dim);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--fg-dim);
+    border-radius: 8px;
+    padding: 0.45em 0.7em;
+    cursor: pointer;
+    align-self: flex-start;
+  }
+
+  /* Filas clicables del registro cuando se está eligiendo cuál cambiar — mismo tamaño
+     táctil real que el resto de botones de esta pantalla, no texto suelto. */
+  .se5000-manual-log-row {
+    font-family: var(--font-display);
+    font-size: 10.5px;
+    text-align: left;
+    color: var(--fg);
+    background: rgba(244, 242, 232, 0.06);
+    border: 1px solid var(--fg-dim);
+    border-radius: 6px;
+    padding: 0.4em 0.6em;
+    cursor: pointer;
+  }
+
+  .se5000-manual-log-row:active { transform: scale(0.98); }
+
+  #se5000-manual-confirm,
+  #se5000-manual-nochoice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #se5000-manual-confirm-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  #se5000-manual-confirm-yes,
+  #se5000-manual-confirm-no,
+  #se5000-manual-change,
+  #se5000-manual-clearall {
+    font-family: var(--font-label);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0.6em 1em;
+    border-radius: 9px;
+    cursor: pointer;
+    color: var(--fg);
+    background: rgba(244, 242, 232, 0.08);
+    border: 1px solid var(--fg-dim);
+  }
+
+  #se5000-manual-confirm-yes {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+  }
+
+  #se5000-manual-clearall {
+    color: #e05252;
+    border-color: #e05252;
+  }
+
+  /* ------------------------------------------------------------------------
+     Menú de 4 entradas (manual p.15): IMPRIMIR / CONFIGURAC. / LUGARES /
+     INFORMACIÓN, y de ahí LUGARES completo. OK abre esto en vez de clasificar
+     la actividad — ver se5000MenuOk(). Mismo patrón que #se5000-dialog-dock:
+     "un mensaje ocupa el display entero y sustituye lo que había" (Hugo,
+     26/8) — cubre el display por completo mientras esté abierto.
+     ------------------------------------------------------------------------ */
+  #se5000-menu {
+    position: absolute;
+    inset: 0;
+    background: var(--se-display-bg);
+    color: var(--se-display-fg);
+    display: flex;
+    flex-direction: column;
+    padding: var(--se-menu-pad) clamp(4px, 1.5vw, 7px);
+    z-index: 6;
+    overflow: hidden;
+  }
+
+  #se5000-menu-title {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-title-fs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--se-display-dim);
+    border-bottom: 1px solid #b6b39e;
+    padding-bottom: 2px;
+    margin-bottom: var(--se-menu-gap);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #se5000-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--se-menu-gap);
+    overflow-y: auto;
+  }
+
+  .se5000-menu-item {
+    font-family: var(--font-display);
+    font-size: var(--se-menu-item-fs);
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* El cursor se marca como en el resto del display de un tacógrafo real:
+     texto invertido, no color de acento (ese es un añadido de la app, no algo
+     que el aparato haga — regla del texto dentro del display). */
+  .se5000-menu-item.selected {
+    background: var(--se-display-fg);
+    color: var(--se-display-bg);
+    font-weight: 700;
+  }
+
+  #se5000-menu-notice {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-notice-fs);
+    color: var(--se-display-dim);
+    margin-top: var(--se-menu-gap);
+    white-space: pre-line;
+    line-height: 1.4;
+  }
+
+  #se5000-lugar-label {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-title-fs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--se-display-dim);
+  }
+
+  #se5000-lugar-value {
+    font-family: var(--font-display);
+    font-size: var(--se-menu-item-fs);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: var(--se-menu-gap);
+  }
+
+  #se5000-lugar-hint {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-notice-fs);
+    color: var(--se-display-dim);
+    margin-top: var(--se-menu-gap);
+  }
+
+  /* Botones físicos "1" (conductor) y "2" (compañero), manual p.16: aparte del
+     bloque de navegación ▲▼OK↩, junto a cada bandeja — igual que en el aparato
+     real. Sustituyen a OK como forma de clasificar la actividad a mano (ver
+     encargo 1/9, punto 2). */
+  .se5000-key-activity {
+    font-family: var(--font-label);
+    background: var(--se-key);
+    color: #a8a493;
+    border: 1px solid #3a362c;
+    border-radius: 999px;
+    width: var(--se-key-activity-size);
+    height: var(--se-key-activity-size);
+    font-size: var(--se-key-activity-fs);
+    font-weight: 700;
+    cursor: pointer;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .se5000-key-activity:active { transform: scale(0.94); }
+
+  .se5000-key-activity:disabled {
+    color: #4a4738;
+    cursor: default;
+  }
+
+  .se5000-tray-with-btn {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1.2vw, 7px);
+    flex: 1 1 0;
   }
 </style>
 
@@ -1483,6 +1714,12 @@
       <path d="M12.3 7.3l2.6 2.6 2-2-1-1 1.6-1.6-2.6-2.6-1.6 1.6-1-1z" />
       <path d="M20 20 9.5 9.5" />
       <path d="M11.7 7.3 9.1 9.9l-2-2 1-1-1.6-1.6 2.6-2.6 1.6 1.6 1-1z" />
+    </symbol>
+    <!-- Actividad desconocida: interrogación (manual p.15, "ningún tipo de actividad
+         registrada") — huecos sin clasificar, nunca un icono inventado. -->
+    <symbol id="pic-unknown" viewBox="0 0 24 24">
+      <path d="M8.2 9a3.8 3.8 0 1 1 5.9 3.2c-1.1.75-1.6 1.35-1.6 2.55" />
+      <circle cx="12" cy="18.6" r="0.35" fill="currentColor" stroke="none" />
     </symbol>
   </defs>
 </svg>
@@ -1559,7 +1796,28 @@
       <button id="se5000-manual-add" type="button">añadir tramo</button>
       <button id="se5000-manual-rest" type="button">el resto fue así</button>
     </div>
+    <!-- Manual p.21-22: "podrá volver atrás y cambiar sus entradas manuales usando el
+         botón Atrás en cualquier momento". El aparato real tiene un botón Atrás físico
+         siempre presente; en el flujo de ajuste inicial esta app no lo tiene a mano, así
+         que aquí es un botón propio con el mismo efecto (deshace el último tramo). En la
+         vista SE5000 en marcha, el ↩ físico hace lo mismo — ver se5000-nav-back. -->
+    <button id="se5000-manual-undo" type="button" hidden>↩ quitar último tramo</button>
     <div id="se5000-manual-log"></div>
+    <!-- "¿Confirmar entradas?" (manual p.21, literal) — antes de esto no existía ningún
+         paso de confirmación, se guardaba directo al llegar a 0 de remanente. -->
+    <div id="se5000-manual-confirm" hidden>
+      <div class="status-pill">¿Confirmar entradas?</div>
+      <div id="se5000-manual-confirm-buttons">
+        <button id="se5000-manual-confirm-yes" type="button">Sí</button>
+        <button id="se5000-manual-confirm-no" type="button">No</button>
+      </div>
+    </div>
+    <!-- Tras NO (manual p.22, literal): "¿Cambiar entrada?" o "Borrar todas las
+         entradas" — las dos opciones reales, con sus etiquetas reales. -->
+    <div id="se5000-manual-nochoice" hidden>
+      <button id="se5000-manual-change" type="button">¿Cambiar entrada?</button>
+      <button id="se5000-manual-clearall" type="button">Borrar todas las entradas</button>
+    </div>
   </div>
 
   <div id="diag-panel" hidden></div>
@@ -1622,12 +1880,30 @@
                  había" — Hugo, 26/8. Vuelven a su sitio de siempre al ocultarse o al
                  volver a la vista clásica. -->
             <div id="se5000-dialog-dock" hidden></div>
+            <!-- Menú de 4 entradas (manual p.15), abierto con OK — sustituye lo que
+                 hubiera en el display, igual que los diálogos de arriba. Solo se abre
+                 con el vehículo parado (manual p.15: "por razones de seguridad de
+                 tráfico solo puede poner el tacógrafo en funcionamiento cuando el
+                 vehículo esté parado") — ver se5000MenuOk()/renderSe5000Menu(). -->
+            <div id="se5000-menu" hidden>
+              <div id="se5000-menu-title"></div>
+              <div id="se5000-menu-list"></div>
+              <div id="se5000-menu-notice" hidden></div>
+              <!-- Selector de país/comunidad para Lugar de inicio/fin (manual p.19),
+                   mismas listas COUNTRY_CODES/REGION_CODES que ya usa el diálogo de
+                   inicio de jornada — aquí en su versión compacta de display. -->
+              <div id="se5000-lugar" hidden>
+                <div id="se5000-lugar-label"></div>
+                <div id="se5000-lugar-value">—</div>
+                <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
+              </div>
+            </div>
           </div>
           <div class="se5000-nav">
             <button class="se5000-key" id="se5000-nav-back" type="button" aria-label="atrás">↩</button>
             <button class="se5000-key" id="se5000-nav-down" type="button" aria-label="pantalla anterior">▼</button>
             <button class="se5000-key" id="se5000-nav-up" type="button" aria-label="pantalla siguiente">▲</button>
-            <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, clasificar actividad">OK</button>
+            <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, abrir menú">OK</button>
           </div>
         </div>
         <div class="se5000-printer" aria-hidden="true">
@@ -1637,14 +1913,25 @@
         </div>
       </div>
       <div class="se5000-bottom-strip">
-        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">
-          <span class="se5000-tray-slot" aria-hidden="true"></span>
-          <span class="se5000-tray-label">1</span>
-        </button>
-        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">
-          <span class="se5000-tray-slot" aria-hidden="true"></span>
-          <span class="se5000-tray-label">2</span>
-        </button>
+        <div class="se5000-tray-with-btn">
+          <!-- Botón "1": clasifica la actividad del conductor (manual p.16) — ocupa el
+               sitio que tenía OK antes de este cambio. Solo actúa parado y sin
+               "conduciendo" (esa la pone el sensor de movimiento, no se elige a mano). -->
+          <button class="se5000-key-activity" id="se5000-btn1" type="button" aria-label="botón 1, actividad del conductor">1</button>
+          <button class="se5000-tray se5000-tray-wide" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">
+            <span class="se5000-tray-slot" aria-hidden="true"></span>
+            <span class="se5000-tray-label">1</span>
+          </button>
+        </div>
+        <div class="se5000-tray-with-btn">
+          <button class="se5000-tray se5000-tray-wide" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">
+            <span class="se5000-tray-slot" aria-hidden="true"></span>
+            <span class="se5000-tray-label">2</span>
+          </button>
+          <!-- Botón "2": clasifica la actividad del compañero del conductor (manual
+               p.16). Solo hace algo con tripulación doble activa. -->
+          <button class="se5000-key-activity" id="se5000-btn2" type="button" aria-label="botón 2, actividad del compañero">2</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2197,16 +2484,34 @@
 
   // --- Réplica del tacógrafo (Stoneridge SE5000 Smart 2): capa de presentación aparte,
   // solo lee el estado de arriba (openInterval, dailyDrive, restBlockActive, jornadaStartAt,
-  // geoDebug...) para pintar el botón de actividad y las 5 pantallas de conductor (DDS) que
+  // geoDebug...) para pintar el botón de actividad y las pantallas de conductor (DDS) que
   // trae la guía de consulta rápida real. No calcula nada nuevo ni toca localStorage propio.
   var ddsScreenIndex = 0;
-  var DDS_TITLES = [
+  // Dos series reales, manual p.12, literal — "el tacógrafo cuenta con dos series
+  // estándar de vistas de pantalla... dependiendo de [si DDS está ENCENDIDO o APAGADO],
+  // las series de vistas son diferentes". CONFIGURAC. → Ajustes DDS → DDS activar
+  // decide cuál de las dos se usa (ver ddsEnabled). "Pantalla por defecto" es la única
+  // que el manual lista en las dos series — por eso el índice 0 significa lo mismo en
+  // ambas y currentDdsTitles()[0] es igual en las dos listas.
+  var DDS_ON_TITLES = [
     "Visión general",
-    "Tiempo que queda por conducir",
-    "Tiempo hasta el descanso",
     "Horario de trabajo",
-    "Velocidad y odómetro"
+    "DTD",
+    "Velocidad actual",
+    "Tiempo que queda de conducción",
+    "Tiempo que queda de descanso",
+    "Ferry/tren"
   ];
+  var DDS_OFF_TITLES = [
+    "Visión general",
+    "Conductor 1",
+    "Conductor 2",
+    "Fecha y hora UTC",
+    "Fecha y hora local",
+    "DTD",
+    "Velocidad actual"
+  ];
+  function currentDdsTitles() { return ddsEnabled ? DDS_ON_TITLES : DDS_OFF_TITLES; }
   var CLASSIFICATION_CYCLE = ["availability", "rest", "other"];
 
   // Abreviaturas de país/provincia para la entrada manual de lugar (§4, art. 34
@@ -2903,7 +3208,13 @@
     if (cls === "rest") return "descanso";
     if (cls === "availability") return "disponibilidad";
     if (cls === "other") return "otros trabajos";
-    return "conduciendo";
+    if (cls === "conduccion") return "conduciendo";
+    // Manual p.15: "? Actividad desconocida — ningún tipo de actividad registrada".
+    // Antes esto devolvía "conduciendo" por defecto — con el vehículo parado eso es un
+    // dato falso, no un relleno inocuo (regla 1, PROYECTO.md: ante la duda, del lado
+    // malo — y "desconocida" es justo lo que se sanciona en un control, nunca hay que
+    // disfrazarlo de otra cosa).
+    return "actividad desconocida";
   }
 
   function renderActivityBtn(isPaused, classification) {
@@ -3407,19 +3718,22 @@
       announcedObj.amber = true;
       saveFlagsFn();
       logDiag((diagLabel || "") + "15 min (ámbar)", deadlineTs - AMBER_MS, source);
-      announce("Atención, quince minutos o menos de conducción.");
+      // CONFIGURAC. → Ajustes DDS → Advertencias DDS (manual p.33): apaga solo el aviso
+      // de voz de este punto real del aparato, nunca el cambio de color ni el registro —
+      // esos siguen pase lo que pase, el interruptor es "advertencias", no "medición".
+      if (ddsVoiceWarningsAllowed()) announce("Atención, quince minutos o menos de conducción.");
     }
     if (remaining <= RED_MS && !announcedObj.red) {
       announcedObj.red = true;
       saveFlagsFn();
       logDiag((diagLabel || "") + "5 min (rojo)", deadlineTs - RED_MS, source);
-      playDing();
+      playDing(); // añadido propio de la app, no un aviso DDS — no lo apaga este interruptor
     }
     if (remaining <= 0 && !announcedObj.zero) {
       announcedObj.zero = true;
       saveFlagsFn();
       logDiag((diagLabel || "") + "0:00", deadlineTs, source);
-      announce(ZERO_MESSAGE);
+      if (ddsVoiceWarningsAllowed()) announce(ZERO_MESSAGE);
     }
     renderDriver2Pill();
   }
@@ -3651,13 +3965,14 @@
 
   tgDdsUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    ddsScreenIndex = (ddsScreenIndex + DDS_TITLES.length - 1) % DDS_TITLES.length;
+    var n = currentDdsTitles().length;
+    ddsScreenIndex = (ddsScreenIndex + n - 1) % n;
     renderDdsScreen();
   });
 
   tgDdsDownBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    ddsScreenIndex = (ddsScreenIndex + 1) % DDS_TITLES.length;
+    ddsScreenIndex = (ddsScreenIndex + 1) % currentDdsTitles().length;
     renderDdsScreen();
   });
 
@@ -4608,60 +4923,238 @@
     return paused ? activityLabel(pauseClassification) : "conduciendo";
   }
 
+  // Compañero: qué actividad y desde cuándo, mirando el motor de intervalos del que NO
+  // está activo ahora mismo — usado por la pantalla por defecto (campos 6/7) y por
+  // "Tiempo que queda de descanso" (campo 3). Devuelve null si no hay tripulación doble.
+  function companionState(now) {
+    if (!doubleCrewOn) return null;
+    var inactiveNum = (activeDriver === 1) ? 2 : 1;
+    var inactiveCls = (inactiveNum === 1) ? pauseClassification : pauseClassification2;
+    var inactiveArr = (inactiveNum === 1) ? intervalsSolo : intervalsSolo2;
+    var inactiveOpenIv = openIntervalOf(inactiveArr);
+    var since = inactiveOpenIv ? inactiveOpenIv.inicio : now;
+    return { num: inactiveNum, cls: inactiveCls || "availability", sinceMs: now - since };
+  }
+
+  // Contenido compartido por las dos series (idx 0 en las dos, manual p.12) — pantalla
+  // por defecto, ocho campos exactos, en este orden (manual p.13).
+  function ddsDefaultScreenLines(now, arr, resetAt) {
+    var lines = [];
+    var openIv = openInterval();
+    var since = openIv ? openIv.inicio : now;
+    var comp = companionState(now);
+    lines.push("1 actividad: " + currentActivityLabel());
+    lines.push("2 ITS/RHMI: —"); // no aplica — esta app no tiene esa conexión, no se inventa
+    lines.push("3 desde hace: " + fmtDuration(now - since));
+    lines.push("4 pausa acumulada: " + fmtDuration(breakBankedMs(arr, resetAt, now)));
+    lines.push("5 modo: conducción"); // único modo que esta app representa (sin empresa/control/calibración)
+    lines.push("6 compañero: " + (comp ? activityLabel(comp.cls) : "—"));
+    lines.push("7 su duración: " + (comp ? fmtDuration(comp.sinceMs) : "—"));
+    // 8: hora local, sustituida por Ferry o por OUT según el modo activo — Hugo, 1/9.
+    var field8;
+    if (ferryMode) field8 = "Ferry";
+    else if (outOfScopeMode) field8 = "OUT";
+    else {
+      var dd = new Date(now);
+      field8 = String(dd.getHours()).padStart(2, "0") + ":" + String(dd.getMinutes()).padStart(2, "0");
+    }
+    lines.push("8 hora local: " + field8);
+    return lines;
+  }
+
+  // "Conductor 1"/"Conductor 2" (manual p.14, serie DDS apagado): cuatro campos propios,
+  // distintos de los de INFORMACIÓN (esa vista trae "continua/semanal/diaria/2 semanas";
+  // esta trae "desde la última pausa/pausa acumulada/diaria/semanal" — dos pantallas
+  // reales con conjuntos de campos distintos, no la misma cosa repetida).
+  function ddsDriverScreenLines(forD2, now) {
+    if (forD2 && !doubleCrewOn) return ["conductor 2: no aplica"];
+    var dl = forD2 ? deadline2 : deadline;
+    if (dl === null) return ["conductor " + (forD2 ? 2 : 1) + ": sin jornada"];
+    var isP = forD2 ? paused2 : paused;
+    var remBlock = isP ? (forD2 ? pausedRemainingMs2 : pausedRemainingMs) : (dl - now);
+    var contMs = BLOCK_MS - Math.max(0, remBlock);
+    var arr = forD2 ? intervalsSolo2 : intervalsSolo;
+    var resetAt = forD2 ? fourH30ResetAt2 : fourH30ResetAt;
+    var dd = forD2 ? dailyDrive2 : dailyDrive;
+    var wd = forD2 ? weekDrive2 : weekDrive;
+    return [
+      "desde última pausa: " + fmtDuration(contMs),
+      "pausa acumulada: " + fmtDuration(breakBankedMs(arr, resetAt, now)),
+      "diaria: " + fmtDuration(dd.drivenMs),
+      "semanal: " + fmtDuration(wd.currentMs)
+    ];
+  }
+
+  // "Ferry/tren" (manual, legenda de pictogramas junto a "Conductor 1 y conductor 2",
+  // p.14): presentación del modo, tiempo de interrupción restante (máx. 1h), aviso si
+  // hace falta recortar la interrupción, y descanso diario restante. Reutiliza el estado
+  // del modo ferry/tren que ya existe (ferryMode/ferryInterruptions) — no se recalcula
+  // nada, solo se presenta como pantalla DDS.
+  function ddsFerryScreenLines(now) {
+    if (!ferryMode) return ["ferry/tren: inactivo"];
+    var remainInterrupt = FERRY_MAX_TOTAL_MS - ferryInterruptions.totalMs;
+    var lines = [
+      "ferry/tren: activo",
+      "interrupción restante: " + formatRemaining(Math.max(0, remainInterrupt)) +
+        " (" + ferryInterruptions.count + "/" + FERRY_MAX_INTERRUPTIONS + " usadas)"
+    ];
+    if (ferryInterruptions.invalid) lines.push("descanso ya no válido (art. 9)");
+    if (jornadaStartAt !== null) {
+      var remaining = jornadaStartAt + jornadaWindowMs() - now;
+      lines.push("descanso diario restante: " + fmtDuration(Math.max(0, remaining)));
+    }
+    return lines;
+  }
+
+  // DTD — pantalla de temporizadores del conductor (manual p.29): activación real por
+  // mantener pulsado OK (ver se5000NavOkLongPress), con sus dos temporizadores reales
+  // mientras hay tarjeta insertada — leen el MISMO motor de intervalos que ya usa el
+  // resto de la app (deadline/pausedRemainingMs/breakBlockProgress), nunca un cálculo
+  // aparte. "La actividad de trabajo no afectará a los temporizadores" (manual, literal):
+  // el izquierdo se queda congelado mientras la clasificación es "otros trabajos".
+  //
+  // Lo que NO está construido: el manual dice que la DTD "funciona sin tener una tarjeta
+  // de conductor insertada" — en esta app el motor de actividad/GPS solo corre con
+  // tarjeta metida (ver #se5000-reposo, que no arranca startGeoWatch()). Ampliar el motor
+  // para que registre actividad también en reposo es un cambio de arquitectura aparte, no
+  // de esta pantalla — se deja como aviso explícito en vez de fingir un cálculo sin datos
+  // reales detrás. Pendiente, señalado a Hugo.
+  function ddsDtdScreenLines() {
+    if (deadline === null) {
+      return ["DTD: sin tarjeta insertada", "no disponible en esta app (motor pendiente)"];
+    }
+    if (!dtdActive) {
+      return ["DTD: inactivo", "mantén pulsado OK para activar"];
+    }
+    var now = Date.now();
+    var d2 = isDriver2Active();
+    var isP = d2 ? paused2 : paused;
+    var cls = d2 ? pauseClassification2 : pauseClassification;
+    var arr = d2 ? intervalsSolo2 : intervalsSolo;
+    var resetAt = d2 ? fourH30ResetAt2 : fourH30ResetAt;
+    var left;
+    if (!isP) {
+      // "El temporizador de la izquierda realizará la cuenta atrás hasta 0h00 con cada
+      // minuto de conducción registrado" — mismo número que "conducción disponible".
+      var dl = d2 ? deadline2 : deadline;
+      left = formatRemaining(dl - now);
+    } else if (cls === "other") {
+      left = "sin cambios (otros trabajos)";
+    } else {
+      var openIv = d2 ? openInterval2() : openInterval();
+      var progress = breakBlockProgress(openIv, arr, resetAt, now);
+      left = progress ? formatRemaining(progress.remainingMs) : "0:00";
+    }
+    // Temporizador derecho: cuenta hacia arriba desde que se activó, hasta 99h59 (tope
+    // literal del manual) o hasta desactivar.
+    var elapsedRight = Math.min(now - dtdActivatedAt, (99 * 60 + 59) * 60000);
+    var rh = Math.floor(elapsedRight / 3600000);
+    var rm = Math.floor((elapsedRight % 3600000) / 60000);
+    var right = rh + "h" + String(rm).padStart(2, "0");
+    return [
+      "DTD: activo",
+      "izq. (conducción/descanso): " + left,
+      "der. (desde activar): " + right
+    ];
+  }
+
+  // Manual p.29: "mantenga pulsado OK" activa/desactiva — sin confirmación aparte, y
+  // vibración corta como acuse (mismo patrón que ya usa el gesto de meter tarjeta).
+  function se5000ToggleDtd() {
+    dtdActive = !dtdActive;
+    if (dtdActive) {
+      dtdActivatedAt = Date.now();
+      localStorage.setItem(DTD_ACTIVATED_AT_KEY, String(dtdActivatedAt));
+    } else {
+      dtdActivatedAt = null;
+      localStorage.removeItem(DTD_ACTIVATED_AT_KEY);
+    }
+    localStorage.setItem(DTD_ACTIVE_KEY, dtdActive ? "on" : "off");
+    renderDdsScreen();
+    renderSe5000View();
+  }
+
+  // "Velocidad actual" (manual p.13): tarjeta bandeja 1, velocidad, tarjeta bandeja 2,
+  // odómetro — el odómetro no se puede leer desde un móvil, guiones siempre.
+  function ddsSpeedScreenLines() {
+    return [
+      "bandeja 1: conductor",
+      "velocidad: " + (geoDebug.speedKmh === null ? "—" : Math.round(geoDebug.speedKmh) + " km/h"),
+      "bandeja 2: " + (doubleCrewOn ? "conductor" : "—"),
+      "odómetro: —"
+    ];
+  }
+
   function renderDdsScreen() {
     if (!tgDdsEl) return;
     var now = Date.now();
-    var lines = [];
     var idx = ddsScreenIndex;
+    var d2 = isDriver2Active();
+    var arr = d2 ? intervalsSolo2 : intervalsSolo;
+    var resetAt = d2 ? fourH30ResetAt2 : fourH30ResetAt;
+    var lines;
 
     if (idx === 0) {
-      var openIv = openInterval();
-      var since = openIv ? openIv.inicio : now;
-      lines.push("actividad actual: " + currentActivityLabel());
-      lines.push("desde hace: " + fmtDuration(now - since));
-      if (doubleCrewOn) {
-        var inactiveNum = (activeDriver === 1) ? 2 : 1;
-        var inactiveCls = (inactiveNum === 1) ? pauseClassification : pauseClassification2;
-        lines.push("compañero (conductor " + inactiveNum + "): " + activityLabel(inactiveCls || "availability"));
-      }
-      var d = new Date(now);
-      lines.push("hora local: " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"));
-    } else if (idx === 1) {
-      var curPaused = isDriver2Active() ? paused2 : paused;
-      var curDeadline = isDriver2Active() ? deadline2 : deadline;
-      var remaining = curDeadline === null ? null : (curPaused
-        ? (isDriver2Active() ? pausedRemainingMs2 : pausedRemainingMs)
-        : curDeadline - now);
-      lines.push("conducción disponible: " + (remaining === null ? "—" : formatRemaining(remaining)));
-      lines.push("límite que manda: " + (isDriver2Active() ? "de conducción" : clockLabelEl.textContent));
-      lines.push("siguiente actividad: descanso");
-    } else if (idx === 2) {
-      if (!isDriver2Active() && paused && pauseClassification === "rest") {
-        var openIv2 = openInterval();
-        var since2 = (openIv2 && openIv2.actividad === "rest") ? openIv2.inicio : (restBlockActive ? restBlockActive.startTs : now);
-        var elapsed = now - since2;
-        if (elapsed < REDUCED_DAILY_MIN_MS) {
-          lines.push("llevas: " + fmtDuration(elapsed));
-          lines.push("faltan " + fmtDuration(REDUCED_DAILY_MIN_MS - elapsed) + " para que valga como reducido (9h)");
-        } else if (elapsed < REGULAR_DAILY_MIN_MS) {
-          lines.push("llevas: " + fmtDuration(elapsed) + " · ya vale como reducido");
-          lines.push("faltan " + fmtDuration(REGULAR_DAILY_MIN_MS - elapsed) + " para normal (11h)");
-        } else {
-          lines.push("llevas: " + fmtDuration(elapsed) + " · ya vale como descanso normal");
-        }
+      lines = ddsDefaultScreenLines(now, arr, resetAt);
+    } else if (ddsEnabled) {
+      // Serie DDS ENCENDIDO (manual p.12): pantalla por defecto · horario de trabajo ·
+      // DTD · velocidad actual · tiempo que queda de conducción · tiempo que queda de
+      // descanso · ferry/tren — en ese orden exacto, ver DDS_ON_TITLES.
+      if (idx === 1) {
+        // "Horario de trabajo" (manual p.15) — trabajo = conducción + otros trabajos
+        // (Directiva 2002/15/CE art. 3(a)); disponibilidad NO es trabajo.
+        var jStart = jornadaStartAt === null ? 0 : jornadaStartAt;
+        var wStart = (d2 ? weekDrive2 : weekDrive).weekStart;
+        lines = [
+          "trabajo desde última pausa: " + fmtDuration(sumWorkMs(arr, lastBreakEndTs(arr, jStart), now)),
+          "trabajo diario: " + fmtDuration(sumWorkMs(arr, jStart, now)),
+          "descanso diario: " + fmtDuration(sumRestMs(arr, jStart, now)),
+          "trabajo semanal: " + fmtDuration(sumWorkMs(arr, wStart, now))
+        ];
+      } else if (idx === 2) {
+        lines = ddsDtdScreenLines();
+      } else if (idx === 3) {
+        lines = ddsSpeedScreenLines();
+      } else if (idx === 4) {
+        var curPaused = d2 ? paused2 : paused;
+        var curDeadline = d2 ? deadline2 : deadline;
+        var remaining = curDeadline === null ? null : (curPaused ? (d2 ? pausedRemainingMs2 : pausedRemainingMs) : curDeadline - now);
+        lines = [
+          "conducción disponible: " + (remaining === null ? "—" : formatRemaining(remaining)),
+          "límite que manda: " + (d2 ? "de conducción" : clockLabelEl.textContent),
+          "siguiente actividad: descanso"
+        ];
+      } else if (idx === 5) {
+        // "Tiempo que queda de descanso" (manual p.13) — NO es el progreso hacia el
+        // descanso diario de 9h/11h (eso vive en INFORMACIÓN, vista 1); es la cuenta
+        // atrás del propio bloque de 4h30 (art. 7) mientras dura la pausa en curso.
+        var openIv2 = d2 ? openInterval2() : openInterval();
+        var progress = breakBlockProgress(openIv2, arr, resetAt, now);
+        var comp2 = companionState(now);
+        var frozenAfter = d2 ? pausedRemainingMs2 : pausedRemainingMs;
+        lines = [
+          "actividad: " + currentActivityLabel(),
+          "descanso que falta: " + (progress ? formatRemaining(progress.remainingMs) : "—"),
+          "compañero: " + (comp2 ? activityLabel(comp2.cls) : "—"),
+          "conducción tras la pausa: " + ((d2 ? paused2 : paused) ? formatRemaining(frozenAfter) : "—")
+        ];
       } else {
-        lines.push("no estás en descanso ahora mismo");
+        lines = ddsFerryScreenLines(now);
       }
-    } else if (idx === 3) {
-      lines.push("jornada actual: " + (jornadaStartAt === null ? "—" : fmtDuration(now - jornadaStartAt)));
-      lines.push("conducción de hoy: " + fmtDuration(dailyDrive.drivenMs));
-      lines.push("trabajo semanal: esta app todavía no lo mide");
     } else {
-      lines.push("velocidad: " + (geoDebug.speedKmh === null ? "—" : Math.round(geoDebug.speedKmh) + " km/h"));
-      lines.push("odómetro: no disponible en esta app");
+      // Serie DDS APAGADO (manual p.12): pantalla por defecto · conductor 1 · conductor
+      // 2 · fecha y hora UTC · fecha y hora local · DTD · velocidad actual — ver
+      // DDS_OFF_TITLES. El motor de intervalos sigue funcionando igual (no depende de
+      // DDS); esto solo cambia qué se enseña en el carrusel.
+      if (idx === 1) lines = ddsDriverScreenLines(false, now);
+      else if (idx === 2) lines = ddsDriverScreenLines(true, now);
+      else if (idx === 3) lines = [fmtUTCDateTime(now)];
+      else if (idx === 4) lines = [fmtLocalDateTime(now)];
+      else if (idx === 5) lines = ddsDtdScreenLines();
+      else lines = ddsSpeedScreenLines();
     }
 
-    tgDdsTitleEl.textContent = DDS_TITLES[idx];
+    tgDdsTitleEl.textContent = currentDdsTitles()[idx];
     tgDdsEl.textContent = lines.join("\n");
   }
 
@@ -4731,6 +5224,14 @@
     var d = new Date(ts);
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") +
       " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" + String(d.getSeconds()).padStart(2, "0");
+  }
+
+  // Misma forma que fmtLocalDateTime() pero en UTC — menú INFORMACIÓN, vista "Fecha y
+  // hora UTC" (manual p.31).
+  function fmtUTCDateTime(ts) {
+    var d = new Date(ts);
+    return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0") +
+      " " + String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0") + ":" + String(d.getUTCSeconds()).padStart(2, "0") + " UTC";
   }
 
   function withReadableTimes(intervals) {
@@ -4946,13 +5447,18 @@
 
   // Art. 7: el bloque de 4h30 se reinicia con una pausa válida — 45 min de un tirón, o
   // 15 min + 30 min en ese orden, repartidos entre las pausas desde el último reinicio.
-  // A diferencia del art. 8, aquí NO hace falta que sea "descanso" clasificado: cualquier
-  // interrupción de la conducción cuenta (disponibilidad, otros trabajos o descanso).
-  // Solo cuentan como pausa las tres clasificaciones reales — nunca "conduccion" (obvio)
-  // ni "desconocida": un hueco sin clasificar no se supone que fuera una pausa válida
-  // (§7, regla 5: cuenta como conducción a efectos de cálculo mientras no se clasifique).
+  // A diferencia del art. 8, aquí NO hace falta que sea "descanso" clasificado: descanso Y
+  // disponibilidad cuentan igual para este bloque (manual SE5000 p.30: "las actividades de
+  // descanso y disponibilidad harán que el temporizador... cuente hacia atrás... también
+  // pueden utilizarse 15 min + 30 min en lugar de 45 min", para las dos por igual).
+  // "other" (otros trabajos) NUNCA cuenta — manual p.29, literal: "la actividad de trabajo
+  // no afectará a los temporizadores". Corregido 1/9: antes sumaba, fallo vivo en
+  // producción encontrado auditando contra el manual (DUDAS.md, "Qué suma para los 45").
+  // Ni "conduccion" (obvio) ni "desconocida" cuentan tampoco: un hueco sin clasificar no
+  // se supone que fuera una pausa válida (§7, regla 5: cuenta como conducción a efectos de
+  // cálculo mientras no se clasifique).
   function isRealBreakActivity(actividad) {
-    return actividad === "rest" || actividad === "availability" || actividad === "other";
+    return actividad === "rest" || actividad === "availability";
   }
 
   // Genérica desde el principio (arr/resetAt como parámetros, no globals fijos) para que
@@ -4989,6 +5495,98 @@
 
   function breakQualifiesForReset(closedIv, arr, resetAt) {
     return evaluateBreakForReset(closedIv, arr, resetAt).qualifies;
+  }
+
+  // --- Deployment 2 (1/9): piezas para "Tiempo que queda de descanso" (p.13) y "Horario
+  // de trabajo" (p.15) — genéricas desde el principio, mismo criterio que
+  // evaluateBreakForReset() de arriba, para no reimplementar el partido 15+30 una segunda
+  // vez con otro criterio que pueda divergir. ---
+
+  // Cuánto descanso/disponibilidad real lleva acumulado el conductor desde el último
+  // reinicio válido del bloque de 4h30 (tramos cerrados + el abierto hasta `now`) — el
+  // complemento de breakBlockProgress() de abajo, para el campo 4 de la pantalla por
+  // defecto ("tiempo de pausa acumulado del conductor").
+  function breakBankedMs(arr, resetAt, now) {
+    var since = resetAt === null ? 0 : resetAt;
+    var total = 0;
+    for (var i = 0; i < arr.length; i++) {
+      var iv = arr[i];
+      if (!isRealBreakActivity(iv.actividad)) continue;
+      var end = iv.fin === null ? now : iv.fin;
+      var start = Math.max(iv.inicio, since);
+      if (end > start) total += (end - start);
+    }
+    return total;
+  }
+
+  // Mientras el tramo abierto ES un descanso/disponibilidad real: cuánto le falta para
+  // que el bloque de 4h30 se desbloquee — mismos umbrales que evaluateBreakForReset()
+  // (FULL_BREAK_MS de un tirón, o SPLIT_BREAK_FIRST_MS+SPLIT_BREAK_SECOND_MS repartidos):
+  // si ya hay un primer tramo cerrado ≥15 min desde el reinicio, a este solo le hacen
+  // falta 30 min más; si no, le hacen falta los 45 enteros. null si ahora mismo no aplica
+  // (no está en un descanso/disponibilidad real). Manual p.13, "Tiempo que queda de
+  // descanso": campo 2 (ejemplo `0h 45`).
+  function breakBlockProgress(openIv, arr, resetAt, now) {
+    if (!openIv || !isRealBreakActivity(openIv.actividad)) return null;
+    var since = resetAt === null ? 0 : resetAt;
+    var hasFirstSegment = false;
+    for (var i = 0; i < arr.length; i++) {
+      var iv = arr[i];
+      if (iv === openIv || !isRealBreakActivity(iv.actividad) || iv.fin === null || iv.inicio < since) continue;
+      if ((iv.fin - iv.inicio) >= SPLIT_BREAK_FIRST_MS) { hasFirstSegment = true; break; }
+    }
+    var neededMs = hasFirstSegment ? SPLIT_BREAK_SECOND_MS : FULL_BREAK_MS;
+    var elapsedMs = now - openIv.inicio;
+    var rawRemaining = Math.max(0, neededMs - elapsedMs);
+    // Redondeo hacia ARRIBA al minuto, nunca hacia abajo (PROYECTO.md regla 1): esto es
+    // "cuánto FALTA para cumplir", no "cuánto queda de crédito" — formatRemaining() trunca
+    // hacia abajo (correcto para conducción disponible, que sí debe ir en contra del
+    // conductor), pero aquí truncar diría "ya está" hasta 59s antes de que sea cierto.
+    // Encontrado probando en vivo (1/9), no en la revisión de código.
+    var remainingMs = rawRemaining > 0 ? Math.ceil(rawRemaining / 60000) * 60000 : 0;
+    return { elapsedMs: elapsedMs, neededMs: neededMs, remainingMs: remainingMs };
+  }
+
+  // Directiva 2002/15/CE art. 3(a): tiempo de trabajo = conducción + otros trabajos. La
+  // disponibilidad NO es trabajo (la define aparte el art. 3(b)) — DUDAS.md, "Qué suma
+  // para los 45" trae la misma distinción para el art. 7, aquí es la definición general
+  // de la Directiva de horario de trabajo, no la misma regla. Suma tramos cerrados dentro
+  // de [sinceTs, now) más el abierto si corresponde.
+  function sumWorkMs(arr, sinceTs, now) {
+    var total = 0;
+    for (var i = 0; i < arr.length; i++) {
+      var iv = arr[i];
+      if (iv.actividad !== "conduccion" && iv.actividad !== "other") continue;
+      var end = iv.fin === null ? now : iv.fin;
+      var start = Math.max(iv.inicio, sinceTs);
+      if (end > start) total += (end - start);
+    }
+    return total;
+  }
+
+  // Descanso (clasificación "rest", no disponibilidad) acumulado desde sinceTs — campo
+  // "tiempo de descanso diario" de Horario de trabajo (p.15).
+  function sumRestMs(arr, sinceTs, now) {
+    var total = 0;
+    for (var i = 0; i < arr.length; i++) {
+      var iv = arr[i];
+      if (iv.actividad !== "rest") continue;
+      var end = iv.fin === null ? now : iv.fin;
+      var start = Math.max(iv.inicio, sinceTs);
+      if (end > start) total += (end - start);
+    }
+    return total;
+  }
+
+  // Fin del último descanso/disponibilidad real YA CERRADO — arranque de "tiempo de
+  // trabajo desde la última pausa" (Horario de trabajo, p.15). Sin ninguno todavía en la
+  // jornada, cae en `fallback` (el inicio de la jornada).
+  function lastBreakEndTs(arr, fallback) {
+    for (var i = arr.length - 1; i >= 0; i--) {
+      var iv = arr[i];
+      if (isRealBreakActivity(iv.actividad) && iv.fin !== null) return iv.fin;
+    }
+    return fallback;
   }
 
   // --- Genérico desde el principio (25/8), mismo criterio que el bloque de arriba.
@@ -5645,6 +6243,108 @@
   // Toque breve en la bandeja pendiente de confirmar (null = nada pendiente) — A4, 27/8.
   var pendingEjectDriver = null;
 
+  // --- Menú de 4 entradas y LUGARES (manual p.15, 19, 27, 28) — 1/9 ---
+  // Pila de pantallas del menú: [] = cerrado; ["root"], ["root","lugares"],
+  // ["root","lugares","carga"], ["root","lugares","fueraConfirm"]. Vacía = display
+  // normal (DDS). Solo existe en la vista SE5000 — la clásica no tiene menú.
+  var se5000MenuStack = [];
+  var se5000MenuCursor = 0; // índice resaltado en la pantalla de menú actual
+  var SE5000_MENU_ROOT_ITEMS = ["IMPRIMIR", "CONFIGURAC.", "LUGARES", "INFORMACIÓN"];
+  var SE5000_LUGARES_ITEMS = ["Lugar inicio", "Lugar fin", "Fuera de aplic.", "Ferry/tren", "Carga/descarga"];
+  var SE5000_CARGA_ITEMS = ["Carga", "Descarga", "Simultánea"];
+
+  // CONFIGURAC. (manual pp.32-35, literal): "Ajustes DDS" es un submenú propio (con "DDS
+  // activar" y "Advertencias DDS" dentro), no dos entradas planas — igual que LUGARES →
+  // Carga/descarga tiene su propio submenú. Idioma, Hora local, Local time func y Número
+  // de reg. no tienen motor real detrás de esta app (idioma único, sin reloj de aparato
+  // aparte del sistema, sin tarjeta de empresa para fijar el VRN) — se dejan como avisos
+  // "no disponible en la app", nunca inventando el dato (Hugo, 1/9, punto "sin motor
+  // estático, sin inventar").
+  var SE5000_CONFIGURAC_ITEMS = ["Idioma", "Ajustes DDS", "Hora local", "Local time func", "Pantalla invertida", "Cons. conductor", "Número de reg."];
+  var SE5000_AJUSTES_DDS_ITEMS = ["DDS activar", "Advertencias DDS"];
+  var SE5000_CONSENT_ITEMS = ["Sí", "No"];
+
+  // DDS activar (manual p.33): apagarlo apaga también la presentación del carrusel y sus
+  // avisos reales — Advertencias DDS es un interruptor aparte y más fino, solo para los
+  // avisos de voz (15 min / 0:00, los dos puntos reales del aparato — ver renderClock()).
+  // El "ding" de los 5 min es un añadido propio de la app, no de DDS: no lo apaga
+  // ninguno de los dos.
+  var DDS_ENABLED_KEY = "copiloto-dds-enabled";
+  var ddsEnabled = localStorage.getItem(DDS_ENABLED_KEY) !== "off";
+  var DDS_WARNINGS_KEY = "copiloto-dds-warnings";
+  var ddsWarningsEnabled = localStorage.getItem(DDS_WARNINGS_KEY) !== "off";
+  function ddsVoiceWarningsAllowed() { return ddsEnabled && ddsWarningsEnabled; }
+
+  // Pantalla invertida (manual p.34): los dos modos de color reales del aparato.
+  var INVERTED_KEY = "copiloto-pantalla-invertida";
+  var invertedScreen = localStorage.getItem(INVERTED_KEY) === "on";
+
+  // Consentimiento del conductor para exportar datos personales (manual p.34): se
+  // guarda y se muestra tal cual, sin conectarlo al botón "exportar registro" de esta
+  // app — ese es un concepto propio de la capa 3 (bitácora), no lo mismo que este ajuste
+  // del aparato, y no hay que inventar una relación entre los dos.
+  var CONSENT_KEY = "copiloto-cons-conductor";
+  var driverDataConsent = localStorage.getItem(CONSENT_KEY); // null | "yes" | "no"
+
+  // DTD — pantalla de temporizadores del conductor (manual p.29). Solo tiene sentido con
+  // tarjeta insertada (ver aviso en ddsDtdScreenLines()) — se activa/desactiva con OK
+  // mantenido pulsado (se5000NavOkLongPress).
+  var DTD_ACTIVE_KEY = "copiloto-dtd-activo";
+  var dtdActive = localStorage.getItem(DTD_ACTIVE_KEY) === "on";
+  var DTD_ACTIVATED_AT_KEY = "copiloto-dtd-activado-en";
+  var dtdActivatedAt = parseInt(localStorage.getItem(DTD_ACTIVATED_AT_KEY), 10);
+  if (isNaN(dtdActivatedAt)) dtdActivatedAt = null;
+
+  // INFORMACIÓN (manual pp.30-31): once vistas navegables con ▲▼ una vez dentro — no es
+  // una lista para elegir con OK, es un carrusel de solo lectura, como el DDS. Solo se
+  // entra con OK, y solo existe con el vehículo parado (p.31), lo que ya garantiza el
+  // resto del menú al no poder abrirse en marcha. Las 6 primeras se llenan con datos que
+  // la app ya tiene; las 5 últimas son del aparato físico — guiones siempre, nunca un
+  // valor inventado (Hugo, 1/9).
+  var se5000InfoIdx = 0;
+  var SE5000_INFO_TITLES = [
+    "Descanso (calendario)",
+    "Cond. acumulada C1",
+    "Cond. acumulada C2",
+    "Fecha y hora local",
+    "Fecha y hora UTC",
+    "Datos del GNSS",
+    "Producto/certificados",
+    "Artículo/hardware",
+    "Empresa bloqueada",
+    "Descarga/calibración",
+    "Serie/certif. DSRC"
+  ];
+
+  // Selector de país/comunidad para LUGARES → Lugar inicio/fin (manual p.19),
+  // separado de jornadaCountryIdx/jornadaRegionIdx a propósito: ese selector pertenece
+  // al diálogo automático de inicio de jornada, este lo abre el conductor a mano desde
+  // el menú en cualquier momento — no deben pisarse si coinciden en el tiempo.
+  var se5000LugarKind = null;   // null | "inicio" | "fin"
+  var se5000LugarStep = null;   // null | "country" | "region"
+  var se5000LugarCountryIdx = 0;
+  var se5000LugarRegionIdx = 0;
+
+  // Fuera de aplicación (manual p.27) — modo simple on/off, sin límites propios.
+  var OUT_OF_SCOPE_KEY = "copiloto-fuera-aplicacion";
+  var outOfScopeMode = localStorage.getItem(OUT_OF_SCOPE_KEY) === "on";
+
+  // Marcadores de carga/descarga (manual p.28) — NO es una actividad, es un registro
+  // aparte con su propia hora; marcarlo no toca pauseClassification/intervalsSolo. Sin
+  // límite de cuántas veces: el manual dice "solo puede realizarse una" pero la frase
+  // está cortada en el original (columna del PDF mal extraída) y no sabemos qué limita
+  // exactamente — no se inventa un límite sin fuente (Hugo, 1/9). Verificación de campo
+  // pendiente: mirar en cabina si el aparato real bloquea marcar dos veces seguidas.
+  var LOAD_MARKS_KEY = "copiloto-carga-marks-" + DRIVER_ID;
+  var se5000LoadMarks = [];
+  try {
+    var rawLoadMarks = JSON.parse(localStorage.getItem(LOAD_MARKS_KEY));
+    if (Array.isArray(rawLoadMarks)) se5000LoadMarks = rawLoadMarks;
+  } catch (e) {}
+  function saveLoadMarks() {
+    localStorage.setItem(LOAD_MARKS_KEY, JSON.stringify(se5000LoadMarks));
+  }
+
   var viewToggleBtn = document.getElementById("view-toggle");
   var classicViewEl = document.getElementById("classic-view");
   var se5000ViewEl = document.getElementById("se5000-view");
@@ -5662,6 +6362,17 @@
   var se5000Tray2 = document.getElementById("se5000-tray-2");
   var setupTray1 = document.getElementById("setup-tray-1");
   var setupTray2 = document.getElementById("setup-tray-2");
+  var se5000Btn1 = document.getElementById("se5000-btn1");
+  var se5000Btn2 = document.getElementById("se5000-btn2");
+
+  // --- Menú de 4 entradas (manual p.15) ---
+  var se5000MenuEl = document.getElementById("se5000-menu");
+  var se5000MenuTitleEl = document.getElementById("se5000-menu-title");
+  var se5000MenuListEl = document.getElementById("se5000-menu-list");
+  var se5000MenuNoticeEl = document.getElementById("se5000-menu-notice");
+  var se5000LugarEl = document.getElementById("se5000-lugar");
+  var se5000LugarLabelEl = document.getElementById("se5000-lugar-label");
+  var se5000LugarValueEl = document.getElementById("se5000-lugar-value");
 
   var setupBrandEl = document.getElementById("setup-brand");
   var se5000ReposoEl = document.getElementById("se5000-reposo");
@@ -5675,12 +6386,26 @@
   var se5000ManualAddBtn = document.getElementById("se5000-manual-add");
   var se5000ManualRestBtn = document.getElementById("se5000-manual-rest");
   var se5000ManualLogEl = document.getElementById("se5000-manual-log");
+  var se5000ManualDividerEl = document.getElementById("se5000-manual-divider");
+  var se5000ManualDurationEl = document.getElementById("se5000-manual-duration");
+  var se5000ManualActionsEl = document.getElementById("se5000-manual-actions");
+  var se5000ManualUndoBtn = document.getElementById("se5000-manual-undo");
+  var se5000ManualConfirmEl = document.getElementById("se5000-manual-confirm");
+  var se5000ManualConfirmYesBtn = document.getElementById("se5000-manual-confirm-yes");
+  var se5000ManualConfirmNoBtn = document.getElementById("se5000-manual-confirm-no");
+  var se5000ManualNochoiceEl = document.getElementById("se5000-manual-nochoice");
+  var se5000ManualChangeBtn = document.getElementById("se5000-manual-change");
+  var se5000ManualClearAllBtn = document.getElementById("se5000-manual-clearall");
 
-  var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work" };
+  var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work", unknown: "#pic-unknown" };
   var se5000ManualCls = "rest";
   var se5000ManualSegments = [];
   var se5000ManualCursor = null;
   var se5000ManualQuietSince = null;
+  // Bloque 1 (1/9), manual pp.21-23: "entering" (normal, picker+duración) | "confirm"
+  // (¿Confirmar entradas?) | "nochoice" (¿Cambiar entrada? / Borrar todas las entradas) |
+  // "changelist" (eligiendo qué tramo cambiar — el registro se vuelve clicable).
+  var se5000ManualPhase = "entering";
 
   // "Tiempo que lleva el vehículo quieto" — ancla en el inicio del tramo abierto que
   // dejó la última tarjeta sacada (el motor de intervalos ya lo tiene, no hace falta un
@@ -5749,6 +6474,12 @@
     if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true, ejectPending)) anyDocked = true;
     if (se5000SyncDockGroup([ejectConfirmEl], ejectConfirmAnchor, ejectConfirmEl)) anyDocked = true;
     se5000DialogDock.hidden = !anyDocked;
+    // Un diálogo compartido (clasificar pausa, hueco sin clasificar, inicio de jornada,
+    // sacar tarjeta) manda sobre el menú si los dos coinciden — el menú solo se abre
+    // parado, pero uno de estos puede aparecer por un cambio de estado real mientras se
+    // está navegando por él. "Un mensaje ocupa el display entero" (Hugo, 26/8): nunca
+    // los dos a la vez.
+    if (anyDocked && se5000MenuStack.length) se5000MenuClose();
   }
 
   function applyViewMode() {
@@ -5765,6 +6496,7 @@
     // intacta, con los dos botones de siempre. Reiniciar sigue disponible para pruebas
     // detrás de Ayuda (#ayuda-reset-btn) — Hugo, 26/8, puntos 4 y 5.
     resetCorner.hidden = se5000Mode;
+    se5000ViewEl.classList.toggle("se5000-inverted", invertedScreen);
     renderDoubleCrewUI();
     se5000SyncDialogDocks();
     renderSetupView();
@@ -5905,6 +6637,7 @@
     se5000ManualCursor = se5000ManualQuietSince;
     se5000ManualSegments = [];
     se5000ManualCls = "rest";
+    se5000ManualPhase = "entering";
     se5000ActiveFlow = n;
     renderSetupView();
     se5000SyncDialogDocks();
@@ -6086,6 +6819,35 @@
     return Math.max(0, Date.now() - se5000ManualCursor);
   }
 
+  // Registro del tramo a tramo: en "changelist" (Bloque 1) se vuelve una lista de
+  // botones clicables — elegir uno trunca ahí y vuelve a "entering" para recontar desde
+  // ese punto (manual p.22: "navegue hasta la entrada que desea cambiar"). En cualquier
+  // otra fase es solo lectura, como antes.
+  function renderSe5000ManualLog() {
+    if (se5000ManualPhase === "changelist") {
+      se5000ManualLogEl.innerHTML = "";
+      if (!se5000ManualSegments.length) {
+        se5000ManualLogEl.textContent = "no hay tramos que cambiar";
+        return;
+      }
+      se5000ManualSegments.forEach(function (seg, idx) {
+        var row = document.createElement("button");
+        row.type = "button";
+        row.className = "se5000-manual-log-row";
+        row.textContent = activityLabel(seg.actividad) + " · " + formatRemaining(seg.fin - seg.inicio);
+        row.addEventListener("click", function (e) {
+          e.stopPropagation();
+          se5000ManualPickToChange(idx);
+        });
+        se5000ManualLogEl.appendChild(row);
+      });
+      return;
+    }
+    se5000ManualLogEl.textContent = se5000ManualSegments.map(function (seg) {
+      return activityLabel(seg.actividad) + " · " + formatRemaining(seg.fin - seg.inicio);
+    }).join("\n");
+  }
+
   function renderSe5000Manual() {
     var total = Date.now() - se5000ManualQuietSince;
     var remaining = se5000ManualRemainingMs();
@@ -6095,9 +6857,21 @@
       var btn = se5000ManualPickerBtns[i];
       btn.classList.toggle("selected", btn.getAttribute("data-se5000-cls") === se5000ManualCls);
     }
-    se5000ManualLogEl.textContent = se5000ManualSegments.map(function (seg) {
-      return activityLabel(seg.actividad) + " · " + formatRemaining(seg.fin - seg.inicio);
-    }).join("\n");
+    renderSe5000ManualLog();
+
+    // Bloque 1 (1/9): qué se ve depende de la fase. "entering" es el flujo de siempre;
+    // las otras tres son las pantallas nuevas de pp.21-23.
+    var entering = se5000ManualPhase === "entering";
+    se5000ManualShortcutBtn.hidden = !entering;
+    se5000ManualDividerEl.hidden = !entering;
+    se5000ManualPickerEl.hidden = !entering;
+    se5000ManualDurationEl.hidden = !entering;
+    se5000ManualActionsEl.hidden = !entering;
+    se5000ManualUndoBtn.hidden = !(entering && se5000ManualSegments.length > 0);
+    se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
+    se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
+
+    se5000SyncDialogDocks();
   }
 
   for (var se5000pi = 0; se5000pi < se5000ManualPickerBtns.length; se5000pi++) {
@@ -6108,10 +6882,26 @@
     });
   }
 
+  // Manual p.21: "¿Confirmar entradas?" — este paso no existía antes de este bloque, se
+  // guardaba directo al llegar a 0 de remanente. Cierra el reparto en el instante en que
+  // se entra a confirmar (no al pulsar Sí) para que el tiempo que el conductor pase
+  // leyendo el diálogo no se cuele como un tramo más — mismo criterio que pausedRemainingMs
+  // (congelar en el momento del evento, no en el del render).
+  function enterSe5000ManualConfirm() {
+    var remaining = se5000ManualRemainingMs();
+    if (remaining > 0) {
+      var now = Date.now();
+      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
+      se5000ManualCursor = now;
+    }
+    se5000ManualPhase = "confirm";
+    renderSe5000Manual();
+  }
+
   se5000ManualShortcutBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     se5000ManualCls = "rest";
-    finishSe5000ManualEntry();
+    enterSe5000ManualConfirm();
   });
 
   se5000ManualAddBtn.addEventListener("click", function (e) {
@@ -6128,31 +6918,84 @@
     se5000ManualCursor = segEnd;
     se5000ManualH.value = "0";
     se5000ManualM.value = "0";
-    if (se5000ManualRemainingMs() <= 0) { finishSe5000ManualEntry(); return; }
+    if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualConfirm(); return; }
     renderSe5000Manual();
   });
 
   se5000ManualRestBtn.addEventListener("click", function (e) {
     e.stopPropagation();
+    enterSe5000ManualConfirm();
+  });
+
+  // "Podrá volver atrás... usando el botón Atrás en cualquier momento" (manual p.21) —
+  // deshace el último tramo añadido y devuelve el cursor a su inicio. Solo tiene sentido
+  // en "entering" y con algo que deshacer (el propio hidden del botón ya lo garantiza,
+  // esto es la guarda por si se llama desde el ↩ físico también — ver se5000-nav-back).
+  function se5000ManualUndo() {
+    if (se5000ManualPhase !== "entering" || !se5000ManualSegments.length) return;
+    var last = se5000ManualSegments.pop();
+    se5000ManualCursor = last.inicio;
+    renderSe5000Manual();
+  }
+  se5000ManualUndoBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualUndo();
+  });
+
+  se5000ManualConfirmYesBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
     finishSe5000ManualEntry();
   });
 
-  // Cierra la entrada manual: reparte lo que quede (si algo queda) con la actividad
-  // seleccionada, sustituye el tramo abierto que dejó el último "reiniciar" por los
-  // tramos precisos contados a mano (observado:false, igual que un hueco reconstruido —
-  // §7 regla 1: se sabe ahora, no se midió en su momento) y arranca la jornada.
-  // Genérica desde el 26/8 (tarjetas): opera sobre el registro del conductor cuyo flujo
-  // está activo (se5000ActiveFlow), igual para el 1 y el 2 — "cada tarjeta dispara sus
-  // propias preguntas", mismo tratamiento para las dos (Hugo, 26/8, punto 4).
+  // Manual p.22: NO en "¿Confirmar entradas?" lleva a elegir entre cambiar una entrada o
+  // borrarlas todas — nunca descarta nada por sí solo.
+  se5000ManualConfirmNoBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualPhase = "nochoice";
+    renderSe5000Manual();
+  });
+
+  se5000ManualChangeBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualPhase = "changelist";
+    renderSe5000Manual();
+  });
+
+  // "Borrar todas las entradas" (manual p.22, literal) — vuelve al punto de partida
+  // exacto (se5000ManualQuietSince), como si no se hubiera contado nada todavía.
+  se5000ManualClearAllBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualSegments = [];
+    se5000ManualCursor = se5000ManualQuietSince;
+    se5000ManualCls = "rest";
+    se5000ManualPhase = "entering";
+    renderSe5000Manual();
+  });
+
+  // "Navegue hasta la entrada que desea cambiar" (manual p.22): trunca el registro justo
+  // antes del tramo elegido y devuelve el cursor a su inicio — el conductor recuenta desde
+  // ahí con el procedimiento normal, en vez de una edición campo a campo que el aparato
+  // real tampoco ofrece en esta pantalla.
+  function se5000ManualPickToChange(idx) {
+    se5000ManualCursor = se5000ManualSegments[idx].inicio;
+    se5000ManualSegments = se5000ManualSegments.slice(0, idx);
+    se5000ManualPhase = "entering";
+    renderSe5000Manual();
+  }
+
+  // Cierra la entrada manual: los tramos ya están completos y confirmados (se llegó aquí
+  // solo desde "Sí" en ¿Confirmar entradas?) — sustituye el tramo abierto que dejó el
+  // último "reiniciar" por los tramos precisos contados a mano (observado:false, igual
+  // que un hueco reconstruido — §7 regla 1: se sabe ahora, no se midió en su momento) y
+  // arranca la jornada. Genérica desde el 26/8 (tarjetas): opera sobre el registro del
+  // conductor cuyo flujo está activo (se5000ActiveFlow), igual para el 1 y el 2 — "cada
+  // tarjeta dispara sus propias preguntas", mismo tratamiento para las dos (Hugo, 26/8,
+  // punto 4).
   function finishSe5000ManualEntry() {
     var n = se5000ActiveFlow;
     var arr = (n === 2) ? intervalsSolo2 : intervalsSolo;
     var save = (n === 2) ? saveIntervals2 : saveIntervals;
     var key = (n === 2) ? QUIET_SINCE_KEY_2 : QUIET_SINCE_KEY;
-    var remaining = se5000ManualRemainingMs();
-    if (remaining > 0) {
-      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: Date.now(), actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
-    }
     if (arr.length && arr[arr.length - 1].fin === null) {
       arr.pop();
     }
@@ -6171,6 +7014,7 @@
     save();
     localStorage.removeItem(key);
     se5000ActiveFlow = null;
+    se5000ManualPhase = "entering";
     ensureAudioCtx();
     if (n === 2) {
       startCountdown2(Date.now() + BLOCK_MS);
@@ -6195,12 +7039,25 @@
     renderSe5000View();
   }
 
+  // Verdadero mientras el vehículo está circulando de verdad — el mismo dato que ya usa
+  // tgActivityBtn para bloquear la clasificación a mano de "conduciendo". Reutilizado
+  // para la guarda de seguridad del menú (manual p.15).
+  function vehicleIsMoving() {
+    return isDriver2Active() ? !paused2 : !paused;
+  }
+
   // --- Vista por defecto en marcha: espejo de la vista clásica, no un cálculo propio
   // (ver comentario de #se5000-view en el HTML). Titular adaptativo por actividad —
   // manual p.13, campo 3: tiempo desde la última pausa si conduce, si no, duración de
   // la actividad actual. ---
   function renderSe5000View() {
     if (se5000ViewEl.hidden || countdownScreen.hidden) return;
+    // El menú no puede seguir abierto si el vehículo se pone en marcha mientras se
+    // navega por él — manual p.15: "por razones de seguridad de tráfico solo puede
+    // poner el tacógrafo en funcionamiento cuando el vehículo esté parado". Se
+    // comprueba en cada repintado (cada segundo, vía dailyDriveTick), no solo al abrir.
+    if (se5000MenuStack.length && vehicleIsMoving()) se5000MenuClose();
+
     var d2 = isDriver2Active();
     var isPaused = d2 ? paused2 : paused;
     var cls = d2 ? pauseClassification2 : pauseClassification;
@@ -6223,8 +7080,10 @@
       var frozenRemaining = d2 ? pausedRemainingMs2 : pausedRemainingMs;
       se5000LabelTop.textContent = "te quedan";
       se5000MainClock.textContent = formatRemaining(frozenRemaining);
-      se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls || "availability");
-      se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.availability);
+      se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls);
+      // "?" (manual p.15) si no hay clasificación real — nunca se asume disponibilidad
+      // por defecto en el pictograma principal, eso sería inventar un dato.
+      se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.unknown);
       se5000MainClock.style.color = "";
     }
 
@@ -6232,19 +7091,416 @@
     se5000DdsTitleEl.textContent = tgDdsTitleEl.textContent;
     se5000Tray1.classList.toggle("active", !d2);
     se5000Tray2.classList.toggle("active", d2);
+
+    // Botones "1"/"2" (manual p.16): "1" clasifica a quien tiene el papel de conductor
+    // ahora mismo (el mismo objetivo que ya usaba OK); "2" al compañero, y solo existe
+    // de verdad con tripulación doble.
+    se5000Btn1.disabled = !isPaused;
+    se5000Btn2.disabled = !doubleCrewOn;
+
+    renderSe5000Menu();
   }
 
   var clockLabelTopEl = document.getElementById("clock-label-top");
 
+  // ============================================================
+  // Menú de 4 entradas (manual p.15) y LUGARES completo (pp.19, 27, 28) — 1/9.
+  // Máquina de estados mínima: se5000MenuStack es la pila de pantallas ("root" es la
+  // raíz de 4 entradas; el resto cuelga de LUGARES). se5000LugarKind/-Step llevan aparte
+  // el selector de país/comunidad de Lugar inicio/fin, que tiene su propio sub-flujo de
+  // dos pasos (igual que el diálogo de inicio de jornada, pero sin compartir estado con
+  // él — ver comentario donde se declaran las variables).
+  // ============================================================
+
+  function se5000MenuItemsFor(screenId) {
+    if (screenId === "root") return SE5000_MENU_ROOT_ITEMS;
+    if (screenId === "lugares") return SE5000_LUGARES_ITEMS;
+    if (screenId === "carga") return SE5000_CARGA_ITEMS;
+    if (screenId === "configurac") return SE5000_CONFIGURAC_ITEMS;
+    if (screenId === "ajustesDds") return SE5000_AJUSTES_DDS_ITEMS;
+    if (screenId === "consConductor") return SE5000_CONSENT_ITEMS;
+    return null; // imprimir/fueraConfirm/*Notice: sin lista, solo aviso. informacion: carrusel aparte, ver infoLines()
+  }
+
+  function se5000MenuTitleFor(screenId) {
+    if (screenId === "root") return "MENÚ";
+    if (screenId === "lugares") return "LUGARES";
+    if (screenId === "carga") return "CARGA/DESCARGA";
+    if (screenId === "imprimir") return "IMPRIMIR";
+    if (screenId === "configurac") return "CONFIGURAC.";
+    if (screenId === "ajustesDds") return "Ajustes DDS";
+    if (screenId === "idiomaNotice") return "Idioma";
+    if (screenId === "horaLocalNotice") return "Hora local";
+    if (screenId === "localTimeFuncNotice") return "Local time func";
+    if (screenId === "numRegNotice") return "Número de reg.";
+    if (screenId === "consConductor") return "Cons. conductor";
+    if (screenId === "informacion") return "INFORMACIÓN";
+    if (screenId === "fueraConfirm") return "LUGARES";
+    return "";
+  }
+
+  // Contenido de cada una de las once vistas de INFORMACIÓN (manual pp.30-31). Las 6
+  // primeras se calculan con datos que la app ya tiene (reutilizando exactamente las
+  // mismas funciones que el resto de la réplica, nunca una segunda versión); las 5
+  // últimas son datos del aparato físico que un móvil no puede dar — guiones, nunca un
+  // valor inventado.
+  function infoLines(idx, now) {
+    if (idx === 0) {
+      // "Tiempo que queda hasta el descanso en el calendario" — mismo tope que ya pinta
+      // renderJornadaUI() (jornadaWindowMs()/jornadaRestFloorMs()), aquí como cuenta
+      // atrás en vez de hora absoluta, que es como lo pone el manual (ejemplo "12h 45").
+      if (jornadaStartAt === null) return ["queda hasta descanso: —", "debe durar: —"];
+      var remaining = jornadaStartAt + jornadaWindowMs() - now;
+      return [
+        "queda hasta descanso: " + fmtDuration(remaining),
+        "debe durar: " + fmtDuration(jornadaRestFloorMs())
+      ];
+    }
+    if (idx === 1 || idx === 2) {
+      var forD2 = (idx === 2);
+      if (forD2 && !doubleCrewOn) return ["conductor 2: no aplica"];
+      var dl = forD2 ? deadline2 : deadline;
+      if (dl === null) return ["conductor " + (forD2 ? 2 : 1) + ": sin jornada"];
+      var isP = forD2 ? paused2 : paused;
+      var remBlock = isP ? (forD2 ? pausedRemainingMs2 : pausedRemainingMs) : (dl - now);
+      var contMs = BLOCK_MS - Math.max(0, remBlock);
+      var dd = forD2 ? dailyDrive2 : dailyDrive;
+      var wd = forD2 ? weekDrive2 : weekDrive;
+      return [
+        "continua: " + fmtDuration(contMs),
+        "semanal: " + fmtDuration(wd.currentMs),
+        "diaria: " + fmtDuration(dd.drivenMs),
+        "2 semanas: " + fmtDuration(wd.currentMs + wd.previousMs)
+      ];
+    }
+    if (idx === 3) return [fmtLocalDateTime(now)];
+    if (idx === 4) return [fmtUTCDateTime(now)];
+    if (idx === 5) {
+      return [
+        "precisión: " + (geoDebug.accuracy === null ? "—" : geoDebug.accuracy.toFixed(0) + " m"),
+        "última señal: " + (geoDebug.lastFixAt === null ? "—" : fmtDuration(now - geoDebug.lastFixAt) + " atrás"),
+        "posición: no disponible en esta app"
+      ];
+    }
+    // 7. Producto/certificados · 8. Artículo/hardware · 9. Empresa bloqueada ·
+    // 10. Descarga/calibración · 11. Serie/certificado DSRC — todos datos del aparato
+    // físico (manual pp.30-31). Esta app no es un tacógrafo de verdad: no existe nada
+    // de esto que leer, y no se inventa.
+    return ["no aplica en esta app"];
+  }
+
+  function se5000MenuOpen() {
+    se5000MenuStack = ["root"];
+    se5000MenuCursor = 0;
+    se5000LugarKind = null;
+    se5000LugarStep = null;
+    renderSe5000View();
+  }
+
+  function se5000MenuClose() {
+    se5000MenuStack = [];
+    se5000MenuCursor = 0;
+    se5000LugarKind = null;
+    se5000LugarStep = null;
+  }
+
+  function se5000MenuPush(screenId) {
+    se5000MenuStack.push(screenId);
+    se5000MenuCursor = 0;
+  }
+
+  // ↩: un nivel arriba, y desde el primero (root) sale del menú del todo — igual que
+  // "X, anular y regresar al menú anterior" del manual (p.28) generalizado a todo el
+  // menú, no solo a Carga/Descarga.
+  function se5000MenuBack() {
+    if (se5000LugarKind) {
+      se5000LugarKind = null;
+      se5000LugarStep = null;
+      renderSe5000View();
+      return;
+    }
+    se5000MenuStack.pop();
+    se5000MenuCursor = 0;
+    renderSe5000View();
+  }
+
+  function se5000MenuMove(dir) {
+    if (se5000LugarKind) {
+      if (se5000LugarStep === "country") {
+        se5000LugarCountryIdx = (se5000LugarCountryIdx + COUNTRY_CODES.length + dir) % COUNTRY_CODES.length;
+      } else if (se5000LugarStep === "region") {
+        se5000LugarRegionIdx = (se5000LugarRegionIdx + REGION_CODES.length + dir) % REGION_CODES.length;
+      }
+      renderSe5000View();
+      return;
+    }
+    var screen = se5000MenuStack[se5000MenuStack.length - 1];
+    // INFORMACIÓN (manual pp.30-31): "OK → INFORMACIÓN → OK, y luego las flechas para
+    // moverse entre vistas" — no es una lista para elegir, ▲▼ recorren directamente las
+    // once vistas en carrusel, como el DDS.
+    if (screen === "informacion") {
+      se5000InfoIdx = (se5000InfoIdx + SE5000_INFO_TITLES.length + dir) % SE5000_INFO_TITLES.length;
+      renderSe5000View();
+      return;
+    }
+    var items = se5000MenuItemsFor(screen);
+    if (!items) return;
+    se5000MenuCursor = (se5000MenuCursor + items.length + dir) % items.length;
+    renderSe5000View();
+  }
+
+  function se5000LugarStart(kind) {
+    se5000LugarKind = kind;
+    se5000LugarStep = "country";
+    se5000LugarCountryIdx = findCodeIdx(COUNTRY_CODES, geoBorder.country || COUNTRY_DEFAULT_CODE);
+    se5000LugarRegionIdx = 0;
+  }
+
+  // Igual que jornadaLog de siempre (país al iniciar jornada), con "tipo" para
+  // distinguir inicio/fin — no rompe a quien ya lee jornadaLog (buildExportData), solo
+  // añade campos. "ts" es cuándo se registró de verdad; "startedAt" sigue identificando
+  // a qué jornada pertenece, igual que antes.
+  function se5000LugarSave(pais, region) {
+    jornadaLog.push({ ts: Date.now(), startedAt: jornadaStartAt, tipo: se5000LugarKind, pais: pais, region: region });
+    saveJornadaLog();
+    se5000MenuClose();
+    renderSe5000View();
+  }
+
+  function se5000LugarOk() {
+    if (se5000LugarStep === "country") {
+      var c = COUNTRY_CODES[se5000LugarCountryIdx];
+      // Mismo criterio que el diálogo de inicio de jornada: solo España pregunta
+      // comunidad (manual/investigación ya citada donde se declara jornadaCountryOkBtn).
+      if (c.code === "E") {
+        se5000LugarStep = "region";
+        se5000LugarRegionIdx = geoBorder.region ? findCodeIdx(REGION_CODES, geoBorder.region) : 0;
+        renderSe5000View();
+        return;
+      }
+      se5000LugarSave(c.code, null);
+    } else if (se5000LugarStep === "region") {
+      se5000LugarSave(COUNTRY_CODES[se5000LugarCountryIdx].code, REGION_CODES[se5000LugarRegionIdx].code);
+    }
+  }
+
+  // Manual p.27: OK sobre "Fuera de aplic." activa el modo directamente si estaba
+  // apagado (sin confirmación); si estaba encendido, pide confirmar la desactivación
+  // ("¿Fin fuera de aplic.?", pulsar OK otra vez) — no al revés.
+  function se5000ToggleFuera() {
+    if (!outOfScopeMode) {
+      outOfScopeMode = true;
+      localStorage.setItem(OUT_OF_SCOPE_KEY, "on");
+      se5000MenuClose();
+    } else {
+      se5000MenuPush("fueraConfirm");
+    }
+  }
+
+  function se5000MarkLoad(kind) {
+    se5000LoadMarks.push({ ts: Date.now(), tipo: kind });
+    saveLoadMarks();
+  }
+
+  function se5000MenuOk() {
+    if (se5000LugarKind) { se5000LugarOk(); return; }
+    var screen = se5000MenuStack[se5000MenuStack.length - 1];
+    if (screen === "root") {
+      var item = SE5000_MENU_ROOT_ITEMS[se5000MenuCursor];
+      if (item === "LUGARES") se5000MenuPush("lugares");
+      else if (item === "IMPRIMIR") se5000MenuPush("imprimir");
+      else if (item === "CONFIGURAC.") se5000MenuPush("configurac");
+      else { se5000MenuPush("informacion"); se5000InfoIdx = 0; }
+    } else if (screen === "lugares") {
+      var litem = SE5000_LUGARES_ITEMS[se5000MenuCursor];
+      if (litem === "Lugar inicio") se5000LugarStart("inicio");
+      else if (litem === "Lugar fin") se5000LugarStart("fin");
+      else if (litem === "Fuera de aplic.") se5000ToggleFuera();
+      else if (litem === "Ferry/tren") { toggleFerryMode(); se5000MenuClose(); }
+      else if (litem === "Carga/descarga") se5000MenuPush("carga");
+    } else if (screen === "carga") {
+      var kinds = ["carga", "descarga", "simultanea"];
+      se5000MarkLoad(kinds[se5000MenuCursor]);
+      se5000MenuClose();
+    } else if (screen === "fueraConfirm") {
+      outOfScopeMode = false;
+      localStorage.setItem(OUT_OF_SCOPE_KEY, "off");
+      se5000MenuClose();
+    } else if (screen === "configurac") {
+      var citem = SE5000_CONFIGURAC_ITEMS[se5000MenuCursor];
+      if (citem === "Idioma") se5000MenuPush("idiomaNotice");
+      else if (citem === "Ajustes DDS") se5000MenuPush("ajustesDds");
+      else if (citem === "Hora local") se5000MenuPush("horaLocalNotice");
+      else if (citem === "Local time func") se5000MenuPush("localTimeFuncNotice");
+      else if (citem === "Pantalla invertida") {
+        // Manual p.34: activar/desactivar directo, sin confirmación — a diferencia de
+        // Fuera de aplic., no hay ningún "¿Fin ...?" descrito para este ajuste.
+        invertedScreen = !invertedScreen;
+        localStorage.setItem(INVERTED_KEY, invertedScreen ? "on" : "off");
+        se5000ViewEl.classList.toggle("se5000-inverted", invertedScreen);
+        se5000MenuClose();
+      } else if (citem === "Cons. conductor") se5000MenuPush("consConductor");
+      else if (citem === "Número de reg.") se5000MenuPush("numRegNotice");
+    } else if (screen === "ajustesDds") {
+      var ditem = SE5000_AJUSTES_DDS_ITEMS[se5000MenuCursor];
+      if (ditem === "DDS activar") {
+        ddsEnabled = !ddsEnabled;
+        localStorage.setItem(DDS_ENABLED_KEY, ddsEnabled ? "on" : "off");
+        ddsScreenIndex = 0; // las dos series (p.12) no comparten significado de índice salvo el 0
+        renderDdsScreen();
+        se5000MenuClose();
+      } else if (ditem === "Advertencias DDS") {
+        ddsWarningsEnabled = !ddsWarningsEnabled;
+        localStorage.setItem(DDS_WARNINGS_KEY, ddsWarningsEnabled ? "on" : "off");
+        se5000MenuClose();
+      }
+    } else if (screen === "consConductor") {
+      // Manual p.34: "¿Ok a exp. datos pers.? Seleccione SÍ o NO."
+      driverDataConsent = (SE5000_CONSENT_ITEMS[se5000MenuCursor] === "Sí") ? "yes" : "no";
+      localStorage.setItem(CONSENT_KEY, driverDataConsent);
+      se5000MenuClose();
+    }
+    // imprimir/*Notice: sin lista ni acción, OK no hace nada — solo el aviso "no
+    // disponible en la app" y ↩ para salir. informacion: dentro, OK tampoco hace nada —
+    // es un carrusel de solo lectura, ▲▼ lo recorren (ver se5000MenuMove()).
+    renderSe5000View();
+  }
+
+  function renderSe5000Menu() {
+    var open = se5000MenuStack.length > 0;
+    se5000MenuEl.hidden = !open;
+    if (!open) return;
+
+    if (se5000LugarKind) {
+      se5000MenuListEl.hidden = true;
+      se5000MenuNoticeEl.hidden = true;
+      se5000LugarEl.hidden = false;
+      se5000MenuTitleEl.textContent = "LUGARES";
+      if (se5000LugarStep === "country") {
+        se5000LugarLabelEl.textContent = (se5000LugarKind === "inicio" ? "país inicio" : "país fin");
+        var c = COUNTRY_CODES[se5000LugarCountryIdx];
+        se5000LugarValueEl.textContent = c.code + " " + c.name;
+      } else {
+        se5000LugarLabelEl.textContent = "comunidad";
+        var r = REGION_CODES[se5000LugarRegionIdx];
+        se5000LugarValueEl.textContent = r.code + " " + r.name;
+      }
+      return;
+    }
+    se5000LugarEl.hidden = true;
+
+    var screen = se5000MenuStack[se5000MenuStack.length - 1];
+    se5000MenuTitleEl.textContent = se5000MenuTitleFor(screen);
+
+    if (screen === "fueraConfirm") {
+      se5000MenuListEl.hidden = true;
+      se5000MenuNoticeEl.hidden = false;
+      se5000MenuNoticeEl.textContent = "¿Fin fuera de aplic.? · OK confirma";
+      return;
+    }
+
+    if (screen === "informacion") {
+      se5000MenuListEl.hidden = true;
+      se5000MenuNoticeEl.hidden = false;
+      se5000MenuTitleEl.textContent = (se5000InfoIdx + 1) + "/" + SE5000_INFO_TITLES.length + " " + SE5000_INFO_TITLES[se5000InfoIdx];
+      se5000MenuNoticeEl.textContent = infoLines(se5000InfoIdx, Date.now()).join("\n");
+      return;
+    }
+
+    // Manual p.35: el conductor solo puede VER el VRN, no fijarlo (hace falta una
+    // tarjeta de empresa, fuera de alcance) — se muestra el valor real, "no configurado"
+    // cuando no hay ninguno, nunca el aviso genérico de "no disponible en la app".
+    if (screen === "numRegNotice") {
+      se5000MenuListEl.hidden = true;
+      se5000MenuNoticeEl.hidden = false;
+      se5000MenuNoticeEl.textContent = "VRN: no configurado";
+      return;
+    }
+
+    var items = se5000MenuItemsFor(screen);
+    if (!items) {
+      se5000MenuListEl.hidden = true;
+      se5000MenuNoticeEl.hidden = false;
+      se5000MenuNoticeEl.textContent = "no disponible en la app";
+      return;
+    }
+
+    se5000MenuNoticeEl.hidden = true;
+    se5000MenuListEl.hidden = false;
+    se5000MenuListEl.innerHTML = "";
+    for (var i = 0; i < items.length; i++) {
+      var row = document.createElement("div");
+      row.className = "se5000-menu-item" + (i === se5000MenuCursor ? " selected" : "");
+      var label = items[i];
+      // Refleja el on/off de siempre (ferryMode/outOfScopeMode/ddsEnabled/etc.) sin
+      // duplicar lógica — el estado lo siguen decidiendo las mismas variables/funciones
+      // de todo el resto de la app, esto solo las lee.
+      if (screen === "lugares" && label === "Ferry/tren" && ferryMode) label += " · ACTIVO";
+      if (screen === "lugares" && label === "Fuera de aplic." && outOfScopeMode) label += " · ACTIVO";
+      if (screen === "configurac" && label === "Pantalla invertida" && invertedScreen) label += " · ACTIVA";
+      if (screen === "ajustesDds" && label === "DDS activar") label += ddsEnabled ? " · ENCENDIDA" : " · APAGADA";
+      if (screen === "ajustesDds" && label === "Advertencias DDS") label += ddsWarningsEnabled ? " · ENCENDIDAS" : " · APAGADAS";
+      if (screen === "consConductor" && driverDataConsent !== null) {
+        var current = driverDataConsent === "yes" ? "Sí" : "No";
+        if (label === current) label += " · actual";
+      }
+      row.textContent = label;
+      se5000MenuListEl.appendChild(row);
+    }
+  }
+
   se5000NavBack.addEventListener("click", function (e) {
     e.stopPropagation();
+    // Manual p.21: "el botón Atrás en cualquier momento" durante las entradas manuales
+    // deshace el último tramo — cuando ese flujo está enganchado al display (conductor 2
+    // a mitad de ruta), el ↩ físico hace lo mismo que el botón propio de la pantalla.
+    if (se5000ActiveFlow !== null && se5000ManualPhase === "entering") { se5000ManualUndo(); return; }
+    if (se5000MenuStack.length) { se5000MenuBack(); return; }
     ddsScreenIndex = 0;
     renderDdsScreen();
     renderSe5000View();
   });
-  se5000NavUp.addEventListener("click", function (e) { e.stopPropagation(); tgDdsUpBtn.click(); renderSe5000View(); });
-  se5000NavDown.addEventListener("click", function (e) { e.stopPropagation(); tgDdsDownBtn.click(); renderSe5000View(); });
-  se5000NavOk.addEventListener("click", function (e) { e.stopPropagation(); tgActivityBtn.click(); renderSe5000View(); });
+  se5000NavUp.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (se5000MenuStack.length) { se5000MenuMove(-1); return; }
+    tgDdsUpBtn.click();
+    renderSe5000View();
+  });
+  se5000NavDown.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (se5000MenuStack.length) { se5000MenuMove(1); return; }
+    tgDdsDownBtn.click();
+    renderSe5000View();
+  });
+  // OK tiene dos gestos reales, no uno: toque breve (abre el menú / confirma dentro de
+  // él) y mantener pulsado (manual p.29: activa/desactiva el DTD, solo mientras se está
+  // viendo esa pantalla). Mismo mecanismo que ya usan las bandejas (bindTrayGesture) en
+  // vez de un `click` aparte, para que un toque no dispare las dos cosas a la vez.
+  function isOnDtdScreen() {
+    return ddsScreenIndex !== 0 && currentDdsTitles()[ddsScreenIndex] === "DTD";
+  }
+  function se5000NavOkTap() {
+    if (se5000MenuStack.length) { se5000MenuOk(); return; }
+    // Manual p.15: el menú solo se abre con el vehículo parado — en marcha, OK no hace
+    // nada, igual que en el aparato real ("por razones de seguridad de tráfico...").
+    if (vehicleIsMoving()) return;
+    se5000MenuOpen();
+  }
+  function se5000NavOkLongPress() {
+    if (se5000MenuStack.length || !isOnDtdScreen()) return;
+    se5000ToggleDtd();
+  }
+  bindTrayGesture(se5000NavOk, se5000NavOkLongPress, se5000NavOkTap);
+  se5000Btn1.addEventListener("click", function (e) {
+    e.stopPropagation();
+    tgActivityBtn.click();
+    renderSe5000View();
+  });
+  se5000Btn2.addEventListener("click", function (e) {
+    e.stopPropagation();
+    driver2PillEl.click();
+    renderSe5000View();
+  });
 
   // La bandeja ya no sirve para elegir a quién se mira (eso era una taquigrafía de esta
   // app, sin verificar contra el manual — Hugo, 26/8, lo sustituye por el gesto real de
