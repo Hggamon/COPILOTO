@@ -1062,9 +1062,6 @@
   #se5000-dialog-dock #se5000-manual-end-fields {
     gap: 1px;
   }
-  #se5000-dialog-dock #se5000-manual-summary {
-    font-size: clamp(5px, 1.2vw, 7px);
-  }
   #se5000-dialog-dock #se5000-manual-end-pic {
     width: 12px;
     height: 12px;
@@ -1492,12 +1489,13 @@
     gap: 12px;
   }
 
-  #se5000-manual-summary {
-    font-family: var(--font-display);
-    font-size: 13px;
-    color: var(--fg-dim);
-    text-align: center;
-  }
+  /* #se5000-manual-summary ya no vive aquí — Hugo, 2/9, comparando fotograma a
+     fotograma con el vídeo real: el aparato no muestra ningún "por repartir: X de Y
+     quieto" en su LCD, así que ese texto no puede vivir dentro de la pantalla
+     simulada (regla 2 del proyecto: la pantalla del tacógrafo tiene que ser fiel de
+     verdad, no solo aproximada). Reubicado como aviso propio de la app, fuera del
+     bisel, junto a .se5000-tray-hint — mismo criterio que ya se aplicaba a "toca la
+     bandeja..." y a "mantén pulsada la bandeja...". */
 
   #se5000-manual-actions {
     display: flex;
@@ -2037,8 +2035,6 @@
        Hugo, 26/8: "cada tarjeta dispara sus propias preguntas". -->
   <span id="se5000-manual-anchor" hidden></span>
   <div id="se5000-manual" hidden>
-    <div id="se5000-manual-summary"></div>
-
     <!-- Fase "dsc" — manual p.16, literal: "¿Dsc. hasta ahora?". Reconstruido 2/9: el
          aparato real no tiene dos botones lado a lado para Sí/No — es el mismo patrón de
          valor único + ▲▼ + OK que el resto del display (confirmado con fotos reales del
@@ -2416,6 +2412,11 @@
        hace nada (bindTrayGesture solo dispara insertCard si deadline/deadline2 es null),
        así que el aviso no debe seguir ahí sugiriendo un gesto que no aplica. -->
   <div class="se5000-tray-hint" id="se5000-tray-hint" hidden>mantén pulsada la bandeja para meter la tarjeta</div>
+  <!-- "Por repartir: X de Y quieto" — información propia de la app de formación, no
+       algo que el aparato real muestre en su LCD (vídeo real, 2/9: ese texto no existe
+       en la pantalla del tacógrafo). Vive aquí, fuera del bisel, igual que el resto de
+       avisos de la app — nunca dentro de .se5000-display. -->
+  <div class="se5000-tray-hint" id="se5000-manual-summary" hidden></div>
 </div>
 
 <div id="status-pills">
@@ -7422,9 +7423,9 @@
     var changelist = se5000ManualPhase === "changelist";
     // El resumen "por repartir" solo tiene sentido mientras se reparte el tiempo entre
     // tramos — en "dsc" (la primera pantalla de todas, manual p.16) no hay nada que
-    // repartir todavía, y mostrarlo ahí solo comía sitio del display minúsculo hasta
-    // desbordarlo (encontrado 2/9 midiendo scrollHeight vs clientHeight del dock, tras
-    // reconstruir los diálogos Sí/No).
+    // repartir todavía. Vive fuera del bisel (ver su marcado, junto a .se5000-tray-hint)
+    // porque el aparato real no lo muestra en su LCD — no es contenido de la pantalla,
+    // es un aviso propio de esta app de formación.
     se5000ManualSummaryEl.hidden = !(entering || changelist);
     if (entering || changelist) {
       var total = Date.now() - se5000ManualQuietSince;
