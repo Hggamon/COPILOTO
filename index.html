@@ -1015,6 +1015,11 @@
      tamaño completo, no para la franja del bezel. */
   #se5000-dialog-dock #se5000-manual {
     width: 100%;
+    gap: 3px;
+  }
+  #se5000-dialog-dock #se5000-manual-entering,
+  #se5000-dialog-dock #se5000-manual-end-fields {
+    gap: 3px;
   }
   #se5000-dialog-dock #se5000-manual-summary {
     font-size: clamp(5px, 1.2vw, 7px);
@@ -1028,8 +1033,7 @@
     font-size: clamp(5px, 1.2vw, 7px);
     padding: 0.35em 0.4em;
   }
-  #se5000-dialog-dock #se5000-manual-end-start,
-  #se5000-dialog-dock #se5000-manual-end-field-label {
+  #se5000-dialog-dock #se5000-manual-end-start {
     font-size: clamp(5px, 1.1vw, 6.5px);
   }
   #se5000-dialog-dock #se5000-manual-end-value {
@@ -1557,17 +1561,16 @@
     gap: 10px;
   }
 
+  #se5000-manual-end-fields {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
   #se5000-manual-end-start {
     font-family: var(--font-display);
     font-size: 11px;
-    color: var(--fg-dim);
-  }
-
-  #se5000-manual-end-field-label {
-    font-family: var(--font-label);
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--fg-dim);
   }
 
@@ -1831,8 +1834,7 @@
       width: 16px;
       height: 16px;
     }
-    #se5000-manual-end-start,
-    #se5000-manual-end-field-label {
+    #se5000-manual-end-start {
       font-size: 10px;
     }
     .jornada-selector-row button {
@@ -1961,22 +1963,29 @@
          botones (Disponibilidad/Descanso/Otros trabajos) previo al ciclo, que el
          aparato real no tiene. -->
     <div id="se5000-manual-entering" hidden>
-      <div id="se5000-manual-end-start"></div>
-      <div id="se5000-manual-end-field-label"></div>
-      <div class="jornada-selector-row">
-        <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
-        <div id="se5000-manual-end-value" class="jornada-selector-value">
-          <!-- El pictograma de la actividad elegida se queda visible durante todo el
-               resto del ciclo (fecha/hora/minuto), igual que en las capturas del manual
-               — no desaparece al pasar al siguiente campo. -->
-          <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
-          <span id="se5000-manual-end-value-text">—</span>
+      <!-- Agrupados aparte porque "changelist" (elegir qué tramo cambiar, más abajo en
+           este mismo bloque) reutiliza #se5000-manual-log sin necesitar el resto de
+           esta interfaz — antes de este agrupamiento, #se5000-manual-log vivía
+           colgando de #se5000-manual-entering entero, así que "¿Cambiar entrada?"
+           mostraba una pantalla vacía en vez del registro. Fallo real, encontrado y
+           corregido 2/9. -->
+      <div id="se5000-manual-end-fields">
+        <div id="se5000-manual-end-start"></div>
+        <div class="jornada-selector-row">
+          <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
+          <div id="se5000-manual-end-value" class="jornada-selector-value">
+            <!-- El pictograma de la actividad elegida se queda visible durante todo el
+                 resto del ciclo (fecha/hora/minuto), igual que en las capturas del manual
+                 — no desaparece al pasar al siguiente campo. -->
+            <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
+            <span id="se5000-manual-end-value-text">—</span>
+          </div>
+          <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
         </div>
-        <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
-      </div>
-      <button id="se5000-manual-end-ok" type="button">OK</button>
-      <div id="se5000-manual-actions">
-        <button id="se5000-manual-rest" type="button">el resto fue así</button>
+        <button id="se5000-manual-end-ok" type="button">OK</button>
+        <div id="se5000-manual-actions">
+          <button id="se5000-manual-rest" type="button">el resto fue así</button>
+        </div>
       </div>
       <!-- Manual p.21-22: "podrá volver atrás y cambiar sus entradas manuales usando el
            botón Atrás en cualquier momento". El aparato real tiene un botón Atrás físico
@@ -6612,8 +6621,8 @@
   var se5000ManualAddManualEl = document.getElementById("se5000-manual-addmanual");
   var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
   var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
+  var se5000ManualEndFieldsEl = document.getElementById("se5000-manual-end-fields");
   var se5000ManualEndStartEl = document.getElementById("se5000-manual-end-start");
-  var se5000ManualEndFieldLabelEl = document.getElementById("se5000-manual-end-field-label");
   var se5000ManualEndValueEl = document.getElementById("se5000-manual-end-value");
   var se5000ManualEndPicEl = document.getElementById("se5000-manual-end-pic");
   var se5000ManualEndValueTextEl = document.getElementById("se5000-manual-end-value-text");
@@ -7196,10 +7205,25 @@
 
     // Reconstruido 1/9: qué se ve depende de la fase (ver comentario de se5000ManualPhase).
     var entering = se5000ManualPhase === "entering";
+    var changelist = se5000ManualPhase === "changelist";
     se5000ManualDscEl.hidden = se5000ManualPhase !== "dsc";
     se5000ManualAddManualEl.hidden = se5000ManualPhase !== "addmanual";
-    se5000ManualEnteringEl.hidden = !entering;
-    se5000ManualUndoBtn.hidden = !(entering && se5000ManualSegments.length > 0);
+    // #se5000-manual-entering agrupa dos cosas que antes se pisaban entre sí: el
+    // ajuste del tramo en curso, y (reutilizando el mismo #se5000-manual-log de más
+    // abajo) la lista de "¿Cambiar entrada?" — de ahí que también se muestre en
+    // "changelist", no solo en "entering".
+    se5000ManualEnteringEl.hidden = !(entering || changelist);
+    se5000ManualEndFieldsEl.hidden = !entering;
+    // Hugo, 2/9: "dentro del display la pantalla se desplaza" — el registro y deshacer
+    // no hacen falta mientras se está ajustando una cifra (fecha/hora/minuto/confirmar),
+    // solo entre un tramo y el siguiente ("actividad"). Ocultarlos ahí libera el sitio
+    // que hacía falta desplazar para llegar al OK.
+    var betweenTramos = entering && se5000ManualEndField === "activity";
+    se5000ManualUndoBtn.hidden = !(betweenTramos && se5000ManualSegments.length > 0);
+    se5000ManualLogEl.hidden = !(betweenTramos || changelist);
+    // El atajo tampoco hace falta a mitad de ajustar una cifra — solo tiene sentido
+    // antes de empezar (o entre un tramo y el siguiente).
+    se5000ManualActionsEl.hidden = !betweenTramos;
     se5000ManualImprimirEl.hidden = se5000ManualPhase !== "imprimir";
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
@@ -7214,21 +7238,19 @@
       // mano no depende de eso.
       se5000ManualEndPicEl.removeAttribute("hidden");
       setSe5000Pic(se5000ManualEndPicEl, SE5000_PICS[se5000ManualCls] || SE5000_PICS.rest);
+      // Etiqueta y valor fundidos en una sola línea (Hugo, 2/9: "la pantalla se
+      // desplaza" — el display real es minúsculo, no le cabe una fila aparte solo para
+      // el nombre del campo).
       var d = new Date(se5000ManualEndDraft);
       if (se5000ManualEndField === "activity") {
-        se5000ManualEndFieldLabelEl.textContent = "actividad";
         se5000ManualEndValueTextEl.textContent = SE5000_MANUAL_CLS_LABELS[se5000ManualCls];
       } else if (se5000ManualEndField === "hour") {
-        se5000ManualEndFieldLabelEl.textContent = "fin (hora)";
-        se5000ManualEndValueTextEl.textContent = String(d.getHours()).padStart(2, "0") + "h";
+        se5000ManualEndValueTextEl.textContent = "H " + String(d.getHours()).padStart(2, "0");
       } else if (se5000ManualEndField === "minute") {
-        se5000ManualEndFieldLabelEl.textContent = "fin (minuto)";
         se5000ManualEndValueTextEl.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
       } else if (se5000ManualEndField === "confirm") {
-        se5000ManualEndFieldLabelEl.textContent = "¿tramo correcto?";
-        se5000ManualEndValueTextEl.textContent = fmtHM(se5000ManualCursor) + " → " + fmtHM(se5000ManualEndDraft);
+        se5000ManualEndValueTextEl.textContent = fmtHM(se5000ManualCursor) + "→" + fmtHM(se5000ManualEndDraft) + " ¿OK?";
       } else {
-        se5000ManualEndFieldLabelEl.textContent = "fin (fecha)";
         se5000ManualEndValueTextEl.textContent = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
       }
     }
@@ -7275,9 +7297,14 @@
 
   // ▲▼: en el campo "actividad" cicla entre las tres reales (manual p.16, mismo ciclo
   // que se5000CycleActivity — nunca "conduciendo", eso lo pone el sensor de
-  // movimiento); en fecha/hora/minuto mueve esa cifra. Nunca más allá de "ahora" (no se
-  // puede registrar el futuro) ni antes del propio inicio del tramo. En "confirmar" no
-  // hace nada — ese paso es solo revisar y pulsar OK.
+  // movimiento); en fecha/hora/minuto mueve esa cifra LIBREMENTE, sin recortarla contra
+  // el inicio del tramo ni contra "ahora" en cada pulsación — Hugo, 2/9: "no permite
+  // ajustar la hora... se queda pegada". El recorte por pulsación era el fallo: si el
+  // valor de partida está a pocos minutos del inicio, bajar la hora una vez ya caía por
+  // debajo del inicio y se recortaba de vuelta al inicio exacto, y la siguiente
+  // pulsación repetía lo mismo — nunca se movía más allá. Ahora se valida solo una vez,
+  // al confirmar el tramo entero (ver el manejador de OK), igual que el aparato real deja
+  // mover las cifras con las flechas sin plantarse a mitad de camino.
   function se5000ManualStepEnd(dir) {
     if (se5000ManualEndField === "confirm") return;
     if (se5000ManualEndField === "activity") {
@@ -7290,11 +7317,7 @@
     if (se5000ManualEndField === "hour") d.setHours(d.getHours() + dir);
     else if (se5000ManualEndField === "minute") d.setMinutes(d.getMinutes() + dir);
     else d.setDate(d.getDate() + dir);
-    var ts = d.getTime();
-    var now = Date.now();
-    if (ts > now) ts = now;
-    if (ts < se5000ManualCursor) ts = se5000ManualCursor;
-    se5000ManualEndDraft = ts;
+    se5000ManualEndDraft = d.getTime();
     renderSe5000Manual();
   }
   se5000ManualEndUpBtn.addEventListener("click", function (e) { e.stopPropagation(); se5000ManualStepEnd(1); });
@@ -7310,7 +7333,21 @@
     if (se5000ManualEndField === "date") { se5000ManualEndField = "hour"; renderSe5000Manual(); return; }
     if (se5000ManualEndField === "hour") { se5000ManualEndField = "minute"; renderSe5000Manual(); return; }
     if (se5000ManualEndField === "minute") { se5000ManualEndField = "confirm"; renderSe5000Manual(); return; }
-    // "confirm": el tramo queda cerrado de verdad.
+    // "confirm": aquí, y solo aquí, se valida de verdad (nunca a mitad de ajustar una
+    // cifra — ver se5000ManualStepEnd). Si el fin quedó antes del inicio o en el futuro,
+    // no se cierra el tramo: vuelve a "fecha" para corregirlo, con aviso.
+    if (se5000ManualEndDraft <= se5000ManualCursor) {
+      announce("El fin tiene que ser después del inicio del tramo (" + fmtLocalDateTime(se5000ManualCursor) + "). Ajusta la fecha y la hora otra vez.");
+      se5000ManualEndField = "date";
+      renderSe5000Manual();
+      return;
+    }
+    if (se5000ManualEndDraft > Date.now()) {
+      announce("No se puede registrar un momento futuro. Ajusta la fecha y la hora otra vez.");
+      se5000ManualEndField = "date";
+      renderSe5000Manual();
+      return;
+    }
     se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: se5000ManualEndDraft, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
     se5000ManualCursor = se5000ManualEndDraft;
     if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualImprimir(); return; }
