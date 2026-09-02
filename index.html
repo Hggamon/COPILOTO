@@ -1234,6 +1234,33 @@
     overflow: hidden;
   }
 
+  /* Pantalla por defecto (manual p.13): dos filas, pictograma + cifras compactas — ver
+     ddsDefaultScreenHtml(). Antes esta franja solo llevaba texto plano (line-height con
+     pre-line de arriba); estas reglas son solo para el contenido nuevo con pictograma. */
+  .se5000-dds-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .se5000-dds-pic {
+    width: 1.3em;
+    height: 1.3em;
+    flex-shrink: 0;
+  }
+
+  .se5000-dds-sep {
+    letter-spacing: -0.1em;
+  }
+
+  .se5000-dds-time {
+    margin-left: auto;
+  }
+
+  .se5000-dds-dim {
+    color: var(--fg-dim);
+  }
+
   .se5000-nav {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -2884,6 +2911,13 @@
   // solo lee el estado de arriba (openInterval, dailyDrive, restBlockActive, jornadaStartAt,
   // geoDebug...) para pintar el botón de actividad y las pantallas de conductor (DDS) que
   // trae la guía de consulta rápida real. No calcula nada nuevo ni toca localStorage propio.
+  // Movido aquí (2/9) desde la sección de entrada manual: ddsDefaultScreenHtml(), más
+  // abajo en este mismo archivo pero textualmente ANTES de donde vivía esta constante,
+  // la necesita para pintar los pictogramas de la pantalla por defecto en la primerísima
+  // llamada a renderDdsScreen() al arrancar — con la declaración más abajo llegaba
+  // undefined a esa primera pintada (var se asigna en orden de ejecución, no de
+  // declaración).
+  var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work", unknown: "#pic-unknown" };
   var ddsScreenIndex = 0;
   // Dos series reales, manual p.12, literal — "el tacógrafo cuenta con dos series
   // estándar de vistas de pantalla... dependiendo de [si DDS está ENCENDIDO o APAGADO],
@@ -5174,6 +5208,16 @@
     return (hh > 0 ? hh + "h " : "") + mm + "min";
   }
 
+  // "03h45" — mismo formato compacto que usa el aparato real en la pantalla por
+  // defecto (manual p.13, ejemplo real: "03h45", "01h02") — fmtDuration() de arriba es
+  // para el resto de la app (verboso, "3h 45min"), no para dentro del LCD simulado.
+  function fmtDurationCompact(ms) {
+    var totalMinutes = Math.floor(Math.max(0, ms) / 60000);
+    var hh = Math.floor(totalMinutes / 60);
+    var mm = totalMinutes % 60;
+    return String(hh).padStart(2, "0") + "h" + String(mm).padStart(2, "0");
+  }
+
   // Art. 4(o): la conducción en equipo exige al menos dos conductores durante TODO el
   // período salvo, como mucho, la primera hora. Si el compañero se sube pasada esa
   // primera hora del período de jornada actual (jornadaStartAt), el período entero deja
@@ -5345,6 +5389,14 @@
     return paused ? activityLabel(pauseClassification) : "conduciendo";
   }
 
+  // Misma lógica que currentActivityLabel(), pero devolviendo la clave de clasificación
+  // ("driving"/"rest"/"availability"/"other") en vez de la etiqueta en español — para
+  // poder elegir el pictograma correcto (SE5000_PICS) en la pantalla por defecto.
+  function currentActivityCls() {
+    if (isDriver2Active()) return paused2 ? (pauseClassification2 || "unknown") : "driving";
+    return paused ? (pauseClassification || "unknown") : "driving";
+  }
+
   // Compañero: qué actividad y desde cuándo, mirando el motor de intervalos del que NO
   // está activo ahora mismo — usado por la pantalla por defecto (campos 6/7) y por
   // "Tiempo que queda de descanso" (campo 3). Devuelve null si no hay tripulación doble.
@@ -5358,21 +5410,18 @@
     return { num: inactiveNum, cls: inactiveCls || "availability", sinceMs: now - since };
   }
 
-  // Contenido compartido por las dos series (idx 0 en las dos, manual p.12) — pantalla
-  // por defecto, ocho campos exactos, en este orden (manual p.13).
-  function ddsDefaultScreenLines(now, arr, resetAt) {
-    var lines = [];
+  // Pantalla por defecto (manual p.13, ejemplo real calcado): dos filas compactas con
+  // pictograma + cifras, "1[pic] 03h45 ▮▮01h02" / "2[pic] 03h45  13:01" — reconstruida
+  // 2/9 tras comparar con capturas reales del propio Hugo (mismo formato "71h09..."):
+  // antes eran ocho líneas de texto "N etiqueta: valor", una lista que el LCD real no
+  // tiene — el ITS/RHMI (campo 2, siempre "—" en esta app) y el modo operativo (campo 5,
+  // siempre "conducción" aquí) se omiten por no aportar nada distinto cada vez, no
+  // porque el aparato real no los tenga.
+  function ddsDefaultScreenHtml(now, arr, resetAt) {
     var openIv = openInterval();
     var since = openIv ? openIv.inicio : now;
     var comp = companionState(now);
-    lines.push("1 actividad: " + currentActivityLabel());
-    lines.push("2 ITS/RHMI: —"); // no aplica — esta app no tiene esa conexión, no se inventa
-    lines.push("3 desde hace: " + fmtDuration(now - since));
-    lines.push("4 pausa acumulada: " + fmtDuration(breakBankedMs(arr, resetAt, now)));
-    lines.push("5 modo: conducción"); // único modo que esta app representa (sin empresa/control/calibración)
-    lines.push("6 compañero: " + (comp ? activityLabel(comp.cls) : "—"));
-    lines.push("7 su duración: " + (comp ? fmtDuration(comp.sinceMs) : "—"));
-    // 8: hora local, sustituida por Ferry o por OUT según el modo activo — Hugo, 1/9.
+    var cls = currentActivityCls();
     var field8;
     if (ferryMode) field8 = "Ferry";
     else if (outOfScopeMode) field8 = "OUT";
@@ -5380,8 +5429,21 @@
       var dd = new Date(now);
       field8 = String(dd.getHours()).padStart(2, "0") + ":" + String(dd.getMinutes()).padStart(2, "0");
     }
-    lines.push("8 hora local: " + field8);
-    return lines;
+    var compPicHtml = comp
+      ? '<svg class="se5000-dds-pic"><use href="' + (SE5000_PICS[comp.cls] || SE5000_PICS.unknown) + '"></use></svg><span>' + fmtDurationCompact(comp.sinceMs) + '</span>'
+      : '<span class="se5000-dds-dim">—</span>';
+    return (
+      '<div class="se5000-dds-row">' +
+        '<svg class="se5000-dds-pic"><use href="' + (SE5000_PICS[cls] || SE5000_PICS.unknown) + '"></use></svg>' +
+        '<span>' + fmtDurationCompact(now - since) + '</span>' +
+        '<span class="se5000-dds-sep">▮▮</span>' +
+        '<span>' + fmtDurationCompact(breakBankedMs(arr, resetAt, now)) + '</span>' +
+      '</div>' +
+      '<div class="se5000-dds-row">' +
+        compPicHtml +
+        '<span class="se5000-dds-time">' + field8 + '</span>' +
+      '</div>'
+    );
   }
 
   // "Conductor 1"/"Conductor 2" (manual p.14, serie DDS apagado): cuatro campos propios,
@@ -5517,7 +5579,9 @@
     var lines;
 
     if (idx === 0) {
-      lines = ddsDefaultScreenLines(now, arr, resetAt);
+      tgDdsTitleEl.textContent = currentDdsTitles()[idx];
+      tgDdsEl.innerHTML = ddsDefaultScreenHtml(now, arr, resetAt);
+      return;
     } else if (ddsEnabled) {
       // Serie DDS ENCENDIDO (manual p.12): pantalla por defecto · horario de trabajo ·
       // DTD · velocidad actual · tiempo que queda de conducción · tiempo que queda de
@@ -6856,7 +6920,6 @@
   var se5000ManualClearAllBtn = document.getElementById("se5000-manual-clearall");
   var se5000ManualListoEl = document.getElementById("se5000-manual-listo");
 
-  var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work", unknown: "#pic-unknown" };
   var se5000ManualCls = "rest";
   var se5000ManualSegments = [];
   var se5000ManualCursor = null;
@@ -7945,7 +8008,9 @@
         se5000MainClock.style.color = "";
       }
 
-      se5000SubEl.textContent = tgDdsEl.textContent;
+      // .innerHTML, no .textContent — la pantalla por defecto (idx 0) ya no es texto
+      // plano, es la rejilla con pictogramas de ddsDefaultScreenHtml().
+      se5000SubEl.innerHTML = tgDdsEl.innerHTML;
       se5000DdsTitleEl.textContent = tgDdsTitleEl.textContent;
     }
 
