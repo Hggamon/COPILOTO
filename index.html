@@ -1567,7 +1567,8 @@
   #se5000-manual-nochoice,
   #se5000-manual-dsc,
   #se5000-manual-addmanual,
-  #se5000-manual-imprimir {
+  #se5000-manual-imprimir,
+  #se5000-manual-listo {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2114,6 +2115,14 @@
     <div id="se5000-manual-nochoice" hidden>
       <button id="se5000-manual-change" type="button">¿Cambiar entrada?</button>
       <button id="se5000-manual-clearall" type="button">Borrar todas las entradas</button>
+    </div>
+    <!-- "Listo para conducir" — mensaje de paso, unos segundos, tras confirmar (vídeo
+         real de un tutorial, 2/9: aparece justo después de "¿Confirmar entrada? Sí" y
+         antes de que la pantalla pase sola a la vista de conducción con las horas). No
+         estaba en la app — de "¿Confirmar entradas?" se pasaba directo a la cuenta
+         atrás, sin este aviso de por medio. -->
+    <div id="se5000-manual-listo" hidden>
+      <div class="status-pill">Listo para conducir</div>
     </div>
   </div>
 
@@ -6767,6 +6776,7 @@
   var se5000ManualNochoiceEl = document.getElementById("se5000-manual-nochoice");
   var se5000ManualChangeBtn = document.getElementById("se5000-manual-change");
   var se5000ManualClearAllBtn = document.getElementById("se5000-manual-clearall");
+  var se5000ManualListoEl = document.getElementById("se5000-manual-listo");
 
   var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work", unknown: "#pic-unknown" };
   var se5000ManualCls = "rest";
@@ -7366,6 +7376,7 @@
     se5000ManualImprimirEl.hidden = se5000ManualPhase !== "imprimir";
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
+    se5000ManualListoEl.hidden = se5000ManualPhase !== "listo";
 
     if (se5000ManualPhase === "dsc") {
       se5000ManualDscValueEl.textContent = se5000ManualDscChoice ? "Sí" : "No";
@@ -7523,7 +7534,23 @@
     }
     se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: se5000ManualEndDraft, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
     se5000ManualCursor = se5000ManualEndDraft;
-    if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualImprimir(); return; }
+    // Fallo real de raíz, encontrado 2/9 reproduciéndolo con un test automático tras el
+    // vídeo de Hugo ("no sale de ahí... esto es imposible"): comparar el cursor recién
+    // cerrado contra un Date.now() nuevo aquí NUNCA daba <= 0 en uso real. Entre que se
+    // fija el fin (arriba) y se llega aquí ya ha pasado el tiempo real que tarda el
+    // conductor en recorrer fecha→hora→minuto→confirmar — así que "ahora" siempre se
+    // adelantaba al fin que se acababa de cerrar, por poco que fuera, y la entrada
+    // manual pedía un tramo más, para siempre: ni con el caso de prueba de Hugo (apenas
+    // unos segundos sin tarjeta) ni con una jornada real de horas se llegaba nunca a
+    // "¿Imprimir entradas?" — el último tramo, el que de verdad alcanza "ahora", topaba
+    // con este mismo desfase de segundos y volvía a pedir otro. Confirmado con un test
+    // que acepta el valor por defecto de cada campo sin tocar nada: 6 rondas seguidas,
+    // nunca sale. Arreglo: si el fin que se acaba de cerrar queda a menos de dos minutos
+    // de "ahora" (de sobra para cualquier ronda real de fecha→hora→minuto→confirmar), se
+    // da por alcanzado — el hueco de unos segundos/minutos que queda es el propio tiempo
+    // de rellenar el formulario, no un tramo real sin contar.
+    var CATCH_UP_TOLERANCE_MS = 2 * 60000;
+    if (Date.now() - se5000ManualCursor <= CATCH_UP_TOLERANCE_MS) { enterSe5000ManualImprimir(); return; }
     se5000ManualResetEndDraft();
     renderSe5000Manual();
   });
@@ -7612,10 +7639,16 @@
     renderSe5000Manual();
   });
 
+  // "Listo para conducir" — manual/vídeo real: un mensaje de paso de un par de segundos
+  // entre "¿Confirmar entrada? Sí" y que la pantalla pase sola a la vista de conducción
+  // con las horas — no un cierre instantáneo y silencioso.
+  var SE5000_MANUAL_LISTO_MS = 1600;
   se5000ManualConfirmOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     if (se5000ManualConfirmChoice) {
-      finishSe5000ManualEntry();
+      se5000ManualPhase = "listo";
+      renderSe5000Manual();
+      setTimeout(finishSe5000ManualEntry, SE5000_MANUAL_LISTO_MS);
     } else {
       // Manual p.22: NO en "¿Confirmar entradas?" lleva a elegir entre cambiar una
       // entrada o borrarlas todas — nunca descarta nada por sí solo.
