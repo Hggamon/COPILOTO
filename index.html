@@ -496,31 +496,55 @@
     color: var(--fg-dim);
   }
 
+  /* Reconstruido 2/9 sobre las dos fotos reales (Getty): ▲ arriba y ▼ abajo, apilados en
+     columna junto al valor — nunca uno a cada lado del valor en horizontal, que es como
+     estaba antes. */
   .jornada-selector-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 6px;
   }
 
-  .jornada-selector-row button {
+  .jornada-selector-arrows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .jornada-selector-arrows button {
     font-family: var(--font-label);
-    font-size: clamp(14px, 2.6vw, 18px);
+    font-size: clamp(9px, 1.8vw, 12px);
     font-weight: 700;
     color: var(--fg-dim);
     background: rgba(0, 0, 0, 0.35);
-    border: 2px solid var(--fg-dim);
-    border-radius: 8px;
-    width: 2em;
-    height: 2em;
+    border: 1px solid var(--fg-dim);
+    border-radius: 3px;
+    width: 1.7em;
+    height: 1.2em;
+    line-height: 1;
+    padding: 0;
     cursor: pointer;
   }
 
+  /* El valor va SIEMPRE en vídeo invertido — fondo del color de tinta del display, texto
+     del color de fondo del display — calcado de las dos fotos reales ("Sí" recuadrado en
+     oscuro) y del mismo criterio que ya usa .se5000-menu-item.selected más abajo. No es
+     "uno de varios está marcado": este widget solo enseña un valor cada vez, así que va
+     invertido siempre, no como estado aparte. Colores fijos a --se-display-fg/bg (no a
+     --fg/--bg genéricos) a propósito, mismo motivo que el comentario de
+     .se5000-menu-item.selected: tienen que seguir siendo los del LCD incluso fuera del
+     marco SE5000 (diálogo de jornada en la vista clásica), y invertirse solos si la
+     pantalla está en modo "Pantalla invertida" (CONFIGURAC., manual p.34), porque ahí
+     --se-display-fg/bg ya vienen intercambiados. */
   .jornada-selector-value {
     font-family: var(--font-display);
     font-size: clamp(14px, 2.6vw, 17px);
     font-weight: 700;
-    color: var(--fg);
-    min-width: 14ch;
+    background: var(--se-display-fg);
+    color: var(--se-display-bg);
+    padding: 0.05em 0.5em;
+    min-width: 8ch;
     text-align: center;
   }
 
@@ -793,9 +817,25 @@
   :root {
     --se-bezel: #1c1a16;
     --se-bezel-edge: #302c24;
-    --se-display-bg: #d9d6c4;
-    --se-display-fg: #2b2a22;
+    /* 2/9: recalibrado sobre las dos fotos reales del display (Getty, "¿Confirmar
+       entradas?"/"¿Descansó hasta ahora?") — muestreando con Python/PIL el hueco entre
+       líneas de texto: el LCD real es un gris pálido con un puntito frío/verdoso, no el
+       beige cálido que había antes. --se-display-fg-rgb es el mismo --se-display-fg en
+       tripleta r,g,b, para poder usarlo dentro de rgba() en la rejilla de píxeles de más
+       abajo sin duplicar el valor a mano. */
+    --se-display-bg: #d7dbd1;
+    --se-display-fg: #201f1a;
+    --se-display-fg-rgb: 32, 31, 26;
     --se-display-dim: #55523f; /* 2/9: oscurecido — el tono anterior daba ~3.8:1 de contraste sobre el fondo del display, por debajo del mínimo legible; este da ~5.4:1 */
+    /* Rejilla de puntos del LCD real (visible a simple vista en las fotos, textura de
+       matriz de puntos) — dos líneas finas semitransparentes del propio color de tinta
+       del display, así se adapta sola al modo invertido sin duplicar la regla. Sin esto
+       el fondo era un color plano, y un color plano no lee como pantalla LCD por mucho
+       que el tono esté bien — Hugo, 2/9: "una cosa es la fiel imagen [...] y otra es lo
+       que pone dentro del display". */
+    --se-lcd-grid:
+      repeating-linear-gradient(0deg, rgba(var(--se-display-fg-rgb), 0.07) 0 1px, transparent 1px 2px),
+      repeating-linear-gradient(90deg, rgba(var(--se-display-fg-rgb), 0.07) 0 1px, transparent 1px 2px);
     --se-key: #100f0c;
 
     /* Menú de 4 entradas (manual p.15) y sus pantallas (LUGARES, Carga/descarga,
@@ -868,6 +908,7 @@
   #se5000-view.se5000-inverted {
     --se-display-bg: #2b2a22;
     --se-display-fg: #d9d6c4;
+    --se-display-fg-rgb: 217, 214, 196;
     --se-display-dim: #948f78;
   }
 
@@ -922,7 +963,7 @@
   }
 
   .se5000-display {
-    background: var(--se-display-bg);
+    background: var(--se-lcd-grid), var(--se-display-bg);
     color: var(--se-display-fg);
     border-radius: 3px;
     border: 1px solid #8f8c78;
@@ -969,7 +1010,7 @@
   #se5000-dialog-dock {
     position: absolute;
     inset: 0;
-    background: var(--se-display-bg);
+    background: var(--se-lcd-grid), var(--se-display-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1015,11 +1056,11 @@
      tamaño completo, no para la franja del bezel. */
   #se5000-dialog-dock #se5000-manual {
     width: 100%;
-    gap: 3px;
+    gap: 2px;
   }
   #se5000-dialog-dock #se5000-manual-entering,
   #se5000-dialog-dock #se5000-manual-end-fields {
-    gap: 3px;
+    gap: 1px;
   }
   #se5000-dialog-dock #se5000-manual-summary {
     font-size: clamp(5px, 1.2vw, 7px);
@@ -1062,6 +1103,19 @@
   #se5000-dialog-dock #se5000-manual-confirm,
   #se5000-dialog-dock .jornada-selector-row {
     gap: 2px;
+  }
+
+  /* La columna ▲▼ apilada (ver .jornada-selector-arrows, calcada de las fotos reales)
+     mide más alto que el propio valor de una sola línea — dentro del dock minúsculo eso
+     bastaba para desbordar el marco otra vez. Encogida aparte, más que el resto de
+     botones del dock. */
+  #se5000-dialog-dock .jornada-selector-arrows {
+    gap: 0;
+  }
+  #se5000-dialog-dock .jornada-selector-arrows button {
+    font-size: clamp(4.5px, 1vw, 6px);
+    line-height: 1;
+    padding: 0 2px;
   }
 
   /* "Descanso de 9h+ detectado · ¿inicias jornada nueva?" es el texto de status-pill más
@@ -1184,7 +1238,10 @@
     background: var(--se-key);
     color: #a8a493;
     border: 1px solid #3a362c;
-    border-radius: 999px;
+    /* Cuadrado redondeado, no un círculo — las dos fotos reales (Getty, 2/9) muestran
+       los cuatro botones bajo el display como cuadrados de esquinas curvas, nunca
+       botones circulares. */
+    border-radius: 22%;
     aspect-ratio: 1;
     font-size: clamp(7px, 1.9vw, 10px);
     font-weight: 700;
@@ -1354,7 +1411,7 @@
      ------------------------------------------------------------------------ */
   #countdown.se5000-skin #pause-classify,
   #countdown.se5000-skin #jornada-dialog {
-    background: var(--se-display-bg);
+    background: var(--se-lcd-grid), var(--se-display-bg);
     border: 3px solid var(--se-bezel);
   }
 
@@ -1389,16 +1446,21 @@
   #countdown.se5000-skin #jornada-manual-none,
   #countdown.se5000-skin #jornada-country-ok,
   #countdown.se5000-skin #jornada-region-ok,
-  #countdown.se5000-skin .jornada-selector-row button {
+  #countdown.se5000-skin .jornada-selector-arrows button {
     color: var(--se-display-fg);
     border-color: var(--se-display-dim);
     background: rgba(0, 0, 0, 0.06);
   }
 
-  #countdown.se5000-skin .jornada-selector-label,
-  #countdown.se5000-skin .jornada-selector-value {
+  #countdown.se5000-skin .jornada-selector-label {
     color: var(--se-display-fg);
   }
+
+  /* .jornada-selector-value NO se repinta aquí — su regla base ya fija fondo/texto
+     directamente a --se-display-fg/bg (ver comentario de esa regla), así que ya sale
+     correcta en modo se5000-skin sin necesitar este repintado; repintarla aquí solo con
+     "color" (sin tocar el fondo) dejaba el texto del mismo color que su propio fondo —
+     invisible. Encontrado 2/9 al añadir el vídeo invertido real. */
 
   /* #se5000-reposo y .se5000-tray-strip se retiraron aquí (Deployment B, 2/9) — el
      reposo ya se pinta con las mismas reglas que el resto del display permanente
@@ -1605,7 +1667,7 @@
   #se5000-menu {
     position: absolute;
     inset: 0;
-    background: var(--se-display-bg);
+    background: var(--se-lcd-grid), var(--se-display-bg);
     color: var(--se-display-fg);
     display: flex;
     flex-direction: column;
@@ -1694,7 +1756,7 @@
   #se5000-eject-country {
     position: absolute;
     inset: 0;
-    background: var(--se-display-bg);
+    background: var(--se-lcd-grid), var(--se-display-bg);
     color: var(--se-display-fg);
     display: flex;
     flex-direction: column;
@@ -1740,7 +1802,9 @@
     background: var(--se-key);
     color: #a8a493;
     border: 1px solid #3a362c;
-    border-radius: 999px;
+    /* Mismo motivo que .se5000-key — el botón "2" (compañero) de la foto real es un
+       cuadrado de esquinas curvas, no un círculo. */
+    border-radius: 22%;
     width: var(--se-key-activity-size);
     height: var(--se-key-activity-size);
     font-size: var(--se-key-activity-fs);
@@ -1841,8 +1905,8 @@
     #se5000-manual-end-start {
       font-size: 10px;
     }
-    .jornada-selector-row button {
-      font-size: clamp(12px, 2vh, 15px);
+    .jornada-selector-arrows button {
+      font-size: clamp(8px, 1.4vh, 11px);
     }
     #se5000-manual-end-ok,
     #se5000-manual-actions button {
@@ -1950,9 +2014,11 @@
     <div id="se5000-manual-dsc">
       <div class="status-pill">¿Dsc. hasta ahora?</div>
       <div class="jornada-selector-row">
-        <button id="se5000-manual-dsc-down" type="button" aria-label="bajar">▼</button>
         <div class="jornada-selector-value" id="se5000-manual-dsc-value">Sí</div>
-        <button id="se5000-manual-dsc-up" type="button" aria-label="subir">▲</button>
+        <div class="jornada-selector-arrows">
+          <button id="se5000-manual-dsc-up" type="button" aria-label="subir">▲</button>
+          <button id="se5000-manual-dsc-down" type="button" aria-label="bajar">▼</button>
+        </div>
       </div>
       <button id="se5000-manual-dsc-ok" type="button">OK</button>
     </div>
@@ -1982,7 +2048,6 @@
       <div id="se5000-manual-end-fields">
         <div id="se5000-manual-end-start"></div>
         <div class="jornada-selector-row">
-          <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
           <div id="se5000-manual-end-value" class="jornada-selector-value">
             <!-- El pictograma de la actividad elegida se queda visible durante todo el
                  resto del ciclo (fecha/hora/minuto), igual que en las capturas del manual
@@ -1990,7 +2055,10 @@
             <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
             <span id="se5000-manual-end-value-text">—</span>
           </div>
-          <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
+          <div class="jornada-selector-arrows">
+            <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
+            <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
+          </div>
         </div>
         <button id="se5000-manual-end-ok" type="button">OK</button>
         <div id="se5000-manual-actions">
@@ -2017,9 +2085,11 @@
     <div id="se5000-manual-imprimir" hidden>
       <div class="status-pill">¿Imprimir entradas?</div>
       <div class="jornada-selector-row" id="se5000-manual-imprimir-row">
-        <button id="se5000-manual-imprimir-down" type="button" aria-label="bajar">▼</button>
         <div class="jornada-selector-value" id="se5000-manual-imprimir-value">No</div>
-        <button id="se5000-manual-imprimir-up" type="button" aria-label="subir">▲</button>
+        <div class="jornada-selector-arrows">
+          <button id="se5000-manual-imprimir-up" type="button" aria-label="subir">▲</button>
+          <button id="se5000-manual-imprimir-down" type="button" aria-label="bajar">▼</button>
+        </div>
       </div>
       <div id="se5000-manual-imprimir-notice" hidden>no disponible en esta app</div>
       <button id="se5000-manual-imprimir-ok" type="button">OK</button>
@@ -2031,9 +2101,11 @@
     <div id="se5000-manual-confirm" hidden>
       <div class="status-pill">¿Confirmar entradas?</div>
       <div class="jornada-selector-row">
-        <button id="se5000-manual-confirm-down" type="button" aria-label="bajar">▼</button>
         <div class="jornada-selector-value" id="se5000-manual-confirm-value">Sí</div>
-        <button id="se5000-manual-confirm-up" type="button" aria-label="subir">▲</button>
+        <div class="jornada-selector-arrows">
+          <button id="se5000-manual-confirm-up" type="button" aria-label="subir">▲</button>
+          <button id="se5000-manual-confirm-down" type="button" aria-label="bajar">▼</button>
+        </div>
       </div>
       <button id="se5000-manual-confirm-ok" type="button">OK</button>
     </div>
@@ -2096,9 +2168,11 @@
     <div id="jornada-ask" hidden>
       <div class="status-pill">Descanso de 9h+ detectado · ¿inicias jornada nueva?</div>
       <div class="jornada-selector-row">
-        <button id="jornada-ask-down" type="button" aria-label="bajar">▼</button>
         <div class="jornada-selector-value" id="jornada-ask-value">Sí</div>
-        <button id="jornada-ask-up" type="button" aria-label="subir">▲</button>
+        <div class="jornada-selector-arrows">
+          <button id="jornada-ask-up" type="button" aria-label="subir">▲</button>
+          <button id="jornada-ask-down" type="button" aria-label="bajar">▼</button>
+        </div>
       </div>
       <button id="jornada-ask-ok" type="button">OK</button>
     </div>
@@ -2110,18 +2184,22 @@
       <div class="jornada-selector">
         <div class="jornada-selector-label">país</div>
         <div class="jornada-selector-row">
-          <button id="jornada-country-up" type="button" aria-label="país anterior">▲</button>
           <div class="jornada-selector-value" id="jornada-country-value">—</div>
-          <button id="jornada-country-down" type="button" aria-label="país siguiente">▼</button>
+          <div class="jornada-selector-arrows">
+            <button id="jornada-country-up" type="button" aria-label="país anterior">▲</button>
+            <button id="jornada-country-down" type="button" aria-label="país siguiente">▼</button>
+          </div>
         </div>
         <button id="jornada-country-ok" type="button">OK</button>
       </div>
       <div class="jornada-selector" id="jornada-region-block" hidden>
         <div class="jornada-selector-label">provincia / comunidad</div>
         <div class="jornada-selector-row">
-          <button id="jornada-region-up" type="button" aria-label="región anterior">▲</button>
           <div class="jornada-selector-value" id="jornada-region-value">—</div>
-          <button id="jornada-region-down" type="button" aria-label="región siguiente">▼</button>
+          <div class="jornada-selector-arrows">
+            <button id="jornada-region-up" type="button" aria-label="región anterior">▲</button>
+            <button id="jornada-region-down" type="button" aria-label="región siguiente">▼</button>
+          </div>
         </div>
         <button id="jornada-region-ok" type="button">OK</button>
       </div>
