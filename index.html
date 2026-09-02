@@ -7500,16 +7500,24 @@
     if (se5000ManualEndField === "minute") { se5000ManualEndField = "confirm"; renderSe5000Manual(); return; }
     // "confirm": aquí, y solo aquí, se valida de verdad (nunca a mitad de ajustar una
     // cifra — ver se5000ManualStepEnd). Si el fin quedó antes del inicio o en el futuro,
-    // no se cierra el tramo: vuelve a "fecha" para corregirlo, con aviso.
+    // no se cierra el tramo: vuelve a "minuto" para corregirlo, con aviso — NO a "fecha".
+    // Hugo, 2/9 (vídeo real de su móvil): con una ventana válida de solo 1 minuto (recién
+    // sacada y metida la tarjeta), se quedó ~80s dando vueltas entre este mismo aviso y el
+    // de "momento futuro" sin salir. La causa real, vista en los fotogramas: el minuto se
+    // pasaba de largo (15:30, antes de un inicio a las 15:36) y cada fallo lo mandaba de
+    // vuelta a "fecha" — un campo que casi nunca es el problema — obligando a recorrer
+    // fecha→hora→minuto enteros para corregir solo el minuto. Sin forma de retroceder un
+    // solo campo (el ↩ físico deshace TODO el tramo, y con el primer tramo del todo no
+    // hay nada que deshacer todavía), cada intento fallido era volver a empezar de cero.
     if (se5000ManualEndDraft <= se5000ManualCursor) {
-      announce("El fin tiene que ser después del inicio del tramo (" + fmtLocalDateTime(se5000ManualCursor) + "). Ajusta la fecha y la hora otra vez.");
-      se5000ManualEndField = "date";
+      announce("El fin tiene que ser después del inicio del tramo (" + fmtLocalDateTime(se5000ManualCursor) + "). Ajusta la hora otra vez.");
+      se5000ManualEndField = "minute";
       renderSe5000Manual();
       return;
     }
     if (se5000ManualEndDraft > Date.now()) {
-      announce("No se puede registrar un momento futuro. Ajusta la fecha y la hora otra vez.");
-      se5000ManualEndField = "date";
+      announce("No se puede registrar un momento futuro. Ajusta la hora otra vez.");
+      se5000ManualEndField = "minute";
       renderSe5000Manual();
       return;
     }
