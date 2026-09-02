@@ -795,7 +795,7 @@
     --se-bezel-edge: #302c24;
     --se-display-bg: #d9d6c4;
     --se-display-fg: #2b2a22;
-    --se-display-dim: #6b6858;
+    --se-display-dim: #55523f; /* 2/9: oscurecido — el tono anterior daba ~3.8:1 de contraste sobre el fondo del display, por debajo del mínimo legible; este da ~5.4:1 */
     --se-key: #100f0c;
 
     /* Menú de 4 entradas (manual p.15) y sus pantallas (LUGARES, Carga/descarga,
@@ -950,6 +950,19 @@
     font-family: var(--font-display) !important;
   }
 
+  /* Hugo, 2/9: "cuando haces el ingreso en el display no se lee bien por el color de
+     las letras" — real: muchos elementos compartidos (diálogos, pasos de fecha/hora)
+     usan var(--fg-dim)/var(--fg), los colores de la app oscura de fuera, pensados para
+     el fondo negro de #bg, no para el fondo claro del LCD (--se-display-bg). Contraste
+     medido: #7a776a sobre #d9d6c4 da ~3:1, por debajo del mínimo legible. Redefinir
+     --fg/--fg-dim aquí dentro hace que TODO lo que ya usaba var(--fg-dim) en su CSS
+     (sin tocar cada regla una por una) pase a los colores correctos del display en
+     cuanto quede dentro de .se5000-display — cascada normal de variables CSS. */
+  .se5000-display {
+    --fg: var(--se-display-fg);
+    --fg-dim: var(--se-display-dim);
+  }
+
   /* Los diálogos compartidos, realojados aquí mientras están activos en vista SE5000 —
      cubren el display entero (mismo fondo, sin huecos) y sustituyen lo que hubiera,
      igual que en el aparato real. Ver applyViewMode()/se5000SyncDialogDocks(). */
@@ -1003,20 +1016,14 @@
   #se5000-dialog-dock #se5000-manual {
     width: 100%;
   }
-  #se5000-dialog-dock #se5000-manual-summary,
-  #se5000-dialog-dock #se5000-manual-divider {
+  #se5000-dialog-dock #se5000-manual-summary {
     font-size: clamp(5px, 1.2vw, 7px);
   }
-  #se5000-dialog-dock .se5000-manual-btn {
-    font-size: clamp(5px, 1.1vw, 6.5px);
-    padding: 0.3em 0.2em;
-  }
-  #se5000-dialog-dock .se5000-manual-btn .se5000-pic {
+  #se5000-dialog-dock #se5000-manual-end-pic {
     width: 12px;
     height: 12px;
   }
   #se5000-dialog-dock #se5000-manual-actions button,
-  #se5000-dialog-dock #se5000-manual-shortcut,
   #se5000-dialog-dock #se5000-manual-undo {
     font-size: clamp(5px, 1.2vw, 7px);
     padding: 0.35em 0.4em;
@@ -1402,68 +1409,6 @@
     text-align: center;
   }
 
-  #se5000-manual-shortcut {
-    font-family: var(--font-label);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg);
-    background: rgba(217, 164, 65, 0.12);
-    border: 1.5px solid var(--accent);
-    border-radius: 10px;
-    padding: 0.6em 0.8em;
-    cursor: pointer;
-  }
-
-  #se5000-manual-divider {
-    text-align: center;
-    font-size: 11px;
-    color: var(--fg-dim);
-  }
-
-  #se5000-manual-picker {
-    display: flex;
-    gap: 8px;
-  }
-
-  .se5000-manual-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    font-family: var(--font-label);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--fg-dim);
-    background: rgba(0, 0, 0, 0.35);
-    border: 2px solid var(--fg-dim);
-    border-radius: 10px;
-    padding: 0.6em 0.4em;
-    cursor: pointer;
-  }
-
-  .se5000-manual-btn.selected { color: var(--accent); border-color: var(--accent); }
-  .se5000-manual-btn .se5000-pic { width: 22px; height: 22px; }
-
-  #se5000-manual-duration {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  #se5000-manual-duration input {
-    width: 3em;
-    text-align: center;
-    font-family: var(--font-display);
-    font-size: 18px;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid var(--fg-dim);
-    border-radius: 8px;
-    color: var(--fg);
-    padding: 0.2em 0;
-  }
-
   #se5000-manual-actions {
     display: flex;
     gap: 8px;
@@ -1479,10 +1424,16 @@
     cursor: pointer;
   }
 
-  #se5000-manual-add {
-    background: rgba(244, 242, 232, 0.08);
-    color: var(--fg);
-    border: 1px solid var(--fg-dim);
+  #se5000-manual-end-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  #se5000-manual-end-pic {
+    width: 20px;
+    height: 20px;
   }
 
   #se5000-manual-rest {
@@ -1575,6 +1526,16 @@
   #se5000-manual-confirm-yes,
   #se5000-manual-addmanual-ok,
   #se5000-manual-imprimir-ok {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+  }
+
+  /* "No" es la recomendación real en "¿Imprimir entradas?" — un móvil no imprime nada,
+     así que es la respuesta que de verdad hace falta casi siempre. Hugo, 2/9: en las
+     demás preguntas SÍ había una opción marcada como recomendada (el Sí/OK en acento) y
+     en esta no había ninguna — inconsistente, aunque aquí la recomendada sea la otra. */
+  #se5000-manual-imprimir-no {
     background: var(--accent);
     color: var(--accent-fg);
     border: none;
@@ -1866,15 +1827,7 @@
     #se5000-manual-entering {
       gap: 5px;
     }
-    #se5000-manual-picker {
-      gap: 5px;
-    }
-    .se5000-manual-btn {
-      padding: 0.35em 0.3em;
-      gap: 2px;
-      font-size: 10px;
-    }
-    .se5000-manual-btn .se5000-pic {
+    #se5000-manual-end-pic {
       width: 16px;
       height: 16px;
     }
@@ -1998,30 +1951,27 @@
       <button id="se5000-manual-addmanual-ok" type="button">OK</button>
     </div>
 
-    <!-- Fase "entering" — picker de actividad + fin del tramo con hora real -->
+    <!-- Fase "entering" — un solo tramo, un solo ciclo de campos (manual pp.21-22,
+         literal, calcado de las capturas reales paso a paso): actividad → fecha → hora
+         → minuto → confirmar, cada uno con su propio OK. Nunca un selector de actividad
+         aparte antes del resto — es un campo más del mismo ciclo, igual que en el
+         aparato ("marque el símbolo 🔨... pulse OK" es el PRIMER paso del mismo bucle
+         que "cambie la fecha... pulse OK", no una pantalla distinta). Reconstruido 2/9
+         tras comparar con las capturas del manual — antes había un selector de tres
+         botones (Disponibilidad/Descanso/Otros trabajos) previo al ciclo, que el
+         aparato real no tiene. -->
     <div id="se5000-manual-entering" hidden>
-      <div id="se5000-manual-picker">
-        <button type="button" class="se5000-manual-btn" data-se5000-cls="availability">
-          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-availability"></use></svg>
-          Disponibilidad
-        </button>
-        <button type="button" class="se5000-manual-btn" data-se5000-cls="rest">
-          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-rest"></use></svg>
-          Descanso
-        </button>
-        <button type="button" class="se5000-manual-btn" data-se5000-cls="other">
-          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-work"></use></svg>
-          Otros trabajos
-        </button>
-      </div>
       <div id="se5000-manual-end-start"></div>
-      <!-- Ajuste del fin del tramo, fecha → hora → minuto, cada uno con su propio OK
-           (manual pp.20-21, literal: "cambie la fecha/hora/minuto... y pulse OK") — sin
-           simplificar a una sola cifra, tal como pediste. -->
       <div id="se5000-manual-end-field-label"></div>
       <div class="jornada-selector-row">
         <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
-        <div id="se5000-manual-end-value" class="jornada-selector-value">—</div>
+        <div id="se5000-manual-end-value" class="jornada-selector-value">
+          <!-- El pictograma de la actividad elegida se queda visible durante todo el
+               resto del ciclo (fecha/hora/minuto), igual que en las capturas del manual
+               — no desaparece al pasar al siguiente campo. -->
+          <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
+          <span id="se5000-manual-end-value-text">—</span>
+        </div>
         <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
       </div>
       <button id="se5000-manual-end-ok" type="button">OK</button>
@@ -6662,11 +6612,11 @@
   var se5000ManualAddManualEl = document.getElementById("se5000-manual-addmanual");
   var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
   var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
-  var se5000ManualPickerEl = document.getElementById("se5000-manual-picker");
-  var se5000ManualPickerBtns = se5000ManualPickerEl.querySelectorAll(".se5000-manual-btn");
   var se5000ManualEndStartEl = document.getElementById("se5000-manual-end-start");
   var se5000ManualEndFieldLabelEl = document.getElementById("se5000-manual-end-field-label");
   var se5000ManualEndValueEl = document.getElementById("se5000-manual-end-value");
+  var se5000ManualEndPicEl = document.getElementById("se5000-manual-end-pic");
+  var se5000ManualEndValueTextEl = document.getElementById("se5000-manual-end-value-text");
   var se5000ManualEndDownBtn = document.getElementById("se5000-manual-end-down");
   var se5000ManualEndUpBtn = document.getElementById("se5000-manual-end-up");
   var se5000ManualEndOkBtn = document.getElementById("se5000-manual-end-ok");
@@ -6697,9 +6647,12 @@
   // entradas?) | "confirm" (¿Confirmar entradas?) | "nochoice" (¿Cambiar entrada? /
   // Borrar todas las entradas) | "changelist" (eligiendo qué tramo cambiar).
   var se5000ManualPhase = "dsc";
-  // Ajuste del fin del tramo en curso (dentro de "entering") — fecha → hora → minuto,
-  // cada uno con su propio OK (manual pp.20-21, literal), nunca una duración inventada.
-  var se5000ManualEndField = null; // null | "date" | "hour" | "minute"
+  // Ciclo de campos del tramo en curso (dentro de "entering") — actividad → fecha →
+  // hora → minuto → confirmar, cada uno con su propio OK (manual pp.21-22, literal:
+  // "marque el símbolo... pulse OK", luego fecha/hora/minuto, luego "pulse OK otra vez
+  // para confirmar"). Nunca una duración inventada, nunca un selector de actividad
+  // aparte antes del ciclo.
+  var se5000ManualEndField = null; // null | "activity" | "date" | "hour" | "minute" | "confirm"
   var se5000ManualEndDraft = null; // timestamp en construcción
 
   // "Tiempo que lleva el vehículo quieto" — ancla en el inicio del tramo abierto que
@@ -7218,27 +7171,27 @@
     }).join("\n");
   }
 
-  // Arranca (o reinicia) el ajuste del fin del tramo en curso — fecha → hora → minuto,
-  // manual pp.20-21. Valor de partida razonable (inicio + 15 min, nunca más allá de
-  // ahora ni antes del propio inicio); el conductor lo corrige con ▲▼ de todas formas.
+  // Arranca (o reinicia) el ciclo de campos del tramo en curso — actividad → fecha →
+  // hora → minuto → confirmar (manual pp.21-22). Valor de partida razonable para la
+  // fecha/hora (inicio + 15 min, nunca más allá de ahora ni antes del propio inicio);
+  // el conductor lo corrige con ▲▼ de todas formas, igual que en las capturas del
+  // manual ("la fecha del 18/03 es correcta pero hay que cambiar la del 21/03").
   function se5000ManualResetEndDraft() {
     var now = Date.now();
     var draft = se5000ManualCursor + 15 * 60000;
     if (draft > now) draft = now;
     if (draft < se5000ManualCursor) draft = se5000ManualCursor;
     se5000ManualEndDraft = draft;
-    se5000ManualEndField = "date";
+    se5000ManualEndField = "activity";
   }
+
+  var SE5000_MANUAL_CLS_LABELS = { availability: "Disponibilidad", rest: "Descanso", other: "Otros trabajos" };
 
   function renderSe5000Manual() {
     var total = Date.now() - se5000ManualQuietSince;
     var remaining = se5000ManualRemainingMs();
     se5000ManualSummaryEl.textContent = "por repartir: " + formatRemaining(remaining) +
       " de " + formatRemaining(total) + " quieto";
-    for (var i = 0; i < se5000ManualPickerBtns.length; i++) {
-      var btn = se5000ManualPickerBtns[i];
-      btn.classList.toggle("selected", btn.getAttribute("data-se5000-cls") === se5000ManualCls);
-    }
     renderSe5000ManualLog();
 
     // Reconstruido 1/9: qué se ve depende de la fase (ver comentario de se5000ManualPhase).
@@ -7253,28 +7206,34 @@
 
     if (entering) {
       se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
+      // El pictograma de la actividad elegida se queda visible durante todo el resto
+      // del ciclo (fecha/hora/minuto/confirmar), no solo mientras se elige — igual que
+      // en las capturas del manual, donde el símbolo sigue ahí en cada paso siguiente.
+      // .hidden como propiedad no siempre se refleja al atributo en un <svg> en
+      // Chrome real (sí en jsdom, que es donde se probó antes) — quitar el atributo a
+      // mano no depende de eso.
+      se5000ManualEndPicEl.removeAttribute("hidden");
+      setSe5000Pic(se5000ManualEndPicEl, SE5000_PICS[se5000ManualCls] || SE5000_PICS.rest);
       var d = new Date(se5000ManualEndDraft);
-      if (se5000ManualEndField === "hour") {
+      if (se5000ManualEndField === "activity") {
+        se5000ManualEndFieldLabelEl.textContent = "actividad";
+        se5000ManualEndValueTextEl.textContent = SE5000_MANUAL_CLS_LABELS[se5000ManualCls];
+      } else if (se5000ManualEndField === "hour") {
         se5000ManualEndFieldLabelEl.textContent = "fin (hora)";
-        se5000ManualEndValueEl.textContent = String(d.getHours()).padStart(2, "0") + "h";
+        se5000ManualEndValueTextEl.textContent = String(d.getHours()).padStart(2, "0") + "h";
       } else if (se5000ManualEndField === "minute") {
         se5000ManualEndFieldLabelEl.textContent = "fin (minuto)";
-        se5000ManualEndValueEl.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+        se5000ManualEndValueTextEl.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      } else if (se5000ManualEndField === "confirm") {
+        se5000ManualEndFieldLabelEl.textContent = "¿tramo correcto?";
+        se5000ManualEndValueTextEl.textContent = fmtHM(se5000ManualCursor) + " → " + fmtHM(se5000ManualEndDraft);
       } else {
         se5000ManualEndFieldLabelEl.textContent = "fin (fecha)";
-        se5000ManualEndValueEl.textContent = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+        se5000ManualEndValueTextEl.textContent = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
       }
     }
 
     se5000SyncDialogDocks();
-  }
-
-  for (var se5000pi = 0; se5000pi < se5000ManualPickerBtns.length; se5000pi++) {
-    se5000ManualPickerBtns[se5000pi].addEventListener("click", function (e) {
-      e.stopPropagation();
-      se5000ManualCls = this.getAttribute("data-se5000-cls");
-      renderSe5000Manual();
-    });
   }
 
   // Manual p.16, literal: "¿Dsc. hasta ahora?" — primera pantalla de toda la secuencia.
@@ -7314,10 +7273,19 @@
     enterSe5000ManualEntering();
   });
 
-  // Ajuste del fin del tramo: ▲▼ mueve fecha, hora o minuto según el campo activo;
-  // nunca más allá de "ahora" (no se puede registrar el futuro) ni antes del propio
-  // inicio del tramo.
+  // ▲▼: en el campo "actividad" cicla entre las tres reales (manual p.16, mismo ciclo
+  // que se5000CycleActivity — nunca "conduciendo", eso lo pone el sensor de
+  // movimiento); en fecha/hora/minuto mueve esa cifra. Nunca más allá de "ahora" (no se
+  // puede registrar el futuro) ni antes del propio inicio del tramo. En "confirmar" no
+  // hace nada — ese paso es solo revisar y pulsar OK.
   function se5000ManualStepEnd(dir) {
+    if (se5000ManualEndField === "confirm") return;
+    if (se5000ManualEndField === "activity") {
+      var idx = CLASSIFICATION_CYCLE.indexOf(se5000ManualCls);
+      se5000ManualCls = CLASSIFICATION_CYCLE[(idx + dir + CLASSIFICATION_CYCLE.length) % CLASSIFICATION_CYCLE.length];
+      renderSe5000Manual();
+      return;
+    }
     var d = new Date(se5000ManualEndDraft);
     if (se5000ManualEndField === "hour") d.setHours(d.getHours() + dir);
     else if (se5000ManualEndField === "minute") d.setMinutes(d.getMinutes() + dir);
@@ -7332,20 +7300,21 @@
   se5000ManualEndUpBtn.addEventListener("click", function (e) { e.stopPropagation(); se5000ManualStepEnd(1); });
   se5000ManualEndDownBtn.addEventListener("click", function (e) { e.stopPropagation(); se5000ManualStepEnd(-1); });
 
-  // Manual pp.20-21, literal: cada campo (fecha, hora, minuto) se confirma con su propio
-  // OK antes de pasar al siguiente; al confirmar el minuto, el tramo queda cerrado.
+  // Manual pp.21-22, literal, calcado paso a paso de las capturas: "marque el
+  // símbolo... pulse OK" (actividad) → fecha → hora → minuto, cada uno con su propio
+  // OK, y luego "pulse OK OTRA VEZ para confirmar" — un paso de revisión aparte antes
+  // de cerrar el tramo de verdad, no un cierre automático al confirmar el minuto.
   se5000ManualEndOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (se5000ManualEndField === "activity") { se5000ManualEndField = "date"; renderSe5000Manual(); return; }
     if (se5000ManualEndField === "date") { se5000ManualEndField = "hour"; renderSe5000Manual(); return; }
-    if (se5000ManualEndField === "minute") {
-      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: se5000ManualEndDraft, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
-      se5000ManualCursor = se5000ManualEndDraft;
-      if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualImprimir(); return; }
-      se5000ManualResetEndDraft();
-      renderSe5000Manual();
-      return;
-    }
-    se5000ManualEndField = "minute";
+    if (se5000ManualEndField === "hour") { se5000ManualEndField = "minute"; renderSe5000Manual(); return; }
+    if (se5000ManualEndField === "minute") { se5000ManualEndField = "confirm"; renderSe5000Manual(); return; }
+    // "confirm": el tramo queda cerrado de verdad.
+    se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: se5000ManualEndDraft, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
+    se5000ManualCursor = se5000ManualEndDraft;
+    if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualImprimir(); return; }
+    se5000ManualResetEndDraft();
     renderSe5000Manual();
   });
 
@@ -7520,6 +7489,23 @@
     return dl !== null && (d2 ? !paused2 : !paused);
   }
 
+  // Algunos navegadores móviles (Safari/iOS y algunos WebView de Android son los casos
+  // conocidos) no repintan un <use> al cambiar solo "href" por JS — hace falta también
+  // el atributo con espacio de nombres xlink:href para que se refresque de verdad.
+  // Hugo, 2/9: "el pictograma no cambia" — probado en Chrome de escritorio sí cambiaba,
+  // consistente con este fallo específico de móvil, no con la lógica en sí.
+  var XLINK_NS = "http://www.w3.org/1999/xlink";
+  // El "href" que de verdad pinta el pictograma vive en el <use> DE DENTRO del <svg>,
+  // nunca en el <svg> mismo — ponerlo en el elemento equivocado no falla (no lanza
+  // error) pero tampoco cambia nada en pantalla, que es justo el fallo que describió
+  // Hugo el 2/9. Acepta el <svg> o el <use> directamente, para no depender de cuál se
+  // le pase en cada sitio.
+  function setSe5000Pic(svgOrUseEl, href) {
+    var useEl = svgOrUseEl.tagName.toLowerCase() === "use" ? svgOrUseEl : svgOrUseEl.querySelector("use");
+    useEl.setAttribute("href", href);
+    useEl.setAttributeNS(XLINK_NS, "xlink:href", href);
+  }
+
   // --- Pantalla del tacógrafo — Deployment B, 2/9: ya no depende de #countdown estar
   // visible. El marco (#se5000-view) es su propia capa permanente mientras se5000Mode
   // esté activo (ver CSS y la nueva posición del HTML), así que esta función tiene que
@@ -7537,7 +7523,19 @@
 
     var d2 = isDriver2Active();
     var curDeadline = d2 ? deadline2 : deadline;
-    se5000TrayHintEl.hidden = curDeadline !== null;
+    // Hugo, 2/9: "cuando quiero cerrar la jornada... dejo presionado el botón 1... no
+    // hace nada" — mantener pulsado META la tarjeta (por diseño no hace nada si ya hay
+    // una puesta, manual pp.16-19); para SACARLA y cerrar la jornada es un TOQUE BREVE,
+    // pero eso nunca se explicaba en pantalla una vez la tarjeta ya estaba dentro. Ahora
+    // el aviso cambia de texto según el estado, en vez de desaparecer sin más.
+    if (se5000ActiveFlow === null && pendingEjectDriver === null) {
+      se5000TrayHintEl.hidden = false;
+      se5000TrayHintEl.textContent = curDeadline === null
+        ? "mantén pulsada la bandeja para meter la tarjeta"
+        : "toca la bandeja (sin mantener) para sacar la tarjeta y cerrar la jornada";
+    } else {
+      se5000TrayHintEl.hidden = true;
+    }
 
     if (curDeadline === null) {
       // Reposo — mismo contenido que antes vivía en #se5000-reposo (aparato encendido,
@@ -7547,7 +7545,7 @@
       se5000LabelTop.textContent = "quieto desde hace";
       se5000MainClock.textContent = formatRemaining(Date.now() - since);
       se5000LabelBottom.textContent = "";
-      se5000MainPic.setAttribute("href", SE5000_PICS.rest);
+      setSe5000Pic(se5000MainPic, SE5000_PICS.rest);
       se5000MainClock.style.color = "";
       se5000DdsTitleEl.textContent = "";
       se5000SubEl.textContent = "";
@@ -7559,7 +7557,7 @@
         se5000LabelTop.textContent = clockLabelTopEl.textContent;
         se5000MainClock.textContent = clockEl.textContent;
         se5000LabelBottom.textContent = clockLabelEl.textContent;
-        se5000MainPic.setAttribute("href", SE5000_PICS.driving);
+        setSe5000Pic(se5000MainPic, SE5000_PICS.driving);
         se5000MainClock.style.color = "";
       } else {
         // B4, Hugo 27/8: "el bloque de ≥30 min de la pausa partida es una cuenta atrás
@@ -7576,7 +7574,7 @@
         se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls);
         // "?" (manual p.15) si no hay clasificación real — nunca se asume disponibilidad
         // por defecto en el pictograma principal, eso sería inventar un dato.
-        se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.unknown);
+        setSe5000Pic(se5000MainPic, SE5000_PICS[cls] || SE5000_PICS.unknown);
         se5000MainClock.style.color = "";
       }
 
