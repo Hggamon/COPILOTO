@@ -842,15 +842,22 @@
     cursor: pointer;
   }
 
-  /* Ojo: NO position:absolute — tiene que ocupar su sitio en la misma columna que
-     #classic-view (mismo padre, mismo flex), para no tapar los diálogos compartidos
-     (clasificar pausa, hueco sin clasificar) que vienen justo después en el DOM. */
+  /* Capa de pantalla completa propia (Deployment B, 2/9) — igual que .screen
+     (#setup/#countdown), pero fuera de las dos: el marco del tacógrafo no depende de
+     cuál de ellas esté activa por debajo, solo de si la vista SE5000 está encendida. Los
+     diálogos compartidos (clasificar pausa, jornada, etc.) siguen viviendo dentro de
+     #countdown; se realojan aquí con appendChild vía se5000SyncDialogDocks() cuando
+     toca, así que su posición original no depende de esto. */
   #se5000-view {
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: clamp(10px, 2vh, 18px);
     padding: 8px 16px;
+    background: var(--bg);
   }
 
   /* CONFIGURAC. → Pantalla invertida (manual p.34): "hay dos modos de pantalla: fondo
@@ -974,9 +981,16 @@
     margin-top: 0;
   }
 
-  /* Misma corrección para la entrada manual cuando queda enganchada al display (Bloque
-     1, conductor 2 a mitad de ruta) — sus tamaños (11-13px) estaban pensados para la
-     pantalla de ajuste a tamaño completo, no para la franja del bezel. */
+  /* Misma corrección para la entrada manual cuando queda enganchada al display —
+     Deployment B, 2/9: ahora se engancha SIEMPRE (antes solo en el caso raro del
+     conductor 2 a mitad de ruta), así que este ancho importa mucho más que antes. Sin
+     esto, #se5000-manual conservaba su "width: min(92vw,420px)" de pantalla completa
+     dentro de un dock de ~160px, y se salía por los lados con scroll horizontal en vez
+     de ajustarse. Sus tamaños (11-13px) estaban pensados para la pantalla de ajuste a
+     tamaño completo, no para la franja del bezel. */
+  #se5000-dialog-dock #se5000-manual {
+    width: 100%;
+  }
   #se5000-dialog-dock #se5000-manual-summary,
   #se5000-dialog-dock #se5000-manual-divider {
     font-size: clamp(5px, 1.2vw, 7px);
@@ -1135,6 +1149,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Mismo motivo que .se5000-tray (Hugo, 27/8, punto A2) — sin esto, un toque rápido o
+       repetido en un botón tan pequeño lo interpreta el navegador como doble-toque para
+       hacer zoom en vez de llegar al manejador de clic. Hugo, 2/9, viéndolo en el móvil:
+       "las flechas no hacen nada excepto cambiar el tamaño del tacógrafo". */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .se5000-key:active { transform: scale(0.94); }
@@ -1335,32 +1357,10 @@
     color: var(--se-display-fg);
   }
 
-  /* --- Reposo SE5000 en #setup: cama + tiempo quieto, como el aparato real sin
-     tarjeta insertada — no la pantalla de ajuste clásica. --- */
-  #se5000-reposo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  #se5000-reposo .se5000-pic {
-    width: clamp(48px, 11vw, 64px);
-    height: clamp(48px, 11vw, 64px);
-    color: var(--se-display-fg);
-  }
-
-  #se5000-reposo .se5000-clock { color: var(--se-display-fg); }
-
-  /* Mismo tamaño táctil real que la franja del marco en marcha (.se5000-tray-wide) —
-     aquí son el único gesto para arrancar. */
-  .se5000-tray-strip {
-    margin-top: 6px;
-    width: 100%;
-    display: flex;
-    gap: clamp(10px, 3vw, 16px);
-  }
-
+  /* #se5000-reposo y .se5000-tray-strip se retiraron aquí (Deployment B, 2/9) — el
+     reposo ya se pinta con las mismas reglas que el resto del display permanente
+     (.se5000-display / .se5000-clock más abajo), sin una pantalla ni unas bandejas
+     aparte. */
   .se5000-tray-hint {
     font-family: var(--font-label);
     font-size: 10.5px;
@@ -1763,6 +1763,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Mismo motivo que .se5000-key — ver su comentario. */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .se5000-key-activity:active { transform: scale(0.94); }
@@ -1879,22 +1884,34 @@
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <!-- Conducción: volante -->
+    <!-- Los tres de abajo (conducción/descanso/disponibilidad) están calcados pixel a
+         pixel de la tabla "Actividades disponibles" del manual, p.15 — no son un icono
+         "parecido", es la forma exacta del aparato real, con relleno sólido igual que una
+         pantalla de puntos (LCD), nunca trazo. Hugo, 2/9: "si dejamos algo que el
+         tacógrafo real no tiene, el novato aprende mal". -->
+    <!-- Conduciendo: cuadrado de borde punteado con un punto central. -->
     <symbol id="pic-driving" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="8.5" />
-      <circle cx="12" cy="12" r="2.1" />
-      <path d="M12 3.5v6.4M6 16.5l4.4-4M18 16.5l-4.4-4" />
+      <rect x="4" y="4" width="3.1" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="10.45" y="3" width="3.1" height="2.3" fill="currentColor" stroke="none" />
+      <rect x="16.9" y="4" width="3.1" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="3" y="10.45" width="2.3" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="18.7" y="10.45" width="2.3" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="4" y="16.9" width="3.1" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="10.45" y="18.7" width="3.1" height="2.3" fill="currentColor" stroke="none" />
+      <rect x="16.9" y="16.9" width="3.1" height="3.1" fill="currentColor" stroke="none" />
+      <rect x="9.4" y="9.4" width="5.2" height="5.2" fill="currentColor" stroke="none" />
     </symbol>
-    <!-- Descanso: cama -->
+    <!-- Descanso: tumbona vista de perfil, forma de "h". -->
     <symbol id="pic-rest" viewBox="0 0 24 24">
-      <path d="M2.5 18.5v-8a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v8" />
-      <path d="M2.5 18.5v2.2M21.5 18.5v2.2" />
-      <path d="M4.5 10.5V7.8a1.6 1.6 0 0 1 1.6-1.6h3.2a1.6 1.6 0 0 1 1.6 1.6v2.7" />
-      <path d="M2.5 15.2h19" />
+      <rect x="5" y="5" width="2.7" height="14" fill="currentColor" stroke="none" />
+      <rect x="5" y="11" width="13.3" height="2.7" fill="currentColor" stroke="none" />
+      <rect x="15.6" y="11" width="2.7" height="8" fill="currentColor" stroke="none" />
     </symbol>
-    <!-- Disponibilidad: cuadrado -->
+    <!-- Disponibilidad: marco cuadrado con un hueco y un punto central, anidados (evenodd:
+         marco relleno, hueco vacío, punto de nuevo relleno). -->
     <symbol id="pic-availability" viewBox="0 0 24 24">
-      <rect x="4.5" y="4.5" width="15" height="15" />
+      <path fill-rule="evenodd" fill="currentColor" stroke="none"
+        d="M4 4H20V20H4Z M7.4 7.4H16.6V16.6H7.4Z M9.7 9.7H13.3V13.3H9.7Z" />
     </symbol>
     <!-- Otros trabajos: martillos cruzados -->
     <symbol id="pic-work" viewBox="0 0 24 24">
@@ -1927,28 +1944,13 @@
     <button id="start-btn" type="submit">Empezar</button>
   </form>
 
-  <!-- Reposo real, réplica SE5000: con la tarjeta fuera el aparato está en descanso,
-       mostrando el pictograma de cama y las horas que lleva el vehículo quieto — Hugo,
-       25/8 noche. Pantalla pasiva compartida: se ve mientras no hay ningún flujo de
-       tarjeta en curso (se5000ActiveFlow === null), sea cual sea el conductor. -->
-  <div id="se5000-reposo" hidden>
-    <svg class="se5000-pic" aria-hidden="true"><use href="#pic-rest"></use></svg>
-    <div class="se5000-display-label">quieto desde hace</div>
-    <div class="se5000-clock" id="se5000-reposo-clock">0:00</div>
-    <!-- Meter la tarjeta = mantener pulsada la bandeja ~3s, igual que el aparato real
-         (manual pp.16-19) — sustituye al botón "empezar" de antes. Hugo, 26/8. -->
-    <div class="se5000-tray-strip">
-      <button class="se5000-tray se5000-tray-wide" id="setup-tray-1" type="button" aria-label="bandeja conductor 1">
-        <span class="se5000-tray-slot" aria-hidden="true"></span>
-        <span class="se5000-tray-label">1</span>
-      </button>
-      <button class="se5000-tray se5000-tray-wide" id="setup-tray-2" type="button" aria-label="bandeja conductor 2">
-        <span class="se5000-tray-slot" aria-hidden="true"></span>
-        <span class="se5000-tray-label">2</span>
-      </button>
-    </div>
-    <div class="se5000-tray-hint">mantén pulsada la bandeja para meter la tarjeta</div>
-  </div>
+  <!-- #se5000-reposo se retiró aquí (Deployment B, 2/9): era una pantalla y unas
+       bandejas duplicadas para el estado "sin tarjeta" porque el marco real solo existía
+       dentro de #countdown. Ahora que #se5000-view es una capa permanente (ver más abajo
+       en el HTML), el reposo se pinta con los mismos campos que cualquier otro estado —
+       ver la rama "curDeadline === null" de renderSe5000View() — y las bandejas de
+       siempre (#se5000-tray-1/2) sirven para meter la tarjeta en cualquier momento, sin
+       necesitar un segundo par solo para este caso. -->
 
   <!-- Entradas manuales al iniciar — réplica literal del flujo real (manual pp.16-22):
        ¿Dsc. hasta ahora? → (SÍ: todo descanso) o (NO: ¿Añadir e. manuales? → tramo a
@@ -2069,110 +2071,9 @@
     </div>
   </div>
 
-  <!-- Réplica visual SE5000 — vista alternativa, activada por #view-toggle. No calcula
-       nada propio: lee y refleja el mismo estado que ya pinta #classic-view (mismo
-       deadline/paused/pauseClassification/DDS), para que no puedan divergir dos lógicas
-       de negocio. Solo cambia la presentación. -->
-  <!-- Réplica del frontal real (foto de producto, comparada directamente contra una
-       captura de esta vista — 2026-08-26): franja ancha y baja tipo radio de 1-DIN,
-       pantalla arriba a la izquierda con los 4 botones de navegación solo debajo de
-       ella, tapa de impresora decorativa a la derecha (sin función, solo para que se
-       reconozca el aparato — Hugo prefirió mantenerla), y dos ranuras de tarjeta largas
-       en el borde inferior con las bandejas 1/2 entre medias. Decisión de Hugo: mantener
-       la proporción ancha real aunque deje hueco vacío arriba/abajo en el móvil, en vez
-       de ensancharla para aprovechar la pantalla. -->
-  <div id="se5000-view" hidden>
-    <div class="se5000-bezel">
-      <span class="se5000-rivet tl"></span><span class="se5000-rivet tr"></span>
-      <span class="se5000-rivet bl"></span><span class="se5000-rivet br"></span>
-      <div class="se5000-top-row">
-        <div class="se5000-left-col">
-          <div class="se5000-display">
-            <div class="se5000-display-line1">
-              <svg class="se5000-pic" id="se5000-main-pic" aria-hidden="true"><use href="#pic-driving"></use></svg>
-              <div class="se5000-clock" id="se5000-main-clock">4:30</div>
-            </div>
-            <div class="se5000-display-labels">
-              <span id="se5000-label-top">te quedan</span>
-              <span id="se5000-label-bottom">de conducción</span>
-            </div>
-            <div class="se5000-display-title" id="se5000-dds-title">Visión general</div>
-            <div class="se5000-display-sub" id="se5000-sub"></div>
-            <!-- Los diálogos compartidos se REALOJAN aquí dentro mientras la vista SE5000
-                 está activa (mismos nodos, se mueven con appendChild — no se duplican).
-                 Ocupa el display entero y tapa del todo lo que hubiera debajo, como en el
-                 aparato real: "un mensaje ocupa el display entero y sustituye lo que
-                 había" — Hugo, 26/8. Vuelven a su sitio de siempre al ocultarse o al
-                 volver a la vista clásica. -->
-            <div id="se5000-dialog-dock" hidden></div>
-            <!-- Menú de 4 entradas (manual p.15), abierto con OK — sustituye lo que
-                 hubiera en el display, igual que los diálogos de arriba. Solo se abre
-                 con el vehículo parado (manual p.15: "por razones de seguridad de
-                 tráfico solo puede poner el tacógrafo en funcionamiento cuando el
-                 vehículo esté parado") — ver se5000MenuOk()/renderSe5000Menu(). -->
-            <div id="se5000-menu" hidden>
-              <div id="se5000-menu-title"></div>
-              <div id="se5000-menu-list"></div>
-              <div id="se5000-menu-notice" hidden></div>
-              <!-- Selector de país/comunidad para Lugar de inicio/fin (manual p.19),
-                   mismas listas COUNTRY_CODES/REGION_CODES que ya usa el diálogo de
-                   inicio de jornada — aquí en su versión compacta de display. -->
-              <div id="se5000-lugar" hidden>
-                <div id="se5000-lugar-label"></div>
-                <div id="se5000-lugar-value">—</div>
-                <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
-              </div>
-            </div>
-            <!-- Extracción de tarjeta (manual pp.17-18, literal): "Pulse el botón 1 o 2...
-                 En la pantalla aparecerá: País de fin. Seleccione el país de fin y pulse OK
-                 para confirmar... se abre la bandeja." Disparador táctil: tocar la ranura
-                 (Hugo, 1/9: "los botones 1 y 2 son demasiado pequeños para acertar con el
-                 dedo... tocar la ranura activa el flujo de país del manual y luego se
-                 expulsa") — mismo contenido del aparato real, gesto adaptado al móvil.
-                 Manda sobre el menú y sobre todo lo demás mientras esté pendiente, igual
-                 que ya hacía el antiguo diálogo de confirmar. -->
-            <div id="se5000-eject-country" hidden>
-              <div id="se5000-eject-country-label">País de fin</div>
-              <div id="se5000-eject-country-value">—</div>
-              <div id="se5000-eject-country-hint">▲▼ elegir · OK confirma · ↩ cancela</div>
-            </div>
-          </div>
-          <div class="se5000-nav">
-            <button class="se5000-key" id="se5000-nav-back" type="button" aria-label="atrás">↩</button>
-            <button class="se5000-key" id="se5000-nav-down" type="button" aria-label="pantalla anterior">▼</button>
-            <button class="se5000-key" id="se5000-nav-up" type="button" aria-label="pantalla siguiente">▲</button>
-            <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, abrir menú">OK</button>
-          </div>
-        </div>
-        <div class="se5000-printer" aria-hidden="true">
-          <div class="se5000-printer-slit"></div>
-          <div class="se5000-printer-brand">Stoneridge <b>SE5000</b><sub>SMART 2</sub></div>
-          <div class="se5000-printer-gap"></div>
-        </div>
-      </div>
-      <div class="se5000-bottom-strip">
-        <div class="se5000-tray-with-btn">
-          <!-- Botón "1": clasifica la actividad del conductor (manual p.16) — ocupa el
-               sitio que tenía OK antes de este cambio. Solo actúa parado y sin
-               "conduciendo" (esa la pone el sensor de movimiento, no se elige a mano). -->
-          <button class="se5000-key-activity" id="se5000-btn1" type="button" aria-label="botón 1, actividad del conductor">1</button>
-          <button class="se5000-tray se5000-tray-wide" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">
-            <span class="se5000-tray-slot" aria-hidden="true"></span>
-            <span class="se5000-tray-label">1</span>
-          </button>
-        </div>
-        <div class="se5000-tray-with-btn">
-          <button class="se5000-tray se5000-tray-wide" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">
-            <span class="se5000-tray-slot" aria-hidden="true"></span>
-            <span class="se5000-tray-label">2</span>
-          </button>
-          <!-- Botón "2": clasifica la actividad del compañero del conductor (manual
-               p.16). Solo hace algo con tripulación doble activa. -->
-          <button class="se5000-key-activity" id="se5000-btn2" type="button" aria-label="botón 2, actividad del compañero">2</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- El marco real (#se5000-view) ya no vive aquí dentro — Deployment B, 2/9: en el
+       aparato real la pantalla y el bisel nunca desaparecen, con tarjeta o sin ella. Vive
+       como capa propia justo después de este bloque, ver más abajo. -->
 
   <div id="pause-status" hidden></div>
   <div id="pause-classify" hidden>
@@ -2248,6 +2149,124 @@
     </div>
     <div id="driver2-pill" class="status-pill" hidden></div>
   </div>
+</div>
+
+<!-- Réplica visual SE5000 — vista alternativa, activada por #view-toggle. No calcula
+     nada propio: lee y refleja el mismo estado que ya pinta #classic-view (mismo
+     deadline/paused/pauseClassification/DDS), para que no puedan divergir dos lógicas
+     de negocio. Solo cambia la presentación. -->
+<!-- Réplica del frontal real (foto de producto, comparada directamente contra una
+     captura de esta vista — 2026-08-26): franja ancha y baja tipo radio de 1-DIN,
+     pantalla arriba a la izquierda con los 4 botones de navegación solo debajo de
+     ella, tapa de impresora decorativa a la derecha (sin función, solo para que se
+     reconozca el aparato — Hugo prefirió mantenerla), y dos ranuras de tarjeta largas
+     en el borde inferior con las bandejas 1/2 entre medias. Decisión de Hugo: mantener
+     la proporción ancha real aunque deje hueco vacío arriba/abajo en el móvil, en vez
+     de ensancharla para aprovechar la pantalla. -->
+<!-- Deployment B, 2/9 — Hugo, viendo la app en el móvil: "aparece el inicio, pantalla
+     negra... antes era pantalla negra" — el aparato real NUNCA apaga su pantalla ni
+     esconde su marco, tenga tarjeta o no. Por eso ya no vive dentro de #countdown (que
+     solo existe con cuenta atrás en marcha): es su propia capa de pantalla completa,
+     visible en todo momento mientras se5000Mode esté activo — #setup/#countdown siguen
+     existiendo por debajo para la lógica y la vista clásica, pero el marco ya no
+     depende de cuál de las dos esté mostrándose. renderSe5000View() sabe pintar sus tres
+     estados (reposo/pausado/en marcha) sin que le importe cuál pantalla de abajo está
+     activa. -->
+<div id="se5000-view" hidden>
+  <div class="se5000-bezel">
+    <span class="se5000-rivet tl"></span><span class="se5000-rivet tr"></span>
+    <span class="se5000-rivet bl"></span><span class="se5000-rivet br"></span>
+    <div class="se5000-top-row">
+      <div class="se5000-left-col">
+        <div class="se5000-display">
+          <div class="se5000-display-line1">
+            <svg class="se5000-pic" id="se5000-main-pic" aria-hidden="true"><use href="#pic-driving"></use></svg>
+            <div class="se5000-clock" id="se5000-main-clock">4:30</div>
+          </div>
+          <div class="se5000-display-labels">
+            <span id="se5000-label-top">te quedan</span>
+            <span id="se5000-label-bottom">de conducción</span>
+          </div>
+          <div class="se5000-display-title" id="se5000-dds-title">Visión general</div>
+          <div class="se5000-display-sub" id="se5000-sub"></div>
+          <!-- Los diálogos compartidos se REALOJAN aquí dentro mientras la vista SE5000
+               está activa (mismos nodos, se mueven con appendChild — no se duplican).
+               Ocupa el display entero y tapa del todo lo que hubiera debajo, como en el
+               aparato real: "un mensaje ocupa el display entero y sustituye lo que
+               había" — Hugo, 26/8. Vuelven a su sitio de siempre al ocultarse o al
+               volver a la vista clásica. -->
+          <div id="se5000-dialog-dock" hidden></div>
+          <!-- Menú de 4 entradas (manual p.15), abierto con OK — sustituye lo que
+               hubiera en el display, igual que los diálogos de arriba. Solo se abre
+               con el vehículo parado (manual p.15: "por razones de seguridad de
+               tráfico solo puede poner el tacógrafo en funcionamiento cuando el
+               vehículo esté parado") — ver se5000MenuOk()/renderSe5000Menu(). -->
+          <div id="se5000-menu" hidden>
+            <div id="se5000-menu-title"></div>
+            <div id="se5000-menu-list"></div>
+            <div id="se5000-menu-notice" hidden></div>
+            <!-- Selector de país/comunidad para Lugar de inicio/fin (manual p.19),
+                 mismas listas COUNTRY_CODES/REGION_CODES que ya usa el diálogo de
+                 inicio de jornada — aquí en su versión compacta de display. -->
+            <div id="se5000-lugar" hidden>
+              <div id="se5000-lugar-label"></div>
+              <div id="se5000-lugar-value">—</div>
+              <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
+            </div>
+          </div>
+          <!-- Extracción de tarjeta (manual pp.17-18, literal): "Pulse el botón 1 o 2...
+               En la pantalla aparecerá: País de fin. Seleccione el país de fin y pulse OK
+               para confirmar... se abre la bandeja." Disparador táctil: tocar la ranura
+               (Hugo, 1/9: "los botones 1 y 2 son demasiado pequeños para acertar con el
+               dedo... tocar la ranura activa el flujo de país del manual y luego se
+               expulsa") — mismo contenido del aparato real, gesto adaptado al móvil.
+               Manda sobre el menú y sobre todo lo demás mientras esté pendiente, igual
+               que ya hacía el antiguo diálogo de confirmar. -->
+          <div id="se5000-eject-country" hidden>
+            <div id="se5000-eject-country-label">País de fin</div>
+            <div id="se5000-eject-country-value">—</div>
+            <div id="se5000-eject-country-hint">▲▼ elegir · OK confirma · ↩ cancela</div>
+          </div>
+        </div>
+        <div class="se5000-nav">
+          <button class="se5000-key" id="se5000-nav-back" type="button" aria-label="atrás">↩</button>
+          <button class="se5000-key" id="se5000-nav-down" type="button" aria-label="pantalla anterior">▼</button>
+          <button class="se5000-key" id="se5000-nav-up" type="button" aria-label="pantalla siguiente">▲</button>
+          <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, abrir menú">OK</button>
+        </div>
+      </div>
+      <div class="se5000-printer" aria-hidden="true">
+        <div class="se5000-printer-slit"></div>
+        <div class="se5000-printer-brand">Stoneridge <b>SE5000</b><sub>SMART 2</sub></div>
+        <div class="se5000-printer-gap"></div>
+      </div>
+    </div>
+    <div class="se5000-bottom-strip">
+      <div class="se5000-tray-with-btn">
+        <!-- Botón "1": clasifica la actividad del conductor (manual p.16) — ocupa el
+             sitio que tenía OK antes de este cambio. Solo actúa parado y sin
+             "conduciendo" (esa la pone el sensor de movimiento, no se elige a mano). -->
+        <button class="se5000-key-activity" id="se5000-btn1" type="button" aria-label="botón 1, actividad del conductor">1</button>
+        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-1" type="button" aria-label="bandeja conductor 1">
+          <span class="se5000-tray-slot" aria-hidden="true"></span>
+          <span class="se5000-tray-label">1</span>
+        </button>
+      </div>
+      <div class="se5000-tray-with-btn">
+        <button class="se5000-tray se5000-tray-wide" id="se5000-tray-2" type="button" aria-label="bandeja conductor 2">
+          <span class="se5000-tray-slot" aria-hidden="true"></span>
+          <span class="se5000-tray-label">2</span>
+        </button>
+        <!-- Botón "2": clasifica la actividad del compañero del conductor (manual
+             p.16). Solo hace algo con tripulación doble activa. -->
+        <button class="se5000-key-activity" id="se5000-btn2" type="button" aria-label="botón 2, actividad del compañero">2</button>
+      </div>
+    </div>
+  </div>
+  <!-- Solo tiene sentido sin tarjeta puesta — con una ya insertada, mantener pulsado no
+       hace nada (bindTrayGesture solo dispara insertCard si deadline/deadline2 es null),
+       así que el aviso no debe seguir ahí sugiriendo un gesto que no aplica. -->
+  <div class="se5000-tray-hint" id="se5000-tray-hint" hidden>mantén pulsada la bandeja para meter la tarjeta</div>
 </div>
 
 <div id="status-pills">
@@ -3415,7 +3434,11 @@
       pauseStatusEl.textContent = activityLabel(classification) + " · " +
         (source === "start" ? "a la espera de movimiento" : (source === "auto" ? "pausa automática" : "pausa manual"));
       pauseStatusEl.hidden = false;
-      pauseClassifyEl.hidden = false;
+      // Las tres cajas con texto (Disponibilidad/Descanso/Otros trabajos) son solo de la
+      // vista clásica — el aparato real no las tiene así (manual p.16: un único
+      // pictograma en el display + ciclo con el botón 1/2, ver se5000CycleActivity()).
+      // En vista SE5000 se quedan ocultas siempre, aunque haya pausa.
+      pauseClassifyEl.hidden = se5000Mode;
       renderClassifyUI(classification);
     } else {
       pauseStatusEl.hidden = true;
@@ -4140,8 +4163,14 @@
   // Compartida entre los tres botones de clasificación de siempre y el botón único de
   // actividad de la réplica del tacógrafo (ver más abajo) — mismo camino, dos formas de
   // llegar a él, para no duplicar la lógica ni el riesgo de que diverjan.
-  function selectClassification(cls) {
-    if (isDriver2Active()) {
+  // "n" fija a qué conductor afecta (1 o 2) — imprescindible para los botones físicos
+  // del SE5000 (manual p.16: "1" es SIEMPRE para el conductor, "2" SIEMPRE para el
+  // compañero, nunca depende de cuál esté "activo" en pantalla). Sin "n" se conserva el
+  // comportamiento de siempre de la vista clásica (isDriver2Active(), un solo panel que
+  // se puede alternar) para no tocar nada de lo que ya funcionaba ahí.
+  function selectClassification(cls, n) {
+    var forD2 = n === undefined ? isDriver2Active() : (n === 2);
+    if (forD2) {
       if (!paused2) {
         if (deadline2 === null) return;
         pauseCountdown2("manual");
@@ -5241,7 +5270,7 @@
   //
   // Lo que NO está construido: el manual dice que la DTD "funciona sin tener una tarjeta
   // de conductor insertada" — en esta app el motor de actividad/GPS solo corre con
-  // tarjeta metida (ver #se5000-reposo, que no arranca startGeoWatch()). Ampliar el motor
+  // tarjeta metida (en reposo, deadline === null, no arranca startGeoWatch()). Ampliar el motor
   // para que registre actividad también en reposo es un cambio de arquitectura aparte, no
   // de esta pantalla — se deja como aviso explícito en vez de fingir un cálculo sin datos
   // reales detrás. Pendiente, señalado a Hugo.
@@ -6587,14 +6616,13 @@
   var se5000MainClock = document.getElementById("se5000-main-clock");
   var se5000SubEl = document.getElementById("se5000-sub");
   var se5000DdsTitleEl = document.getElementById("se5000-dds-title");
+  var se5000TrayHintEl = document.getElementById("se5000-tray-hint");
   var se5000NavBack = document.getElementById("se5000-nav-back");
   var se5000NavUp = document.getElementById("se5000-nav-up");
   var se5000NavDown = document.getElementById("se5000-nav-down");
   var se5000NavOk = document.getElementById("se5000-nav-ok");
   var se5000Tray1 = document.getElementById("se5000-tray-1");
   var se5000Tray2 = document.getElementById("se5000-tray-2");
-  var setupTray1 = document.getElementById("setup-tray-1");
-  var setupTray2 = document.getElementById("setup-tray-2");
   var se5000Btn1 = document.getElementById("se5000-btn1");
   var se5000Btn2 = document.getElementById("se5000-btn2");
 
@@ -6608,8 +6636,6 @@
   var se5000LugarValueEl = document.getElementById("se5000-lugar-value");
 
   var setupBrandEl = document.getElementById("setup-brand");
-  var se5000ReposoEl = document.getElementById("se5000-reposo");
-  var se5000ReposoClockEl = document.getElementById("se5000-reposo-clock");
   var se5000ManualSummaryEl = document.getElementById("se5000-manual-summary");
   var se5000ManualDscEl = document.getElementById("se5000-manual-dsc");
   var se5000ManualDscYesBtn = document.getElementById("se5000-manual-dsc-yes");
@@ -6680,17 +6706,16 @@
   // del display SE5000 mientras estén visibles y esa vista esté activa — o los devuelve
   // a su sitio de siempre (justo delante de anchorEl) en caso contrario. Mismos nodos,
   // nunca copias: mover con appendChild conserva los manejadores de clic tal cual.
-  // requireCountdown (26/8, tarjetas): algunos grupos —la entrada manual del conductor
-  // 2 al "recoger al compañero a mitad de ruta"— solo deben engancharse al display
-  // mientras el contador está en pantalla; si es el arranque conjunto y todavía estamos
-  // en la pantalla de ajuste, el propio #setup ya es su sitio natural.
   // forceUndock (27/8, A4): la confirmación de sacar tarjeta manda mientras esté
   // pendiente — un display tan pequeño no puede apilar debajo otro diálogo que quede
   // fuera de la vista sin hacer scroll. true fuerza a este grupo a soltar el dock (si ya
   // estaba dentro, vuelve a su sitio de siempre) sin tocar su propia visibilidad de
   // verdad — solo cambia DÓNDE se pinta mientras dure la confirmación.
-  function se5000SyncDockGroup(els, anchorEl, visibleEl, requireCountdown, forceUndock) {
-    var shouldDock = !forceUndock && se5000Mode && !visibleEl.hidden && (!requireCountdown || !countdownScreen.hidden);
+  // (El parámetro requireCountdown que vivía aquí se retiró en el Deployment B, 2/9: el
+  // marco ya no depende de que #countdown esté en pantalla, así que ningún grupo lo
+  // necesitaba ya — ver comentario de #se5000-view en el HTML.)
+  function se5000SyncDockGroup(els, anchorEl, visibleEl, forceUndock) {
+    var shouldDock = !forceUndock && se5000Mode && !visibleEl.hidden;
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       if (shouldDock) {
@@ -6723,19 +6748,26 @@
     // aplicación de formación queda estrictamente fuera del marco físico del aparato").
     // Se le fuerza forceUndock=true siempre, para que caiga de vuelta a su estilo normal
     // de "la app hablando" (igual que #setup-prompt) en vez del fondo de la pantalla LCD.
-    // Los botones de #pause-classify SÍ siguen dentro — son los nombres reales de las
-    // actividades del manual (p.15), no texto inventado.
-    se5000SyncDockGroup([pauseStatusEl], pauseClassifyAnchor, pauseStatusEl, false, true);
-    if (se5000SyncDockGroup([pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl, false, ejectPending)) anyDocked = true;
+    // #pause-classify (las tres cajas con texto) ya no es réplica de nada real — el
+    // aparato clasifica con un pictograma único + botón 1/2 (manual p.16, ver
+    // se5000CycleActivity()). Se queda solo para la vista clásica; renderPauseUI() ya la
+    // mantiene oculta en vista SE5000, así que aquí basta con forzarla fuera si por lo
+    // que sea llegara a estar en el dock de una sesión anterior.
+    se5000SyncDockGroup([pauseStatusEl], pauseClassifyAnchor, pauseStatusEl, true);
+    se5000SyncDockGroup([pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl, true);
     // #gap-status y #gap-classify: el "hueco sin clasificar" (huella de GPS sin señal
     // que hay que reclasificar) es una función propia de esta app — el SE5000 real no
     // detecta huecos por GPS ni los ofrece para clasificar en vivo así; su equivalente
     // real es simplemente el pictograma "? actividad desconocida" (p.15) hasta la
     // siguiente entrada manual. Ni el aviso ni los tres botones son parte de ningún
     // menú reglamentario del aparato — los dos fuera del display (Hugo, 1/9).
-    se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl, false, true);
-    if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl, false, ejectPending)) anyDocked = true;
-    if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true, ejectPending)) anyDocked = true;
+    se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl, true);
+    if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl, ejectPending)) anyDocked = true;
+    // requireCountdown ya no hace falta (Deployment B, 2/9): el marco es una capa
+    // permanente, existe desde el primer instante en vista SE5000, no solo con la cuenta
+    // atrás en marcha — así que las preguntas de inicio de jornada por fin se ven dentro
+    // del display real desde el primer "¿Dsc. hasta ahora?", no flotando en negro.
+    if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, ejectPending)) anyDocked = true;
     se5000DialogDock.hidden = !anyDocked;
     // Un diálogo compartido (clasificar pausa, hueco sin clasificar, inicio de jornada,
     // sacar tarjeta) manda sobre el menú si los dos coinciden — el menú solo se abre
@@ -6773,23 +6805,17 @@
     applyViewMode();
   });
 
-  // --- Reposo (pantalla pasiva, tarjeta fuera) + entradas manuales al meter cualquiera
-  // de las dos tarjetas — ver insertCard()/ejectCard() más abajo. La vista clásica
-  // sigue con su formulario y su "+ conductor 2" de siempre, sin tocar. ---
+  // --- Entradas manuales al meter cualquiera de las dos tarjetas — ver
+  // insertCard()/ejectCard() más abajo. La vista clásica sigue con su formulario y su "+
+  // conductor 2" de siempre, sin tocar. El reposo (tarjeta fuera) ya no tiene pantalla
+  // propia — Deployment B, 2/9: se pinta con los mismos campos que cualquier otro estado
+  // del marco permanente, ver la rama "curDeadline === null" de renderSe5000View(). ---
   function renderSetupView() {
     setupForm.hidden = se5000Mode;
     setupBrandEl.hidden = se5000Mode;
     setupPromptEl.hidden = se5000Mode;
-    se5000ReposoEl.hidden = !(se5000Mode && se5000ActiveFlow === null);
     se5000ManualEl.hidden = !(se5000Mode && se5000ActiveFlow !== null);
-    if (!se5000Mode) return;
-    if (se5000ActiveFlow === null) renderSe5000Reposo();
-    else renderSe5000Manual();
-  }
-
-  function renderSe5000Reposo() {
-    var since = getQuietSinceTs();
-    se5000ReposoClockEl.textContent = formatRemaining(Date.now() - since);
+    if (se5000Mode && se5000ActiveFlow !== null) renderSe5000Manual();
   }
 
   // Gesto real del aparato (manual pp.16-19): mantener pulsada la bandeja unos 3s mete
@@ -7134,10 +7160,11 @@
   // Entrada pública del gesto de toque breve — pide confirmación, nunca cierra directo.
   function ejectCard(n) { requestEject(n); }
 
+  // Un único par de bandejas ahora (Deployment B, 2/9) — el marco es permanente, ya no
+  // hace falta un segundo juego solo para el estado "sin tarjeta" (#setup-tray-1/2, ya
+  // retirado junto con #se5000-reposo).
   bindTrayGesture(se5000Tray1, function () { insertCard(1); }, function () { ejectCard(1); });
   bindTrayGesture(se5000Tray2, function () { insertCard(2); }, function () { ejectCard(2); });
-  bindTrayGesture(setupTray1, function () { insertCard(1); }, function () { ejectCard(1); });
-  bindTrayGesture(setupTray2, function () { insertCard(2); }, function () { ejectCard(2); });
 
   function se5000ManualRemainingMs() {
     return Math.max(0, Date.now() - se5000ManualCursor);
@@ -7464,17 +7491,25 @@
 
   // Verdadero mientras el vehículo está circulando de verdad — el mismo dato que ya usa
   // tgActivityBtn para bloquear la clasificación a mano de "conduciendo". Reutilizado
-  // para la guarda de seguridad del menú (manual p.15).
+  // para la guarda de seguridad del menú (manual p.15). Sin tarjeta no hay nada que
+  // conducir — "paused" solo tiene sentido con una jornada en curso (Deployment B, 2/9:
+  // antes esto podía devolver "en marcha" durante el reposo porque paused empieza en
+  // false por defecto, y como el marco no se veía nunca en reposo el fallo no se notaba).
   function vehicleIsMoving() {
-    return isDriver2Active() ? !paused2 : !paused;
+    var d2 = isDriver2Active();
+    var dl = d2 ? deadline2 : deadline;
+    return dl !== null && (d2 ? !paused2 : !paused);
   }
 
-  // --- Vista por defecto en marcha: espejo de la vista clásica, no un cálculo propio
-  // (ver comentario de #se5000-view en el HTML). Titular adaptativo por actividad —
-  // manual p.13, campo 3: tiempo desde la última pausa si conduce, si no, duración de
-  // la actividad actual. ---
+  // --- Pantalla del tacógrafo — Deployment B, 2/9: ya no depende de #countdown estar
+  // visible. El marco (#se5000-view) es su propia capa permanente mientras se5000Mode
+  // esté activo (ver CSS y la nueva posición del HTML), así que esta función tiene que
+  // saber pintar TRES estados, no dos: reposo (sin tarjeta, antes vivía en el ya retirado
+  // #se5000-reposo), pausado, y en marcha (espejo de la vista clásica, no un cálculo
+  // propio). Titular adaptativo por actividad — manual p.13, campo 3: tiempo desde la
+  // última pausa si conduce, si no, duración de la actividad actual. ---
   function renderSe5000View() {
-    if (se5000ViewEl.hidden || countdownScreen.hidden) return;
+    if (se5000ViewEl.hidden) return;
     // El menú no puede seguir abierto si el vehículo se pone en marcha mientras se
     // navega por él — manual p.15: "por razones de seguridad de tráfico solo puede
     // poner el tacógrafo en funcionamiento cuando el vehículo esté parado". Se
@@ -7482,44 +7517,62 @@
     if (se5000MenuStack.length && vehicleIsMoving()) se5000MenuClose();
 
     var d2 = isDriver2Active();
-    var isPaused = d2 ? paused2 : paused;
-    var cls = d2 ? pauseClassification2 : pauseClassification;
+    var curDeadline = d2 ? deadline2 : deadline;
+    se5000TrayHintEl.hidden = curDeadline !== null;
 
-    if (!isPaused) {
-      se5000LabelTop.textContent = clockLabelTopEl.textContent;
-      se5000MainClock.textContent = clockEl.textContent;
-      se5000LabelBottom.textContent = clockLabelEl.textContent;
-      se5000MainPic.setAttribute("href", SE5000_PICS.driving);
+    if (curDeadline === null) {
+      // Reposo — mismo contenido que antes vivía en #se5000-reposo (aparato encendido,
+      // tarjeta fuera), ahora en los mismos campos que cualquier otro estado en vez de
+      // en un display aparte.
+      var since = d2 ? getQuietSinceTsOf(intervalsSolo2, QUIET_SINCE_KEY_2) : getQuietSinceTs();
+      se5000LabelTop.textContent = "quieto desde hace";
+      se5000MainClock.textContent = formatRemaining(Date.now() - since);
+      se5000LabelBottom.textContent = "";
+      se5000MainPic.setAttribute("href", SE5000_PICS.rest);
       se5000MainClock.style.color = "";
+      se5000DdsTitleEl.textContent = "";
+      se5000SubEl.textContent = "";
     } else {
-      // B4, Hugo 27/8: "el bloque de ≥30 min de la pausa partida es una cuenta atrás
-      // contra las 4h30 de conducción, no un acumulado" — antes se mostraba el tiempo
-      // transcurrido en la actividad actual ("llevas 0:20"), que no es el dato que
-      // importa: lo que hay que ver es cuánta conducción queda bancada del bloque de
-      // 4h30 (pausedRemainingMs, congelado desde que se paró), igual que ya hace la
-      // vista clásica durante la pausa. Coincide además con la pantalla real del SE5000
-      // (manual pp.24-25, "Tomarse un descanso": muestra el tiempo restante junto al
-      // bloque de conducción que queda, nunca tiempo transcurrido).
-      var frozenRemaining = d2 ? pausedRemainingMs2 : pausedRemainingMs;
-      se5000LabelTop.textContent = "te quedan";
-      se5000MainClock.textContent = formatRemaining(frozenRemaining);
-      se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls);
-      // "?" (manual p.15) si no hay clasificación real — nunca se asume disponibilidad
-      // por defecto en el pictograma principal, eso sería inventar un dato.
-      se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.unknown);
-      se5000MainClock.style.color = "";
+      var isPaused = d2 ? paused2 : paused;
+      var cls = d2 ? pauseClassification2 : pauseClassification;
+
+      if (!isPaused) {
+        se5000LabelTop.textContent = clockLabelTopEl.textContent;
+        se5000MainClock.textContent = clockEl.textContent;
+        se5000LabelBottom.textContent = clockLabelEl.textContent;
+        se5000MainPic.setAttribute("href", SE5000_PICS.driving);
+        se5000MainClock.style.color = "";
+      } else {
+        // B4, Hugo 27/8: "el bloque de ≥30 min de la pausa partida es una cuenta atrás
+        // contra las 4h30 de conducción, no un acumulado" — antes se mostraba el tiempo
+        // transcurrido en la actividad actual ("llevas 0:20"), que no es el dato que
+        // importa: lo que hay que ver es cuánta conducción queda bancada del bloque de
+        // 4h30 (pausedRemainingMs, congelado desde que se paró), igual que ya hace la
+        // vista clásica durante la pausa. Coincide además con la pantalla real del SE5000
+        // (manual pp.24-25, "Tomarse un descanso": muestra el tiempo restante junto al
+        // bloque de conducción que queda, nunca tiempo transcurrido).
+        var frozenRemaining = d2 ? pausedRemainingMs2 : pausedRemainingMs;
+        se5000LabelTop.textContent = "te quedan";
+        se5000MainClock.textContent = formatRemaining(frozenRemaining);
+        se5000LabelBottom.textContent = "de conducción · " + activityLabel(cls);
+        // "?" (manual p.15) si no hay clasificación real — nunca se asume disponibilidad
+        // por defecto en el pictograma principal, eso sería inventar un dato.
+        se5000MainPic.setAttribute("href", SE5000_PICS[cls] || SE5000_PICS.unknown);
+        se5000MainClock.style.color = "";
+      }
+
+      se5000SubEl.textContent = tgDdsEl.textContent;
+      se5000DdsTitleEl.textContent = tgDdsTitleEl.textContent;
     }
 
-    se5000SubEl.textContent = tgDdsEl.textContent;
-    se5000DdsTitleEl.textContent = tgDdsTitleEl.textContent;
     se5000Tray1.classList.toggle("active", !d2);
     se5000Tray2.classList.toggle("active", d2);
 
-    // Botones "1"/"2" (manual p.16): "1" clasifica a quien tiene el papel de conductor
-    // ahora mismo (el mismo objetivo que ya usaba OK); "2" al compañero, y solo existe
-    // de verdad con tripulación doble.
-    se5000Btn1.disabled = !isPaused;
-    se5000Btn2.disabled = !doubleCrewOn;
+    // Botones "1"/"2" (manual p.16, literal): "1" es SIEMPRE la bandeja del conductor,
+    // "2" SIEMPRE la del compañero — nunca "quien esté activo ahora", y bloqueados en
+    // marcha (isDrivingNow ya cubre "sin tarjeta" y "conduciendo" a la vez).
+    se5000Btn1.disabled = deadline === null || isDrivingNow(1);
+    se5000Btn2.disabled = !doubleCrewOn || isDrivingNow(2);
 
     renderEjectCountry();
     renderSe5000Menu();
@@ -7927,17 +7980,33 @@
     se5000ToggleDtd();
   }
   bindTrayGesture(se5000NavOk, se5000NavOkLongPress, se5000NavOkTap);
+
+  // Botones 1/2 físicos (manual p.16, literal): "pulse brevemente el botón 1 (para el
+  // conductor) o el botón 2 (para el compañero) repetidamente hasta que aparezca la
+  // actividad deseada". Cada botón cicla SIEMPRE su propia bandeja (1→conductor,
+  // 2→compañero) — a diferencia de tgActivityBtn/driver2PillEl (vista clásica), que
+  // actúan sobre "quien esté activo ahora mismo" y podían disparar un cambio de turno de
+  // verdad (switchActiveDriver). Aquí nunca se toca quién conduce, solo se reclasifica.
+  // "Conduciendo siempre se selecciona automáticamente y no se puede cambiar" (mismo
+  // texto del manual) — de ahí el bloqueo con isDrivingNow(n), y por qué el ciclo nunca
+  // incluye "driving". Hugo, 2/9: "solo se pueden cambiar si el camión está parado".
+  function se5000CycleActivity(n) {
+    if (pendingEjectDriver !== null || se5000ActiveFlow !== null) return;
+    if (n === 2 ? !doubleCrewOn : deadline === null) return; // sin tarjeta, nada que ciclar
+    if (isDrivingNow(n)) return;
+    var curCls = (n === 2) ? pauseClassification2 : pauseClassification;
+    var idx = CLASSIFICATION_CYCLE.indexOf(curCls);
+    var next = CLASSIFICATION_CYCLE[(idx + 1) % CLASSIFICATION_CYCLE.length];
+    selectClassification(next, n);
+    renderSe5000View();
+  }
   se5000Btn1.addEventListener("click", function (e) {
     e.stopPropagation();
-    if (pendingEjectDriver !== null) return; // el país de fin manda mientras esté pendiente
-    tgActivityBtn.click();
-    renderSe5000View();
+    se5000CycleActivity(1);
   });
   se5000Btn2.addEventListener("click", function (e) {
     e.stopPropagation();
-    if (pendingEjectDriver !== null) return;
-    driver2PillEl.click();
-    renderSe5000View();
+    se5000CycleActivity(2);
   });
 
   // La bandeja ya no sirve para elegir a quién se mira (eso era una taquigrafía de esta
