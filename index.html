@@ -466,8 +466,7 @@
   }
 
   #jornada-si, #jornada-no, #jornada-manual-none,
-  #jornada-country-ok, #jornada-region-ok,
-  #eject-confirm-yes, #eject-confirm-no {
+  #jornada-country-ok, #jornada-region-ok {
     font-family: var(--font-label);
     font-size: clamp(12px, 2.2vw, 15px);
     font-weight: 600;
@@ -477,37 +476,6 @@
     border-radius: 10px;
     padding: 0.5em 0.9em;
     cursor: pointer;
-  }
-
-  /* Confirmación de "sacar tarjeta" — misma posición fija y centrada que #jornada-dialog,
-     mismo motivo (pantalla sin scroll). Hugo, 27/8, punto A4. */
-  #eject-confirm {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    max-width: 80vw;
-    background: var(--bg);
-    border: 2px solid var(--accent);
-    border-radius: 14px;
-    padding: clamp(16px, 3vh, 28px);
-  }
-
-  #eject-confirm-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  #eject-confirm-yes {
-    color: #e05252;
-    border-color: #e05252;
   }
 
   /* Selector de lista con flechas — país y provincia/comunidad. Sin teclado, igual que
@@ -1021,15 +989,26 @@
     width: 12px;
     height: 12px;
   }
-  #se5000-dialog-dock #se5000-manual-duration input {
-    width: 2em;
-    font-size: clamp(6px, 1.4vw, 8px);
-  }
   #se5000-dialog-dock #se5000-manual-actions button,
   #se5000-dialog-dock #se5000-manual-shortcut,
   #se5000-dialog-dock #se5000-manual-undo {
     font-size: clamp(5px, 1.2vw, 7px);
     padding: 0.35em 0.4em;
+  }
+  #se5000-dialog-dock #se5000-manual-end-start,
+  #se5000-dialog-dock #se5000-manual-end-field-label {
+    font-size: clamp(5px, 1.1vw, 6.5px);
+  }
+  #se5000-dialog-dock #se5000-manual-end-value {
+    font-size: clamp(6px, 1.4vw, 7.5px);
+    min-width: 0;
+  }
+  #se5000-dialog-dock #se5000-manual-end-ok {
+    font-size: clamp(5px, 1.2vw, 7px);
+    padding: 0.35em 0.6em;
+  }
+  #se5000-dialog-dock #se5000-manual-imprimir-notice {
+    font-size: clamp(5px, 1.1vw, 6.5px);
   }
   #se5000-dialog-dock #se5000-manual-log,
   #se5000-dialog-dock .se5000-manual-log-row {
@@ -1072,8 +1051,7 @@
   /* #jornada-dialog llega con position:fixed centrado en el viewport (para la vista
      clásica) — dentro del dock tiene que comportarse como un hijo normal del flujo, o
      ignoraría por completo su nuevo sitio. */
-  #se5000-dialog-dock #jornada-dialog,
-  #se5000-dialog-dock #eject-confirm {
+  #se5000-dialog-dock #jornada-dialog {
     position: static;
     background: transparent;
     border: none;
@@ -1331,19 +1309,9 @@
     background: rgba(0, 0, 0, 0.16);
   }
 
-  #countdown.se5000-skin #gap-classify {
-    background: var(--se-display-bg);
-    border: 3px solid var(--se-bezel);
-    border-top: 3px solid #7a2f2f;
-  }
-
-  #countdown.se5000-skin #gap-classify-label { color: #7a2f2f; }
-
-  #countdown.se5000-skin #gap-classify button {
-    color: #7a2f2f;
-    border-color: #7a2f2f;
-    background: rgba(0, 0, 0, 0.06);
-  }
+  /* #gap-status/#gap-classify ya no se enganchan nunca al display (Hugo, 1/9) — se
+     quedan con su rojo de "esto no es fiable" de siempre, fuera del marco. Sin reglas
+     .se5000-skin para ellos a propósito. */
 
   #countdown.se5000-skin #jornada-dialog .status-pill {
     background: rgba(0, 0, 0, 0.06);
@@ -1365,30 +1333,6 @@
   #countdown.se5000-skin .jornada-selector-label,
   #countdown.se5000-skin .jornada-selector-value {
     color: var(--se-display-fg);
-  }
-
-  #countdown.se5000-skin #eject-confirm {
-    background: var(--se-display-bg);
-    border: 3px solid var(--se-bezel);
-    border-top: 3px solid #7a2f2f;
-  }
-
-  #countdown.se5000-skin #eject-confirm .status-pill {
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--se-display-fg);
-    border-color: var(--se-display-dim);
-  }
-
-  #countdown.se5000-skin #eject-confirm-no {
-    color: var(--se-display-fg);
-    border-color: var(--se-display-dim);
-    background: rgba(0, 0, 0, 0.06);
-  }
-
-  #countdown.se5000-skin #eject-confirm-yes {
-    color: #7a2f2f;
-    border-color: #7a2f2f;
-    background: rgba(0, 0, 0, 0.06);
   }
 
   /* --- Reposo SE5000 en #setup: cama + tiempo quieto, como el aparato real sin
@@ -1571,14 +1515,19 @@
   .se5000-manual-log-row:active { transform: scale(0.98); }
 
   #se5000-manual-confirm,
-  #se5000-manual-nochoice {
+  #se5000-manual-nochoice,
+  #se5000-manual-dsc,
+  #se5000-manual-addmanual,
+  #se5000-manual-imprimir {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
   }
 
-  #se5000-manual-confirm-buttons {
+  #se5000-manual-confirm-buttons,
+  #se5000-manual-dsc-buttons,
+  #se5000-manual-imprimir-buttons {
     display: flex;
     gap: 8px;
   }
@@ -1586,7 +1535,13 @@
   #se5000-manual-confirm-yes,
   #se5000-manual-confirm-no,
   #se5000-manual-change,
-  #se5000-manual-clearall {
+  #se5000-manual-clearall,
+  #se5000-manual-dsc-yes,
+  #se5000-manual-dsc-no,
+  #se5000-manual-addmanual-ok,
+  #se5000-manual-imprimir-yes,
+  #se5000-manual-imprimir-no,
+  #se5000-manual-imprimir-ok {
     font-family: var(--font-label);
     font-size: 12px;
     font-weight: 700;
@@ -1598,7 +1553,51 @@
     border: 1px solid var(--fg-dim);
   }
 
-  #se5000-manual-confirm-yes {
+  #se5000-manual-confirm-yes,
+  #se5000-manual-addmanual-ok,
+  #se5000-manual-imprimir-ok {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+  }
+
+  #se5000-manual-imprimir-notice {
+    font-family: var(--font-label);
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+
+  /* Entrada de fecha/hora/minuto del fin de tramo (manual pp.20-21) — mismo estilo que
+     el selector de país/comunidad de siempre (.jornada-selector-row), un solo sitio de
+     tamaños para las dos cosas. */
+  #se5000-manual-entering {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #se5000-manual-end-start {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: var(--fg-dim);
+  }
+
+  #se5000-manual-end-field-label {
+    font-family: var(--font-label);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+
+  #se5000-manual-end-ok {
+    font-family: var(--font-label);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0.5em 1.2em;
+    border-radius: 9px;
+    cursor: pointer;
     background: var(--accent);
     color: var(--accent-fg);
     border: none;
@@ -1702,6 +1701,49 @@
     margin-top: var(--se-menu-gap);
   }
 
+  /* País de fin al sacar la tarjeta (manual pp.17-18) — mismo estilo que #se5000-lugar,
+     elemento propio porque vive fuera del menú (el disparador es la ranura, no OK) y
+     manda sobre cualquier otra cosa mientras esté pendiente. */
+  #se5000-eject-country {
+    position: absolute;
+    inset: 0;
+    background: var(--se-display-bg);
+    color: var(--se-display-fg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--se-menu-pad) clamp(4px, 1.5vw, 7px);
+    z-index: 7;
+    text-align: center;
+  }
+
+  #se5000-eject-country-label {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-title-fs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--se-display-dim);
+  }
+
+  #se5000-eject-country-value {
+    font-family: var(--font-display);
+    font-size: var(--se-menu-item-fs);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    margin-top: var(--se-menu-gap);
+  }
+
+  #se5000-eject-country-hint {
+    font-family: var(--font-label);
+    font-size: var(--se-menu-notice-fs);
+    color: var(--se-display-dim);
+    margin-top: var(--se-menu-gap);
+  }
+
   /* Botones físicos "1" (conductor) y "2" (compañero), manual p.16: aparte del
      bloque de navegación ▲▼OK↩, junto a cada bandeja — igual que en el aparato
      real. Sustituyen a OK como forma de clasificar la actividad a mano (ver
@@ -1735,6 +1777,103 @@
     align-items: center;
     gap: clamp(4px, 1.2vw, 7px);
     flex: 1 1 0;
+  }
+
+  /* ------------------------------------------------------------------------
+     Modo horizontal (móvil apoyado de lado en el salpicadero) — 1/9.
+     Acotado a pantallas de móvil en landscape (orientation:landscape Y
+     max-height:500px), no a una ventana de escritorio que resulte ancha — un
+     portátil normal no entra aquí. Todos los tamaños de este bloque, en un
+     solo sitio, para poder ajustarlos sin tocar la estructura (mismo criterio
+     que ya pide el encargo para el resto de tamaños).
+     Dos objetivos, en este orden: 1) el bezel ya no se queda parado en su
+     tope de 480px con hueco vacío a los lados — en horizontal sobra ancho de
+     verdad. 2) las bandejas nunca bajan de un tamaño cómodo de tocar aunque
+     el alto disponible sea mucho menor que en vertical (regla del proyecto:
+     el objetivo táctil manda sobre el parecido exacto con la foto, punto A3,
+     ya aplicado antes a la versión vertical). ------------------------------ */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #countdown {
+      padding: clamp(6px, 3vh, 14px) 0;
+    }
+    #nav-ayuda {
+      top: clamp(4px, 1.5vh, 10px);
+    }
+    .tg-shell {
+      margin-top: clamp(6px, 2vh, 14px);
+    }
+    #se5000-view {
+      gap: clamp(4px, 1.2vh, 8px);
+      padding: 4px 12px;
+    }
+    /* Mismo criterio que la versión vertical (min(94vw,480px)) pero con un
+       tope mucho más alto: en horizontal el ancho sobra, así que el bezel
+       por fin lo aprovecha en vez de quedarse pequeño en el centro. */
+    .se5000-bezel {
+      width: min(80vw, 720px);
+      padding: clamp(4px, 1.6vh, 8px) clamp(8px, 1.6vw, 14px);
+      gap: clamp(3px, 0.8vh, 5px);
+    }
+    /* Techo de las bandejas más bajo que en vertical (ahí llegaba a 72px) —
+       pero nunca por debajo de 56px, bien por encima de los mínimos táctiles
+       habituales (44-48px), para que seguir siendo cómodo de tocar con el
+       camión en marcha sea innegociable incluso con poco alto disponible. */
+    .se5000-tray-wide {
+      height: clamp(56px, 15vh, 64px);
+    }
+    .se5000-key-activity {
+      --se-key-activity-size-landscape: clamp(22px, 8vh, 28px);
+      width: var(--se-key-activity-size-landscape);
+      height: var(--se-key-activity-size-landscape);
+    }
+
+    /* Entradas manuales al iniciar (manual pp.16-22) — #setup centra su contenido con
+       "position:fixed; justify-content:center" y SIN scroll (ver .screen), así que en
+       horizontal con poca altura el paso "entering" (picker + fin del tramo) se salía
+       por arriba de la pantalla. Compactado landscape-first, pedido por Hugo 1/9: mismo
+       contenido, menos aire vertical, nunca menos información. */
+    #setup {
+      padding: clamp(8px, 2vh, 16px);
+      gap: clamp(8px, 2vh, 16px);
+    }
+    #se5000-manual {
+      gap: 6px;
+    }
+    #se5000-manual-entering {
+      gap: 5px;
+    }
+    #se5000-manual-picker {
+      gap: 5px;
+    }
+    .se5000-manual-btn {
+      padding: 0.35em 0.3em;
+      gap: 2px;
+      font-size: 10px;
+    }
+    .se5000-manual-btn .se5000-pic {
+      width: 16px;
+      height: 16px;
+    }
+    #se5000-manual-end-start,
+    #se5000-manual-end-field-label {
+      font-size: 10px;
+    }
+    .jornada-selector-row button {
+      font-size: clamp(12px, 2vh, 15px);
+    }
+    #se5000-manual-end-ok,
+    #se5000-manual-actions button {
+      padding: 0.4em 0.8em;
+      font-size: 11px;
+    }
+    #se5000-manual-log {
+      max-height: 8vh;
+      font-size: 9.5px;
+    }
+    #se5000-manual-undo {
+      font-size: 10px;
+      padding: 0.3em 0.5em;
+    }
   }
 </style>
 
@@ -1811,49 +1950,86 @@
     <div class="se5000-tray-hint">mantén pulsada la bandeja para meter la tarjeta</div>
   </div>
 
-  <!-- Entradas manuales al iniciar, tramo a tramo — no un número suelto. Réplica del
-       flujo real de "¿Descansó hasta ahora?" + entradas manuales (manual pp.17-23),
-       adaptado: sin país/lugar (fuera de alcance de esta app), solo actividad y duración.
+  <!-- Entradas manuales al iniciar — réplica literal del flujo real (manual pp.16-22):
+       ¿Dsc. hasta ahora? → (SÍ: todo descanso) o (NO: ¿Añadir e. manuales? → tramo a
+       tramo con HORA REAL de inicio/fin, no una duración inventada) → ¿Imprimir
+       entradas? → ¿Confirmar entradas?. País de inicio (si el descanso fue de 9h+) lo
+       sigue disparando solo el motor ya existente (triggerJornadaDialog, vía
+       replayManualRestClassification) al confirmar — no se reimplementa aparte.
        Reutilizado tal cual para el conductor 2 (mismos nodos, ver se5000ActiveFlow) —
        Hugo, 26/8: "cada tarjeta dispara sus propias preguntas". -->
   <span id="se5000-manual-anchor" hidden></span>
   <div id="se5000-manual" hidden>
     <div id="se5000-manual-summary"></div>
-    <button id="se5000-manual-shortcut" type="button">descansé todo este tiempo</button>
-    <div id="se5000-manual-divider">o cuenta qué hiciste, tramo a tramo</div>
-    <div id="se5000-manual-picker">
-      <button type="button" class="se5000-manual-btn" data-se5000-cls="availability">
-        <svg class="se5000-pic" aria-hidden="true"><use href="#pic-availability"></use></svg>
-        Disponibilidad
-      </button>
-      <button type="button" class="se5000-manual-btn" data-se5000-cls="rest">
-        <svg class="se5000-pic" aria-hidden="true"><use href="#pic-rest"></use></svg>
-        Descanso
-      </button>
-      <button type="button" class="se5000-manual-btn" data-se5000-cls="other">
-        <svg class="se5000-pic" aria-hidden="true"><use href="#pic-work"></use></svg>
-        Otros trabajos
-      </button>
+
+    <!-- Fase "dsc" — manual p.16, literal: "¿Dsc. hasta ahora?" -->
+    <div id="se5000-manual-dsc">
+      <div class="status-pill">¿Dsc. hasta ahora?</div>
+      <div id="se5000-manual-dsc-buttons">
+        <button id="se5000-manual-dsc-yes" type="button">Sí</button>
+        <button id="se5000-manual-dsc-no" type="button">No</button>
+      </div>
     </div>
-    <div id="se5000-manual-duration">
-      <input id="se5000-manual-h" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" aria-label="Horas del tramo">
-      <span>h</span>
-      <input id="se5000-manual-m" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="0" aria-label="Minutos del tramo">
-      <span>min</span>
+
+    <!-- Fase "addManual" — manual p.16, literal: "¿Añadir e. manuales?" (solo tras NO) -->
+    <div id="se5000-manual-addmanual" hidden>
+      <div class="status-pill">¿Añadir e. manuales?</div>
+      <button id="se5000-manual-addmanual-ok" type="button">OK</button>
     </div>
-    <div id="se5000-manual-actions">
-      <button id="se5000-manual-add" type="button">añadir tramo</button>
-      <button id="se5000-manual-rest" type="button">el resto fue así</button>
+
+    <!-- Fase "entering" — picker de actividad + fin del tramo con hora real -->
+    <div id="se5000-manual-entering" hidden>
+      <div id="se5000-manual-picker">
+        <button type="button" class="se5000-manual-btn" data-se5000-cls="availability">
+          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-availability"></use></svg>
+          Disponibilidad
+        </button>
+        <button type="button" class="se5000-manual-btn" data-se5000-cls="rest">
+          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-rest"></use></svg>
+          Descanso
+        </button>
+        <button type="button" class="se5000-manual-btn" data-se5000-cls="other">
+          <svg class="se5000-pic" aria-hidden="true"><use href="#pic-work"></use></svg>
+          Otros trabajos
+        </button>
+      </div>
+      <div id="se5000-manual-end-start"></div>
+      <!-- Ajuste del fin del tramo, fecha → hora → minuto, cada uno con su propio OK
+           (manual pp.20-21, literal: "cambie la fecha/hora/minuto... y pulse OK") — sin
+           simplificar a una sola cifra, tal como pediste. -->
+      <div id="se5000-manual-end-field-label"></div>
+      <div class="jornada-selector-row">
+        <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
+        <div id="se5000-manual-end-value" class="jornada-selector-value">—</div>
+        <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
+      </div>
+      <button id="se5000-manual-end-ok" type="button">OK</button>
+      <div id="se5000-manual-actions">
+        <button id="se5000-manual-rest" type="button">el resto fue así</button>
+      </div>
+      <!-- Manual p.21-22: "podrá volver atrás y cambiar sus entradas manuales usando el
+           botón Atrás en cualquier momento". El aparato real tiene un botón Atrás físico
+           siempre presente; en el flujo de ajuste inicial esta app no lo tiene a mano,
+           así que aquí es un botón propio con el mismo efecto (deshace el último
+           tramo). En la vista SE5000 en marcha, el ↩ físico hace lo mismo. -->
+      <button id="se5000-manual-undo" type="button" hidden>↩ quitar último tramo</button>
+      <div id="se5000-manual-log"></div>
     </div>
-    <!-- Manual p.21-22: "podrá volver atrás y cambiar sus entradas manuales usando el
-         botón Atrás en cualquier momento". El aparato real tiene un botón Atrás físico
-         siempre presente; en el flujo de ajuste inicial esta app no lo tiene a mano, así
-         que aquí es un botón propio con el mismo efecto (deshace el último tramo). En la
-         vista SE5000 en marcha, el ↩ físico hace lo mismo — ver se5000-nav-back. -->
-    <button id="se5000-manual-undo" type="button" hidden>↩ quitar último tramo</button>
-    <div id="se5000-manual-log"></div>
-    <!-- "¿Confirmar entradas?" (manual p.21, literal) — antes de esto no existía ningún
-         paso de confirmación, se guardaba directo al llegar a 0 de remanente. -->
+
+    <!-- Fase "imprimir" — manual p.21, literal: "¿Imprimir entradas?". Un móvil no
+         imprime nada (Hugo, 1/9): SÍ solo avisa que no está disponible, nunca finge
+         imprimir. -->
+    <div id="se5000-manual-imprimir" hidden>
+      <div class="status-pill">¿Imprimir entradas?</div>
+      <div id="se5000-manual-imprimir-buttons">
+        <button id="se5000-manual-imprimir-yes" type="button">Sí</button>
+        <button id="se5000-manual-imprimir-no" type="button">No</button>
+      </div>
+      <div id="se5000-manual-imprimir-notice" hidden>no disponible en esta app</div>
+      <button id="se5000-manual-imprimir-ok" type="button" hidden>OK</button>
+    </div>
+
+    <!-- "¿Confirmar entradas?" (manual p.21, literal). -->
     <div id="se5000-manual-confirm" hidden>
       <div class="status-pill">¿Confirmar entradas?</div>
       <div id="se5000-manual-confirm-buttons">
@@ -1946,6 +2122,19 @@
                 <div id="se5000-lugar-value">—</div>
                 <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
               </div>
+            </div>
+            <!-- Extracción de tarjeta (manual pp.17-18, literal): "Pulse el botón 1 o 2...
+                 En la pantalla aparecerá: País de fin. Seleccione el país de fin y pulse OK
+                 para confirmar... se abre la bandeja." Disparador táctil: tocar la ranura
+                 (Hugo, 1/9: "los botones 1 y 2 son demasiado pequeños para acertar con el
+                 dedo... tocar la ranura activa el flujo de país del manual y luego se
+                 expulsa") — mismo contenido del aparato real, gesto adaptado al móvil.
+                 Manda sobre el menú y sobre todo lo demás mientras esté pendiente, igual
+                 que ya hacía el antiguo diálogo de confirmar. -->
+            <div id="se5000-eject-country" hidden>
+              <div id="se5000-eject-country-label">País de fin</div>
+              <div id="se5000-eject-country-value">—</div>
+              <div id="se5000-eject-country-hint">▲▼ elegir · OK confirma · ↩ cancela</div>
             </div>
           </div>
           <div class="se5000-nav">
@@ -2043,17 +2232,6 @@
   </div>
   <span id="jornada-dialog-anchor" hidden></span>
 
-  <!-- Confirmación al sacar la tarjeta (toque breve en la bandeja) — Hugo, 27/8, punto
-       A4: "un roce en un bache no puede cerrar la jornada". Cancelable, nunca un cierre
-       directo. -->
-  <div id="eject-confirm" hidden>
-    <div class="status-pill">¿Sacar la tarjeta y cerrar jornada?</div>
-    <div id="eject-confirm-buttons">
-      <button id="eject-confirm-yes" type="button">Sí, sacar tarjeta</button>
-      <button id="eject-confirm-no" type="button">Cancelar</button>
-    </div>
-  </div>
-  <span id="eject-confirm-anchor" hidden></span>
 
   <div id="tap-hint">toca la pantalla para escucharlo</div>
   <div id="reset-corner">reiniciar</div>
@@ -2451,10 +2629,9 @@
   var jornadaDialogAnchor = document.getElementById("jornada-dialog-anchor");
   var se5000ManualAnchor = document.getElementById("se5000-manual-anchor");
   var se5000ManualEl = document.getElementById("se5000-manual");
-  var ejectConfirmEl = document.getElementById("eject-confirm");
-  var ejectConfirmAnchor = document.getElementById("eject-confirm-anchor");
-  var ejectConfirmYesBtn = document.getElementById("eject-confirm-yes");
-  var ejectConfirmNoBtn = document.getElementById("eject-confirm-no");
+  var se5000EjectCountryEl = document.getElementById("se5000-eject-country");
+  var se5000EjectCountryLabelEl = document.getElementById("se5000-eject-country-label");
+  var se5000EjectCountryValueEl = document.getElementById("se5000-eject-country-value");
   var se5000DialogDock = document.getElementById("se5000-dialog-dock");
   var exportBtn = document.getElementById("export-btn");
   var navAyudaBtn = document.getElementById("nav-ayuda");
@@ -6289,8 +6466,15 @@
   // el mismo #se5000-manual sirve para cualquiera de los dos conductores (Hugo, 26/8:
   // "cada tarjeta dispara sus propias preguntas", mismos nodos, no duplicados).
   var se5000ActiveFlow = null;
-  // Toque breve en la bandeja pendiente de confirmar (null = nada pendiente) — A4, 27/8.
+  // Toque breve en la bandeja: arranca la extracción real (null = nada pendiente) — A4,
+  // 27/8, con el flujo de "País de fin" corregido el 1/9 (ver requestEject()).
   var pendingEjectDriver = null;
+  // Selector de país de fin (manual pp.17-18), propio y separado de
+  // jornadaCountryIdx/se5000LugarCountryIdx — no deben pisarse si coinciden en el tiempo,
+  // mismo criterio que ya se aplicó a Lugar inicio/fin.
+  var ejectCountryStep = null; // null | "country" | "region"
+  var ejectCountryIdx = 0;
+  var ejectRegionIdx = 0;
 
   // --- Menú de 4 entradas y LUGARES (manual p.15, 19, 27, 28) — 1/9 ---
   // Pila de pantallas del menú: [] = cerrado; ["root"], ["root","lugares"],
@@ -6427,18 +6611,29 @@
   var se5000ReposoEl = document.getElementById("se5000-reposo");
   var se5000ReposoClockEl = document.getElementById("se5000-reposo-clock");
   var se5000ManualSummaryEl = document.getElementById("se5000-manual-summary");
-  var se5000ManualShortcutBtn = document.getElementById("se5000-manual-shortcut");
+  var se5000ManualDscEl = document.getElementById("se5000-manual-dsc");
+  var se5000ManualDscYesBtn = document.getElementById("se5000-manual-dsc-yes");
+  var se5000ManualDscNoBtn = document.getElementById("se5000-manual-dsc-no");
+  var se5000ManualAddManualEl = document.getElementById("se5000-manual-addmanual");
+  var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
+  var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
   var se5000ManualPickerEl = document.getElementById("se5000-manual-picker");
   var se5000ManualPickerBtns = se5000ManualPickerEl.querySelectorAll(".se5000-manual-btn");
-  var se5000ManualH = document.getElementById("se5000-manual-h");
-  var se5000ManualM = document.getElementById("se5000-manual-m");
-  var se5000ManualAddBtn = document.getElementById("se5000-manual-add");
+  var se5000ManualEndStartEl = document.getElementById("se5000-manual-end-start");
+  var se5000ManualEndFieldLabelEl = document.getElementById("se5000-manual-end-field-label");
+  var se5000ManualEndValueEl = document.getElementById("se5000-manual-end-value");
+  var se5000ManualEndDownBtn = document.getElementById("se5000-manual-end-down");
+  var se5000ManualEndUpBtn = document.getElementById("se5000-manual-end-up");
+  var se5000ManualEndOkBtn = document.getElementById("se5000-manual-end-ok");
   var se5000ManualRestBtn = document.getElementById("se5000-manual-rest");
   var se5000ManualLogEl = document.getElementById("se5000-manual-log");
-  var se5000ManualDividerEl = document.getElementById("se5000-manual-divider");
-  var se5000ManualDurationEl = document.getElementById("se5000-manual-duration");
   var se5000ManualActionsEl = document.getElementById("se5000-manual-actions");
   var se5000ManualUndoBtn = document.getElementById("se5000-manual-undo");
+  var se5000ManualImprimirEl = document.getElementById("se5000-manual-imprimir");
+  var se5000ManualImprimirYesBtn = document.getElementById("se5000-manual-imprimir-yes");
+  var se5000ManualImprimirNoBtn = document.getElementById("se5000-manual-imprimir-no");
+  var se5000ManualImprimirNoticeEl = document.getElementById("se5000-manual-imprimir-notice");
+  var se5000ManualImprimirOkBtn = document.getElementById("se5000-manual-imprimir-ok");
   var se5000ManualConfirmEl = document.getElementById("se5000-manual-confirm");
   var se5000ManualConfirmYesBtn = document.getElementById("se5000-manual-confirm-yes");
   var se5000ManualConfirmNoBtn = document.getElementById("se5000-manual-confirm-no");
@@ -6451,10 +6646,16 @@
   var se5000ManualSegments = [];
   var se5000ManualCursor = null;
   var se5000ManualQuietSince = null;
-  // Bloque 1 (1/9), manual pp.21-23: "entering" (normal, picker+duración) | "confirm"
-  // (¿Confirmar entradas?) | "nochoice" (¿Cambiar entrada? / Borrar todas las entradas) |
-  // "changelist" (eligiendo qué tramo cambiar — el registro se vuelve clicable).
-  var se5000ManualPhase = "entering";
+  // Reconstruido 1/9 para seguir el flujo literal (manual pp.16-22): "dsc" (¿Dsc. hasta
+  // ahora?, primera pantalla) | "addmanual" (¿Añadir e. manuales?, solo tras NO) |
+  // "entering" (picker + fin del tramo con hora real) | "imprimir" (¿Imprimir
+  // entradas?) | "confirm" (¿Confirmar entradas?) | "nochoice" (¿Cambiar entrada? /
+  // Borrar todas las entradas) | "changelist" (eligiendo qué tramo cambiar).
+  var se5000ManualPhase = "dsc";
+  // Ajuste del fin del tramo en curso (dentro de "entering") — fecha → hora → minuto,
+  // cada uno con su propio OK (manual pp.20-21, literal), nunca una duración inventada.
+  var se5000ManualEndField = null; // null | "date" | "hour" | "minute"
+  var se5000ManualEndDraft = null; // timestamp en construcción
 
   // "Tiempo que lleva el vehículo quieto" — ancla en el inicio del tramo abierto que
   // dejó la última tarjeta sacada (el motor de intervalos ya lo tiene, no hace falta un
@@ -6511,17 +6712,30 @@
   // .children de verdad.
   function se5000SyncDialogDocks() {
     var anyDocked = false;
-    // La confirmación de sacar tarjeta manda mientras esté pendiente — Hugo, 27/8, punto
-    // A4: un display tan pequeño no puede apilar la confirmación DEBAJO de otro diálogo
-    // (p. ej. clasificar la pausa) donde quede fuera de la vista sin hacer scroll. Igual
-    // que en el aparato real, "un mensaje ocupa el display entero y sustituye lo que
-    // había" — mientras haya una confirmación pendiente, es lo único que se engancha.
+    // El flujo de país de fin manda mientras esté pendiente — A4, 27/8: un display tan
+    // pequeño no puede apilar nada DEBAJO donde quede fuera de la vista sin hacer scroll.
+    // Ya no vive en #se5000-dialog-dock (tiene su propio elemento, #se5000-eject-country,
+    // con su propio z-index por encima) pero sigue forzando a todo lo demás a salir.
     var ejectPending = pendingEjectDriver !== null;
-    if (se5000SyncDockGroup([pauseStatusEl, pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl, false, ejectPending)) anyDocked = true;
-    if (se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl, false, ejectPending)) anyDocked = true;
+    // #pause-status es un aviso de la propia app, no texto del tacógrafo — nunca se
+    // engancha al display LCD (Hugo, 1/9, corrigiendo la regla del 27/8 que se había
+    // decidido pero no se había aplicado del todo: "cualquier aviso o control de la
+    // aplicación de formación queda estrictamente fuera del marco físico del aparato").
+    // Se le fuerza forceUndock=true siempre, para que caiga de vuelta a su estilo normal
+    // de "la app hablando" (igual que #setup-prompt) en vez del fondo de la pantalla LCD.
+    // Los botones de #pause-classify SÍ siguen dentro — son los nombres reales de las
+    // actividades del manual (p.15), no texto inventado.
+    se5000SyncDockGroup([pauseStatusEl], pauseClassifyAnchor, pauseStatusEl, false, true);
+    if (se5000SyncDockGroup([pauseClassifyEl], pauseClassifyAnchor, pauseClassifyEl, false, ejectPending)) anyDocked = true;
+    // #gap-status y #gap-classify: el "hueco sin clasificar" (huella de GPS sin señal
+    // que hay que reclasificar) es una función propia de esta app — el SE5000 real no
+    // detecta huecos por GPS ni los ofrece para clasificar en vivo así; su equivalente
+    // real es simplemente el pictograma "? actividad desconocida" (p.15) hasta la
+    // siguiente entrada manual. Ni el aviso ni los tres botones son parte de ningún
+    // menú reglamentario del aparato — los dos fuera del display (Hugo, 1/9).
+    se5000SyncDockGroup([gapStatusEl, gapClassifyEl], gapClassifyAnchor, gapClassifyEl, false, true);
     if (se5000SyncDockGroup([jornadaDialogEl], jornadaDialogAnchor, jornadaDialogEl, false, ejectPending)) anyDocked = true;
     if (se5000SyncDockGroup([se5000ManualEl], se5000ManualAnchor, se5000ManualEl, true, ejectPending)) anyDocked = true;
-    if (se5000SyncDockGroup([ejectConfirmEl], ejectConfirmAnchor, ejectConfirmEl)) anyDocked = true;
     se5000DialogDock.hidden = !anyDocked;
     // Un diálogo compartido (clasificar pausa, hueco sin clasificar, inicio de jornada,
     // sacar tarjeta) manda sobre el menú si los dos coinciden — el menú solo se abre
@@ -6672,13 +6886,14 @@
   }
 
   // Arranca la entrada manual del conductor n (1 o 2) al meter su tarjeta — mismo flujo
-  // para los dos, "¿Descansó hasta ahora?" simplificado a actividad+duración (fuera de
-  // alcance país/lugar aquí, eso lo hace el propio inicio/fin de jornada). Se ancla al
-  // tiempo quieto de SU PROPIO registro (intervalsSolo/intervalsSolo2): para un arranque
-  // conjunto es el mismo hueco que el otro conductor, contado con actividades propias;
-  // para "recoger a mitad de ruta" con el registro del compañero vacío, se ancla a ahora
-  // mismo (ver getQuietSinceTsOf) y la entrada manual queda prácticamente vacía, que es
-  // lo correcto: no hay nada que redistribuir de un conductor que se acaba de sumar.
+  // para los dos, literal desde "¿Dsc. hasta ahora?" (manual p.16). País de fin no se
+  // repregunta aquí: ya se pidió al sacar la tarjeta (ver requestEject()/manual p.18,
+  // "si el país de fin se seleccionó al extraer la tarjeta, no necesitará volver a
+  // registrarlo"). Se ancla al tiempo quieto de SU PROPIO registro
+  // (intervalsSolo/intervalsSolo2): para un arranque conjunto es el mismo hueco que el
+  // otro conductor, contado con actividades propias; para "recoger a mitad de ruta" con
+  // el registro del compañero vacío, se ancla a ahora mismo (ver getQuietSinceTsOf) y la
+  // entrada manual queda prácticamente vacía, que es lo correcto.
   function startCardInsertFlow(n) {
     var arr = (n === 2) ? intervalsSolo2 : intervalsSolo;
     var key = (n === 2) ? QUIET_SINCE_KEY_2 : QUIET_SINCE_KEY;
@@ -6686,7 +6901,9 @@
     se5000ManualCursor = se5000ManualQuietSince;
     se5000ManualSegments = [];
     se5000ManualCls = "rest";
-    se5000ManualPhase = "entering";
+    se5000ManualPhase = "dsc";
+    se5000ManualEndField = null;
+    se5000ManualEndDraft = null;
     se5000ActiveFlow = n;
     renderSetupView();
     se5000SyncDialogDocks();
@@ -6743,6 +6960,11 @@
       : (deadline !== null && !paused);
   }
 
+  // Manual pp.17-18, literal: "Pulse el botón 1 o 2... En la pantalla aparecerá: País de
+  // fin. Seleccione el país de fin y pulse OK para confirmar... se abre la bandeja." El
+  // disparador real es botón 1/2, pero Hugo (1/9) decidió que el disparador táctil siga
+  // siendo la ranura — los botones físicos son demasiado pequeños para acertar con el
+  // dedo — y que lo que arranque sea este mismo flujo de país, no un simple Sí/No.
   function requestEject(n) {
     if (se5000ActiveFlow !== null) { announce("Termina primero la entrada de la tarjeta que está en curso."); return; }
     if (isDrivingNow(n)) {
@@ -6751,27 +6973,80 @@
     }
     if (n === 2) { if (!doubleCrewOn) return; } else { if (deadline === null) return; }
     pendingEjectDriver = n;
-    renderEjectConfirm();
+    ejectCountryStep = "country";
+    ejectCountryIdx = findCodeIdx(COUNTRY_CODES, geoBorder.country || COUNTRY_DEFAULT_CODE);
+    ejectRegionIdx = 0;
+    renderEjectCountry();
+    renderSe5000View();
   }
 
-  function renderEjectConfirm() {
-    ejectConfirmEl.hidden = pendingEjectDriver === null;
-    se5000SyncDialogDocks();
+  function renderEjectCountry() {
+    var open = pendingEjectDriver !== null;
+    se5000EjectCountryEl.hidden = !open;
+    if (!open) return;
+    // "Un mensaje ocupa el display entero" (Hugo, 26/8) — igual que antes con el Sí/No,
+    // esto manda sobre el menú si coinciden.
+    if (se5000MenuStack.length) se5000MenuClose();
+    if (ejectCountryStep === "region") {
+      se5000EjectCountryLabelEl.textContent = "País de fin";
+      var r = REGION_CODES[ejectRegionIdx];
+      se5000EjectCountryValueEl.textContent = r.code + " " + r.name;
+    } else {
+      se5000EjectCountryLabelEl.textContent = "País de fin";
+      var c = COUNTRY_CODES[ejectCountryIdx];
+      se5000EjectCountryValueEl.textContent = c.code + " " + c.name;
+    }
   }
 
-  ejectConfirmYesBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
+  function ejectCountryMove(dir) {
+    if (pendingEjectDriver === null) return;
+    if (ejectCountryStep === "region") {
+      ejectRegionIdx = (ejectRegionIdx + REGION_CODES.length + dir) % REGION_CODES.length;
+    } else {
+      ejectCountryIdx = (ejectCountryIdx + COUNTRY_CODES.length + dir) % COUNTRY_CODES.length;
+    }
+    renderEjectCountry();
+  }
+
+  // Manual, mismo criterio que el resto de selectores de país de esta app: solo España
+  // pregunta comunidad.
+  function ejectCountryOk() {
+    if (pendingEjectDriver === null) return;
+    if (ejectCountryStep === "country") {
+      var c = COUNTRY_CODES[ejectCountryIdx];
+      if (c.code === "E") {
+        ejectCountryStep = "region";
+        ejectRegionIdx = geoBorder.region ? findCodeIdx(REGION_CODES, geoBorder.region) : 0;
+        renderEjectCountry();
+        return;
+      }
+      finishEjectCountry(c.code, null);
+    } else if (ejectCountryStep === "region") {
+      finishEjectCountry(COUNTRY_CODES[ejectCountryIdx].code, REGION_CODES[ejectRegionIdx].code);
+    }
+  }
+
+  // "Los datos se almacenan en la tarjeta y se abre la bandeja" (manual, literal) —
+  // registra el país de fin (mismo jornadaLog que ya usa LUGARES → Lugar fin, un único
+  // sitio para este dato venga de donde venga) y AHORA sí saca la tarjeta de verdad.
+  function finishEjectCountry(pais, region) {
     var n = pendingEjectDriver;
+    jornadaLog.push({ ts: Date.now(), startedAt: jornadaStartAt, tipo: "fin", pais: pais, region: region });
+    saveJornadaLog();
     pendingEjectDriver = null;
-    renderEjectConfirm();
+    ejectCountryStep = null;
+    renderEjectCountry();
     if (n !== null) performEject(n);
-  });
+  }
 
-  ejectConfirmNoBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
+  // ↩ mientras el país de fin está pendiente — A4, 27/8: "cancelable, nunca un cierre
+  // directo". No se saca la tarjeta, no se registra nada.
+  function cancelEjectCountry() {
     pendingEjectDriver = null;
-    renderEjectConfirm();
-  });
+    ejectCountryStep = null;
+    renderEjectCountry();
+    renderSe5000View();
+  }
 
   function performEject(n) {
     if (isDrivingNow(n)) {
@@ -6883,7 +7158,7 @@
         var row = document.createElement("button");
         row.type = "button";
         row.className = "se5000-manual-log-row";
-        row.textContent = activityLabel(seg.actividad) + " · " + formatRemaining(seg.fin - seg.inicio);
+        row.textContent = activityLabel(seg.actividad) + " · hasta " + fmtHM(seg.fin);
         row.addEventListener("click", function (e) {
           e.stopPropagation();
           se5000ManualPickToChange(idx);
@@ -6893,8 +7168,20 @@
       return;
     }
     se5000ManualLogEl.textContent = se5000ManualSegments.map(function (seg) {
-      return activityLabel(seg.actividad) + " · " + formatRemaining(seg.fin - seg.inicio);
+      return activityLabel(seg.actividad) + " · " + fmtHM(seg.inicio) + " → " + fmtHM(seg.fin);
     }).join("\n");
+  }
+
+  // Arranca (o reinicia) el ajuste del fin del tramo en curso — fecha → hora → minuto,
+  // manual pp.20-21. Valor de partida razonable (inicio + 15 min, nunca más allá de
+  // ahora ni antes del propio inicio); el conductor lo corrige con ▲▼ de todas formas.
+  function se5000ManualResetEndDraft() {
+    var now = Date.now();
+    var draft = se5000ManualCursor + 15 * 60000;
+    if (draft > now) draft = now;
+    if (draft < se5000ManualCursor) draft = se5000ManualCursor;
+    se5000ManualEndDraft = draft;
+    se5000ManualEndField = "date";
   }
 
   function renderSe5000Manual() {
@@ -6908,17 +7195,30 @@
     }
     renderSe5000ManualLog();
 
-    // Bloque 1 (1/9): qué se ve depende de la fase. "entering" es el flujo de siempre;
-    // las otras tres son las pantallas nuevas de pp.21-23.
+    // Reconstruido 1/9: qué se ve depende de la fase (ver comentario de se5000ManualPhase).
     var entering = se5000ManualPhase === "entering";
-    se5000ManualShortcutBtn.hidden = !entering;
-    se5000ManualDividerEl.hidden = !entering;
-    se5000ManualPickerEl.hidden = !entering;
-    se5000ManualDurationEl.hidden = !entering;
-    se5000ManualActionsEl.hidden = !entering;
+    se5000ManualDscEl.hidden = se5000ManualPhase !== "dsc";
+    se5000ManualAddManualEl.hidden = se5000ManualPhase !== "addmanual";
+    se5000ManualEnteringEl.hidden = !entering;
     se5000ManualUndoBtn.hidden = !(entering && se5000ManualSegments.length > 0);
+    se5000ManualImprimirEl.hidden = se5000ManualPhase !== "imprimir";
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
+
+    if (entering) {
+      se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
+      var d = new Date(se5000ManualEndDraft);
+      if (se5000ManualEndField === "hour") {
+        se5000ManualEndFieldLabelEl.textContent = "fin (hora)";
+        se5000ManualEndValueEl.textContent = String(d.getHours()).padStart(2, "0") + "h";
+      } else if (se5000ManualEndField === "minute") {
+        se5000ManualEndFieldLabelEl.textContent = "fin (minuto)";
+        se5000ManualEndValueEl.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+      } else {
+        se5000ManualEndFieldLabelEl.textContent = "fin (fecha)";
+        se5000ManualEndValueEl.textContent = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+      }
+    }
 
     se5000SyncDialogDocks();
   }
@@ -6931,49 +7231,90 @@
     });
   }
 
-  // Manual p.21: "¿Confirmar entradas?" — este paso no existía antes de este bloque, se
-  // guardaba directo al llegar a 0 de remanente. Cierra el reparto en el instante en que
-  // se entra a confirmar (no al pulsar Sí) para que el tiempo que el conductor pase
-  // leyendo el diálogo no se cuele como un tramo más — mismo criterio que pausedRemainingMs
-  // (congelar en el momento del evento, no en el del render).
-  function enterSe5000ManualConfirm() {
+  // Manual p.16, literal: "¿Dsc. hasta ahora?" — primera pantalla de toda la secuencia.
+  function enterSe5000ManualDsc() {
+    se5000ManualPhase = "dsc";
+    renderSe5000Manual();
+  }
+
+  // SÍ: todo el tiempo quieto fue descanso, de un tirón — va directo a "¿Imprimir
+  // entradas?" (manual p.16, ejemplo simple). País de fin no se repregunta aquí, ya
+  // quedó registrado al sacar la tarjeta (ver requestEject()).
+  se5000ManualDscYesBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var now = Date.now();
+    if (now > se5000ManualCursor) {
+      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: "rest", origen: "manual-inicio", observado: false });
+      se5000ManualCursor = now;
+    }
+    enterSe5000ManualImprimir();
+  });
+
+  // NO: "¿Añadir e. manuales?" (manual p.16, literal).
+  se5000ManualDscNoBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualPhase = "addmanual";
+    renderSe5000Manual();
+  });
+
+  function enterSe5000ManualEntering() {
+    se5000ManualPhase = "entering";
+    se5000ManualResetEndDraft();
+    renderSe5000Manual();
+  }
+
+  se5000ManualAddManualOkBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    enterSe5000ManualEntering();
+  });
+
+  // Ajuste del fin del tramo: ▲▼ mueve fecha, hora o minuto según el campo activo;
+  // nunca más allá de "ahora" (no se puede registrar el futuro) ni antes del propio
+  // inicio del tramo.
+  function se5000ManualStepEnd(dir) {
+    var d = new Date(se5000ManualEndDraft);
+    if (se5000ManualEndField === "hour") d.setHours(d.getHours() + dir);
+    else if (se5000ManualEndField === "minute") d.setMinutes(d.getMinutes() + dir);
+    else d.setDate(d.getDate() + dir);
+    var ts = d.getTime();
+    var now = Date.now();
+    if (ts > now) ts = now;
+    if (ts < se5000ManualCursor) ts = se5000ManualCursor;
+    se5000ManualEndDraft = ts;
+    renderSe5000Manual();
+  }
+  se5000ManualEndUpBtn.addEventListener("click", function (e) { e.stopPropagation(); se5000ManualStepEnd(1); });
+  se5000ManualEndDownBtn.addEventListener("click", function (e) { e.stopPropagation(); se5000ManualStepEnd(-1); });
+
+  // Manual pp.20-21, literal: cada campo (fecha, hora, minuto) se confirma con su propio
+  // OK antes de pasar al siguiente; al confirmar el minuto, el tramo queda cerrado.
+  se5000ManualEndOkBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (se5000ManualEndField === "date") { se5000ManualEndField = "hour"; renderSe5000Manual(); return; }
+    if (se5000ManualEndField === "minute") {
+      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: se5000ManualEndDraft, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
+      se5000ManualCursor = se5000ManualEndDraft;
+      if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualImprimir(); return; }
+      se5000ManualResetEndDraft();
+      renderSe5000Manual();
+      return;
+    }
+    se5000ManualEndField = "minute";
+    renderSe5000Manual();
+  });
+
+  // "El resto fue así" — atajo de la app (no aparece así en el manual, pero cierra el
+  // hueco pendiente con la actividad elegida, hasta el instante de insertar la tarjeta;
+  // sigue siendo una hora real, no una duración inventada).
+  se5000ManualRestBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
     var remaining = se5000ManualRemainingMs();
     if (remaining > 0) {
       var now = Date.now();
       se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
       se5000ManualCursor = now;
     }
-    se5000ManualPhase = "confirm";
-    renderSe5000Manual();
-  }
-
-  se5000ManualShortcutBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    se5000ManualCls = "rest";
-    enterSe5000ManualConfirm();
-  });
-
-  se5000ManualAddBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    var h = parseInt(se5000ManualH.value || "0", 10);
-    var m = parseInt(se5000ManualM.value || "0", 10);
-    if (isNaN(h)) h = 0;
-    if (isNaN(m)) m = 0;
-    var durationMs = Math.min(se5000ManualRemainingMs(), (h * 60 + m) * 60 * 1000);
-    if (durationMs <= 0) return;
-    var segStart = se5000ManualCursor;
-    var segEnd = segStart + durationMs;
-    se5000ManualSegments.push({ inicio: segStart, fin: segEnd, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
-    se5000ManualCursor = segEnd;
-    se5000ManualH.value = "0";
-    se5000ManualM.value = "0";
-    if (se5000ManualRemainingMs() <= 0) { enterSe5000ManualConfirm(); return; }
-    renderSe5000Manual();
-  });
-
-  se5000ManualRestBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
-    enterSe5000ManualConfirm();
+    enterSe5000ManualImprimir();
   });
 
   // "Podrá volver atrás... usando el botón Atrás en cualquier momento" (manual p.21) —
@@ -6984,12 +7325,47 @@
     if (se5000ManualPhase !== "entering" || !se5000ManualSegments.length) return;
     var last = se5000ManualSegments.pop();
     se5000ManualCursor = last.inicio;
+    se5000ManualResetEndDraft();
     renderSe5000Manual();
   }
   se5000ManualUndoBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     se5000ManualUndo();
   });
+
+  // Manual p.21, literal: "¿Imprimir entradas?" — un móvil no imprime nada (Hugo, 1/9):
+  // SÍ solo avisa que no está disponible; los dos caminos llevan a "¿Confirmar entradas?".
+  function enterSe5000ManualImprimir() {
+    se5000ManualPhase = "imprimir";
+    se5000ManualImprimirYesBtn.hidden = false;
+    se5000ManualImprimirNoBtn.hidden = false;
+    se5000ManualImprimirNoticeEl.hidden = true;
+    se5000ManualImprimirOkBtn.hidden = true;
+    renderSe5000Manual();
+  }
+  se5000ManualImprimirYesBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualImprimirYesBtn.hidden = true;
+    se5000ManualImprimirNoBtn.hidden = true;
+    se5000ManualImprimirNoticeEl.hidden = false;
+    se5000ManualImprimirOkBtn.hidden = false;
+    se5000SyncDialogDocks();
+  });
+  se5000ManualImprimirOkBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    enterSe5000ManualConfirm();
+  });
+  se5000ManualImprimirNoBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    enterSe5000ManualConfirm();
+  });
+
+  // Manual p.21: "¿Confirmar entradas?" — los tramos ya están completos (se llega aquí
+  // siempre con el remanente a 0), no hay que rellenar nada más.
+  function enterSe5000ManualConfirm() {
+    se5000ManualPhase = "confirm";
+    renderSe5000Manual();
+  }
 
   se5000ManualConfirmYesBtn.addEventListener("click", function (e) {
     e.stopPropagation();
@@ -7017,8 +7393,7 @@
     se5000ManualSegments = [];
     se5000ManualCursor = se5000ManualQuietSince;
     se5000ManualCls = "rest";
-    se5000ManualPhase = "entering";
-    renderSe5000Manual();
+    enterSe5000ManualEntering();
   });
 
   // "Navegue hasta la entrada que desea cambiar" (manual p.22): trunca el registro justo
@@ -7028,8 +7403,7 @@
   function se5000ManualPickToChange(idx) {
     se5000ManualCursor = se5000ManualSegments[idx].inicio;
     se5000ManualSegments = se5000ManualSegments.slice(0, idx);
-    se5000ManualPhase = "entering";
-    renderSe5000Manual();
+    enterSe5000ManualEntering();
   }
 
   // Cierra la entrada manual: los tramos ya están completos y confirmados (se llegó aquí
@@ -7063,7 +7437,7 @@
     save();
     localStorage.removeItem(key);
     se5000ActiveFlow = null;
-    se5000ManualPhase = "entering";
+    se5000ManualPhase = "dsc";
     ensureAudioCtx();
     if (n === 2) {
       startCountdown2(Date.now() + BLOCK_MS);
@@ -7147,6 +7521,7 @@
     se5000Btn1.disabled = !isPaused;
     se5000Btn2.disabled = !doubleCrewOn;
 
+    renderEjectCountry();
     renderSe5000Menu();
   }
 
@@ -7500,10 +7875,18 @@
 
   se5000NavBack.addEventListener("click", function (e) {
     e.stopPropagation();
+    // El país de fin pendiente manda sobre todo lo demás del marco físico — A4, 27/8:
+    // ↩ lo cancela (nunca saca la tarjeta sin confirmar), nunca hace ninguna otra cosa
+    // mientras esté pendiente.
+    if (pendingEjectDriver !== null) { cancelEjectCountry(); return; }
     // Manual p.21: "el botón Atrás en cualquier momento" durante las entradas manuales
     // deshace el último tramo — cuando ese flujo está enganchado al display (conductor 2
     // a mitad de ruta), el ↩ físico hace lo mismo que el botón propio de la pantalla.
     if (se5000ActiveFlow !== null && se5000ManualPhase === "entering") { se5000ManualUndo(); return; }
+    // El resto de fases de la entrada manual (dsc/addmanual/imprimir/confirm/nochoice/
+    // changelist) son preguntas de Sí/No/OK sin equivalente de "deshacer" en el manual —
+    // ↩ no hace nada ahí en vez de colarse hasta el carrusel de DDS por debajo.
+    if (se5000ActiveFlow !== null) { return; }
     if (se5000MenuStack.length) { se5000MenuBack(); return; }
     ddsScreenIndex = 0;
     renderDdsScreen();
@@ -7511,24 +7894,28 @@
   });
   se5000NavUp.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (pendingEjectDriver !== null) { ejectCountryMove(-1); return; }
     if (se5000MenuStack.length) { se5000MenuMove(-1); return; }
     tgDdsUpBtn.click();
     renderSe5000View();
   });
   se5000NavDown.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (pendingEjectDriver !== null) { ejectCountryMove(1); return; }
     if (se5000MenuStack.length) { se5000MenuMove(1); return; }
     tgDdsDownBtn.click();
     renderSe5000View();
   });
   // OK tiene dos gestos reales, no uno: toque breve (abre el menú / confirma dentro de
-  // él) y mantener pulsado (manual p.29: activa/desactiva el DTD, solo mientras se está
-  // viendo esa pantalla). Mismo mecanismo que ya usan las bandejas (bindTrayGesture) en
-  // vez de un `click` aparte, para que un toque no dispare las dos cosas a la vez.
+  // él, o confirma el país de fin pendiente) y mantener pulsado (manual p.29: activa/
+  // desactiva el DTD, solo mientras se está viendo esa pantalla). Mismo mecanismo que ya
+  // usan las bandejas (bindTrayGesture) en vez de un `click` aparte, para que un toque
+  // no dispare las dos cosas a la vez.
   function isOnDtdScreen() {
     return ddsScreenIndex !== 0 && currentDdsTitles()[ddsScreenIndex] === "DTD";
   }
   function se5000NavOkTap() {
+    if (pendingEjectDriver !== null) { ejectCountryOk(); return; }
     if (se5000MenuStack.length) { se5000MenuOk(); return; }
     // Manual p.15: el menú solo se abre con el vehículo parado — en marcha, OK no hace
     // nada, igual que en el aparato real ("por razones de seguridad de tráfico...").
@@ -7536,17 +7923,19 @@
     se5000MenuOpen();
   }
   function se5000NavOkLongPress() {
-    if (se5000MenuStack.length || !isOnDtdScreen()) return;
+    if (pendingEjectDriver !== null || se5000MenuStack.length || !isOnDtdScreen()) return;
     se5000ToggleDtd();
   }
   bindTrayGesture(se5000NavOk, se5000NavOkLongPress, se5000NavOkTap);
   se5000Btn1.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (pendingEjectDriver !== null) return; // el país de fin manda mientras esté pendiente
     tgActivityBtn.click();
     renderSe5000View();
   });
   se5000Btn2.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (pendingEjectDriver !== null) return;
     driver2PillEl.click();
     renderSe5000View();
   });
