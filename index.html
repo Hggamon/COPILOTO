@@ -1081,6 +1081,17 @@
     font-size: clamp(6px, 1.4vw, 7.5px);
     min-width: 0;
   }
+  #se5000-dialog-dock .se5000-end-dual {
+    gap: 4px;
+  }
+  #se5000-dialog-dock .se5000-end-col {
+    font-size: clamp(6px, 1.4vw, 7.5px);
+    line-height: 1.15;
+    min-width: 0;
+  }
+  #se5000-dialog-dock #se5000-manual-end-fin-col {
+    padding: 0 0.3em;
+  }
   #se5000-dialog-dock #se5000-manual-end-ok {
     font-size: clamp(5px, 1.2vw, 7px);
     padding: 0.35em 0.6em;
@@ -1513,6 +1524,27 @@
   #se5000-manual-end-pic {
     width: 20px;
     height: 20px;
+  }
+
+  /* Inicio (plano) y fin (invertido, .jornada-selector-value) lado a lado — ver
+     comentario del marcado. */
+  .se5000-end-dual {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .se5000-end-col {
+    font-family: var(--font-display);
+    font-size: clamp(12px, 2.4vw, 15px);
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+    min-width: 6ch;
+  }
+
+  #se5000-manual-end-fin-col {
+    padding: 0.05em 0.4em;
   }
 
   #se5000-manual-rest {
@@ -2024,9 +2056,22 @@
       <button id="se5000-manual-dsc-ok" type="button">OK</button>
     </div>
 
-    <!-- Fase "addManual" — manual p.16, literal: "¿Añadir e. manuales?" (solo tras NO) -->
+    <!-- Fase "addManual" — manual p.16, literal: "¿Añadir e. manuales?" (solo tras NO).
+         Reconstruido 2/9: vídeo real (tutorial en vídeo, no solo el manual en texto)
+         muestra que ESTA también es una pregunta Sí/No con el mismo patrón de valor
+         único + ▲▼ + OK — no un simple botón OK sin elección. "Sí" de partida (mismo
+         vídeo: aparece ya seleccionado). "No" no se queda sin hacer nada — declina
+         añadir tramos, así que el hueco entero queda sin clasificar (igual que
+         "actividad desconocida", p.15) y pasa directo a "¿Imprimir entradas?". -->
     <div id="se5000-manual-addmanual" hidden>
       <div class="status-pill">¿Añadir e. manuales?</div>
+      <div class="jornada-selector-row">
+        <div class="jornada-selector-value" id="se5000-manual-addmanual-value">Sí</div>
+        <div class="jornada-selector-arrows">
+          <button id="se5000-manual-addmanual-up" type="button" aria-label="subir">▲</button>
+          <button id="se5000-manual-addmanual-down" type="button" aria-label="bajar">▼</button>
+        </div>
+      </div>
       <button id="se5000-manual-addmanual-ok" type="button">OK</button>
     </div>
 
@@ -2047,6 +2092,7 @@
            mostraba una pantalla vacía en vez del registro. Fallo real, encontrado y
            corregido 2/9. -->
       <div id="se5000-manual-end-fields">
+        <!-- Campo "actividad": pictograma + etiqueta, como antes. -->
         <div id="se5000-manual-end-start"></div>
         <div class="jornada-selector-row">
           <div id="se5000-manual-end-value" class="jornada-selector-value">
@@ -2055,6 +2101,22 @@
                  — no desaparece al pasar al siguiente campo. -->
             <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
             <span id="se5000-manual-end-value-text">—</span>
+          </div>
+          <!-- Campos "fecha"/"hora"/"minuto"/"confirmar": inicio y fin lado a lado,
+               inicio a la izquierda en plano y fin a la derecha en vídeo invertido — así
+               es como lo muestra de verdad el aparato (vídeo real, tutorial en vídeo, no
+               solo el manual en texto, 2/9: "13/11 16:21" fijo a la izquierda junto a
+               "16/11 16:01" resaltado a la derecha, nunca un único valor con "inicio:"
+               como texto aparte arriba, que es como lo tenía antes esta app). -->
+          <div id="se5000-manual-end-dual" class="se5000-end-dual" hidden>
+            <div class="se5000-end-col">
+              <div id="se5000-manual-end-inicio-date"></div>
+              <div id="se5000-manual-end-inicio-time"></div>
+            </div>
+            <div class="se5000-end-col jornada-selector-value" id="se5000-manual-end-fin-col">
+              <div id="se5000-manual-end-fin-date"></div>
+              <div id="se5000-manual-end-fin-time"></div>
+            </div>
           </div>
           <div class="jornada-selector-arrows">
             <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
@@ -5669,6 +5731,13 @@
     return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
 
+  // "DD/MM" — mismo formato de fecha que usa el aparato real en la pantalla de inicio/fin
+  // de la entrada manual (vídeo real, 2/9: "13/11", "16/11").
+  function fmtDM(ts) {
+    var d = new Date(ts);
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+
   // Lee TODOS los eventos del canal permanente, ordenados por fecha. Async por
   // naturaleza (IndexedDB): cb(events) se llama cuando termina, nunca antes. cb(null) si
   // la bitácora no está disponible en este navegador — la pantalla lo dice explícitamente
@@ -6747,11 +6816,19 @@
   var se5000ManualDscDownBtn = document.getElementById("se5000-manual-dsc-down");
   var se5000ManualDscOkBtn = document.getElementById("se5000-manual-dsc-ok");
   var se5000ManualAddManualEl = document.getElementById("se5000-manual-addmanual");
+  var se5000ManualAddManualValueEl = document.getElementById("se5000-manual-addmanual-value");
+  var se5000ManualAddManualUpBtn = document.getElementById("se5000-manual-addmanual-up");
+  var se5000ManualAddManualDownBtn = document.getElementById("se5000-manual-addmanual-down");
   var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
   var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
   var se5000ManualEndFieldsEl = document.getElementById("se5000-manual-end-fields");
   var se5000ManualEndStartEl = document.getElementById("se5000-manual-end-start");
   var se5000ManualEndValueEl = document.getElementById("se5000-manual-end-value");
+  var se5000ManualEndDualEl = document.getElementById("se5000-manual-end-dual");
+  var se5000ManualEndInicioDateEl = document.getElementById("se5000-manual-end-inicio-date");
+  var se5000ManualEndInicioTimeEl = document.getElementById("se5000-manual-end-inicio-time");
+  var se5000ManualEndFinDateEl = document.getElementById("se5000-manual-end-fin-date");
+  var se5000ManualEndFinTimeEl = document.getElementById("se5000-manual-end-fin-time");
   var se5000ManualEndPicEl = document.getElementById("se5000-manual-end-pic");
   var se5000ManualEndValueTextEl = document.getElementById("se5000-manual-end-value-text");
   var se5000ManualEndDownBtn = document.getElementById("se5000-manual-end-down");
@@ -6795,6 +6872,7 @@
   // imprime). se5000ManualImprimirStep separa el propio ciclo Sí/No del aviso "no
   // disponible" que sigue si sale "Sí" — el mismo botón OK sirve para las dos cosas.
   var se5000ManualDscChoice = true;
+  var se5000ManualAddManualChoice = true;
   var se5000ManualImprimirChoice = false;
   var se5000ManualImprimirStep = "choosing"; // "choosing" | "notice"
   var se5000ManualConfirmChoice = true;
@@ -7381,6 +7459,9 @@
     if (se5000ManualPhase === "dsc") {
       se5000ManualDscValueEl.textContent = se5000ManualDscChoice ? "Sí" : "No";
     }
+    if (se5000ManualPhase === "addmanual") {
+      se5000ManualAddManualValueEl.textContent = se5000ManualAddManualChoice ? "Sí" : "No";
+    }
     if (se5000ManualPhase === "imprimir") {
       var noticeShown = se5000ManualImprimirStep === "notice";
       se5000ManualImprimirRowEl.hidden = noticeShown;
@@ -7392,7 +7473,6 @@
     }
 
     if (entering) {
-      se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
       // El pictograma de la actividad elegida se queda visible durante todo el resto
       // del ciclo (fecha/hora/minuto/confirmar), no solo mientras se elige — igual que
       // en las capturas del manual, donde el símbolo sigue ahí en cada paso siguiente.
@@ -7401,20 +7481,24 @@
       // mano no depende de eso.
       se5000ManualEndPicEl.removeAttribute("hidden");
       setSe5000Pic(se5000ManualEndPicEl, SE5000_PICS[se5000ManualCls] || SE5000_PICS.rest);
-      // Etiqueta y valor fundidos en una sola línea (Hugo, 2/9: "la pantalla se
-      // desplaza" — el display real es minúsculo, no le cabe una fila aparte solo para
-      // el nombre del campo).
-      var d = new Date(se5000ManualEndDraft);
-      if (se5000ManualEndField === "activity") {
+      var isActivityField = se5000ManualEndField === "activity";
+      // Campo "actividad": pictograma + etiqueta, una sola caja de valor.
+      // Campos "fecha"/"hora"/"minuto"/"confirmar": inicio y fin lado a lado — inicio
+      // fijo en plano a la izquierda, fin en vídeo invertido a la derecha, los dos con
+      // fecha y hora completas siempre visibles (así lo muestra el vídeo real del
+      // aparato: "13/11 16:21" junto a "16/11 16:01", nunca un único valor con
+      // "inicio:" como línea de texto aparte, que es como lo tenía antes esta app).
+      se5000ManualEndValueEl.hidden = !isActivityField;
+      se5000ManualEndDualEl.hidden = isActivityField;
+      se5000ManualEndStartEl.hidden = !isActivityField;
+      if (isActivityField) {
+        se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
         se5000ManualEndValueTextEl.textContent = SE5000_MANUAL_CLS_LABELS[se5000ManualCls];
-      } else if (se5000ManualEndField === "hour") {
-        se5000ManualEndValueTextEl.textContent = "H " + String(d.getHours()).padStart(2, "0");
-      } else if (se5000ManualEndField === "minute") {
-        se5000ManualEndValueTextEl.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-      } else if (se5000ManualEndField === "confirm") {
-        se5000ManualEndValueTextEl.textContent = fmtHM(se5000ManualCursor) + "→" + fmtHM(se5000ManualEndDraft) + " ¿OK?";
       } else {
-        se5000ManualEndValueTextEl.textContent = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+        se5000ManualEndInicioDateEl.textContent = fmtDM(se5000ManualCursor);
+        se5000ManualEndInicioTimeEl.textContent = fmtHM(se5000ManualCursor);
+        se5000ManualEndFinDateEl.textContent = fmtDM(se5000ManualEndDraft);
+        se5000ManualEndFinTimeEl.textContent = fmtHM(se5000ManualEndDraft);
       }
     }
 
@@ -7456,6 +7540,7 @@
     } else {
       // NO: "¿Añadir e. manuales?" (manual p.16, literal).
       se5000ManualPhase = "addmanual";
+      se5000ManualAddManualChoice = true;
       renderSe5000Manual();
     }
   });
@@ -7466,9 +7551,28 @@
     renderSe5000Manual();
   }
 
+  // ▲▼: cicla Sí/No, igual que el resto de preguntas de esta pantalla.
+  se5000ManualAddManualUpBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualAddManualChoice = !se5000ManualAddManualChoice;
+    renderSe5000Manual();
+  });
+  se5000ManualAddManualDownBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualAddManualChoice = !se5000ManualAddManualChoice;
+    renderSe5000Manual();
+  });
+
   se5000ManualAddManualOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    enterSe5000ManualEntering();
+    if (se5000ManualAddManualChoice) {
+      enterSe5000ManualEntering();
+    } else {
+      // NO: declina añadir tramos — el hueco entero queda sin clasificar (como
+      // "actividad desconocida", p.15) y pasa directo a "¿Imprimir entradas?", sin
+      // tocar se5000ManualCursor ni añadir ningún segmento.
+      enterSe5000ManualImprimir();
+    }
   });
 
   // ▲▼: en el campo "actividad" cicla entre las tres reales (manual p.16, mismo ciclo
