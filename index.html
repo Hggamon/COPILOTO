@@ -458,14 +458,14 @@
     gap: 8px;
   }
 
-  #jornada-ask-buttons, #jornada-country {
+  #jornada-country {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     justify-content: center;
   }
 
-  #jornada-si, #jornada-no, #jornada-manual-none,
+  #jornada-ask-ok, #jornada-manual-none,
   #jornada-country-ok, #jornada-region-ok {
     font-family: var(--font-label);
     font-size: clamp(12px, 2.2vw, 15px);
@@ -1055,10 +1055,24 @@
 
   #se5000-dialog-dock #pause-classify,
   #se5000-dialog-dock #gap-classify,
-  #se5000-dialog-dock #jornada-ask-buttons,
   #se5000-dialog-dock #jornada-manual,
+  #se5000-dialog-dock #jornada-ask,
+  #se5000-dialog-dock #se5000-manual-dsc,
+  #se5000-dialog-dock #se5000-manual-imprimir,
+  #se5000-dialog-dock #se5000-manual-confirm,
   #se5000-dialog-dock .jornada-selector-row {
-    gap: 3px;
+    gap: 2px;
+  }
+
+  /* "Descanso de 9h+ detectado · ¿inicias jornada nueva?" es el texto de status-pill más
+     largo de todos los que viven en el dock — a dos líneas dentro del display minúsculo,
+     desbordaba el marco (encontrado 2/9 con el mismo scrollHeight vs clientHeight que el
+     resto de estas correcciones). line-height más ajustado, sin tocar el tamaño de letra
+     ni el texto en sí. */
+  #se5000-dialog-dock #jornada-ask .status-pill {
+    font-size: clamp(5px, 1.1vw, 6.5px);
+    line-height: 1.05;
+    padding: 0 5px;
   }
 
   /* Texto plano con corchetes, no un botón con relieve — el LCD real no tiene esquinas
@@ -1371,8 +1385,7 @@
     border-color: var(--se-display-dim);
   }
 
-  #countdown.se5000-skin #jornada-si,
-  #countdown.se5000-skin #jornada-no,
+  #countdown.se5000-skin #jornada-ask-ok,
   #countdown.se5000-skin #jornada-manual-none,
   #countdown.se5000-skin #jornada-country-ok,
   #countdown.se5000-skin #jornada-region-ok,
@@ -1499,23 +1512,8 @@
     gap: 8px;
   }
 
-  #se5000-manual-confirm-buttons,
-  #se5000-manual-dsc-buttons,
-  #se5000-manual-imprimir-buttons {
-    display: flex;
-    gap: 8px;
-  }
-
-  #se5000-manual-confirm-yes,
-  #se5000-manual-confirm-no,
   #se5000-manual-change,
-  #se5000-manual-clearall,
-  #se5000-manual-dsc-yes,
-  #se5000-manual-dsc-no,
-  #se5000-manual-addmanual-ok,
-  #se5000-manual-imprimir-yes,
-  #se5000-manual-imprimir-no,
-  #se5000-manual-imprimir-ok {
+  #se5000-manual-clearall {
     font-family: var(--font-label);
     font-size: 12px;
     font-weight: 700;
@@ -1527,23 +1525,29 @@
     border: 1px solid var(--fg-dim);
   }
 
-  #se5000-manual-confirm-yes,
   #se5000-manual-addmanual-ok,
-  #se5000-manual-imprimir-ok {
-    background: var(--accent);
+  #se5000-manual-dsc-ok,
+  #se5000-manual-imprimir-ok,
+  #se5000-manual-confirm-ok {
+    font-family: var(--font-label);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0.6em 1em;
+    border-radius: 9px;
+    cursor: pointer;
     color: var(--accent-fg);
+    background: var(--accent);
     border: none;
   }
 
-  /* "No" es la recomendación real en "¿Imprimir entradas?" — un móvil no imprime nada,
-     así que es la respuesta que de verdad hace falta casi siempre. Hugo, 2/9: en las
-     demás preguntas SÍ había una opción marcada como recomendada (el Sí/OK en acento) y
-     en esta no había ninguna — inconsistente, aunque aquí la recomendada sea la otra. */
-  #se5000-manual-imprimir-no {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border: none;
-  }
+  /* 2/9: los Sí/No ya no son dos botones lado a lado — son el mismo patrón de valor
+     único + ▲▼ + OK que el resto del display (confirmado con fotos reales: "¿Descansó
+     hasta ahora?" y "¿Confirmar entradas?" muestran "Sí" recuadrado con el dedo sobre
+     OK, nunca dos botones separados). El OK va siempre en acento — es la acción que
+     avanza, cualquiera que sea el valor mostrado en ese momento; la "recomendación" ya
+     no se marca coloreando un botón distinto, se transmite con qué valor aparece
+     seleccionado al entrar (Sí en general, No en "¿Imprimir entradas?" — ver
+     enterSe5000ManualImprimir()). */
 
   #se5000-manual-imprimir-notice {
     font-family: var(--font-label);
@@ -1938,13 +1942,19 @@
   <div id="se5000-manual" hidden>
     <div id="se5000-manual-summary"></div>
 
-    <!-- Fase "dsc" — manual p.16, literal: "¿Dsc. hasta ahora?" -->
+    <!-- Fase "dsc" — manual p.16, literal: "¿Dsc. hasta ahora?". Reconstruido 2/9: el
+         aparato real no tiene dos botones lado a lado para Sí/No — es el mismo patrón de
+         valor único + ▲▼ + OK que el resto del display (confirmado con fotos reales del
+         aparato: pantalla "¿Descansó hasta ahora?" con "Sí" recuadrado y el dedo sobre
+         OK). "Sí" es el valor de partida real, no "No". -->
     <div id="se5000-manual-dsc">
       <div class="status-pill">¿Dsc. hasta ahora?</div>
-      <div id="se5000-manual-dsc-buttons">
-        <button id="se5000-manual-dsc-yes" type="button">Sí</button>
-        <button id="se5000-manual-dsc-no" type="button">No</button>
+      <div class="jornada-selector-row">
+        <button id="se5000-manual-dsc-down" type="button" aria-label="bajar">▼</button>
+        <div class="jornada-selector-value" id="se5000-manual-dsc-value">Sí</div>
+        <button id="se5000-manual-dsc-up" type="button" aria-label="subir">▲</button>
       </div>
+      <button id="se5000-manual-dsc-ok" type="button">OK</button>
     </div>
 
     <!-- Fase "addManual" — manual p.16, literal: "¿Añadir e. manuales?" (solo tras NO) -->
@@ -1998,24 +2008,34 @@
 
     <!-- Fase "imprimir" — manual p.21, literal: "¿Imprimir entradas?". Un móvil no
          imprime nada (Hugo, 1/9): SÍ solo avisa que no está disponible, nunca finge
-         imprimir. -->
+         imprimir. Mismo patrón de valor único + ▲▼ + OK que #se5000-manual-dsc — aquí
+         "No" es la respuesta que de verdad hace falta casi siempre en esta app en
+         concreto (no hay impresora), así que es el valor de partida, aunque en el
+         aparato real de serie sea "Sí". El mismo botón OK sirve dos veces: primero para
+         leer Sí/No, y si salió "Sí", una segunda vez para pasar el aviso "no disponible"
+         y seguir. -->
     <div id="se5000-manual-imprimir" hidden>
       <div class="status-pill">¿Imprimir entradas?</div>
-      <div id="se5000-manual-imprimir-buttons">
-        <button id="se5000-manual-imprimir-yes" type="button">Sí</button>
-        <button id="se5000-manual-imprimir-no" type="button">No</button>
+      <div class="jornada-selector-row" id="se5000-manual-imprimir-row">
+        <button id="se5000-manual-imprimir-down" type="button" aria-label="bajar">▼</button>
+        <div class="jornada-selector-value" id="se5000-manual-imprimir-value">No</div>
+        <button id="se5000-manual-imprimir-up" type="button" aria-label="subir">▲</button>
       </div>
       <div id="se5000-manual-imprimir-notice" hidden>no disponible en esta app</div>
-      <button id="se5000-manual-imprimir-ok" type="button" hidden>OK</button>
+      <button id="se5000-manual-imprimir-ok" type="button">OK</button>
     </div>
 
-    <!-- "¿Confirmar entradas?" (manual p.21, literal). -->
+    <!-- "¿Confirmar entradas?" (manual p.21, literal). Mismo patrón de valor único +
+         ▲▼ + OK, "Sí" de partida (confirmado con foto real del aparato: pantalla
+         "¿Confirmar entradas?" con "Sí" recuadrado y el dedo sobre OK). -->
     <div id="se5000-manual-confirm" hidden>
       <div class="status-pill">¿Confirmar entradas?</div>
-      <div id="se5000-manual-confirm-buttons">
-        <button id="se5000-manual-confirm-yes" type="button">Sí</button>
-        <button id="se5000-manual-confirm-no" type="button">No</button>
+      <div class="jornada-selector-row">
+        <button id="se5000-manual-confirm-down" type="button" aria-label="bajar">▼</button>
+        <div class="jornada-selector-value" id="se5000-manual-confirm-value">Sí</div>
+        <button id="se5000-manual-confirm-up" type="button" aria-label="subir">▲</button>
       </div>
+      <button id="se5000-manual-confirm-ok" type="button">OK</button>
     </div>
     <!-- Tras NO (manual p.22, literal): "¿Cambiar entrada?" o "Borrar todas las
          entradas" — las dos opciones reales, con sus etiquetas reales. -->
@@ -2075,10 +2095,12 @@
   <div id="jornada-dialog" hidden>
     <div id="jornada-ask" hidden>
       <div class="status-pill">Descanso de 9h+ detectado · ¿inicias jornada nueva?</div>
-      <div id="jornada-ask-buttons">
-        <button id="jornada-si" type="button">Sí</button>
-        <button id="jornada-no" type="button">No</button>
+      <div class="jornada-selector-row">
+        <button id="jornada-ask-down" type="button" aria-label="bajar">▼</button>
+        <div class="jornada-selector-value" id="jornada-ask-value">Sí</div>
+        <button id="jornada-ask-up" type="button" aria-label="subir">▲</button>
       </div>
+      <button id="jornada-ask-ok" type="button">OK</button>
     </div>
     <!-- Selector de lista con flechas, no teclado — el aparato real no tiene uno.
          Abreviaturas del Reglamento (UE) 2016/799, no inventadas (ver COUNTRY_CODES /
@@ -2606,8 +2628,10 @@
   var clockLabelEl = document.getElementById("clock-label");
   var jornadaDialogEl = document.getElementById("jornada-dialog");
   var jornadaAskEl = document.getElementById("jornada-ask");
-  var jornadaSiBtn = document.getElementById("jornada-si");
-  var jornadaNoBtn = document.getElementById("jornada-no");
+  var jornadaAskValueEl = document.getElementById("jornada-ask-value");
+  var jornadaAskUpBtn = document.getElementById("jornada-ask-up");
+  var jornadaAskDownBtn = document.getElementById("jornada-ask-down");
+  var jornadaAskOkBtn = document.getElementById("jornada-ask-ok");
   var jornadaCountryEl = document.getElementById("jornada-country");
   var jornadaCountryValueEl = document.getElementById("jornada-country-value");
   var jornadaCountryUpBtn = document.getElementById("jornada-country-up");
@@ -2679,6 +2703,7 @@
   var jornadaStartAt = null;  // timestamp de fin del último descanso diario/semanal válido — arranque de la ventana de jornada actual
   var driver2JoinedAt = null; // timestamp de la última vez que se metió la tarjeta del conductor 2 — art. 4(o)/8(5), ver multiManningQualifies()
   var jornadaDialogStep = null; // null | "ask" | "country" | "manual" — paso actual del diálogo de inicio de jornada (§4)
+  var jornadaAskChoice = true; // valor mostrado en el ciclo Sí/No de "ask" — "Sí" de partida, igual que el aparato real
   var jornadaLog = null;      // [{ startedAt, pais, region }]
   var restBlockActive = null; // { startTs, warned } | null — bloque de "descanso" (solo, no disponibilidad) en curso
   var reducedRests = null;    // { count } — reducidos diarios usados desde el último descanso semanal
@@ -4439,22 +4464,32 @@
     jornadaRegionValueEl.textContent = r.code + " — " + r.name;
   }
 
-  jornadaSiBtn.addEventListener("click", function (e) {
+  // ▲▼: cicla Sí/No (patrón de valor único, ver comentario de #jornada-ask en el
+  // marcado). Con solo dos valores, da igual la dirección — siempre cae en el otro.
+  jornadaAskUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    // Propone el país detectado por GPS, no un fijo — igual que el aparato real
-    // (Hugo, 26/8). Sin detección todavía (recién arrancado, sin cobertura), cae en el
-    // valor por defecto de siempre; las flechas siguen ahí para corregir a mano.
-    jornadaCountryIdx = findCodeIdx(COUNTRY_CODES, geoBorder.country || COUNTRY_DEFAULT_CODE);
-    jornadaRegionIdx = 0;
-    jornadaRegionBlockEl.hidden = true;
-    jornadaDialogStep = "country";
-    saveJornadaDialogStep();
+    jornadaAskChoice = !jornadaAskChoice;
+    renderJornadaDialog();
+  });
+  jornadaAskDownBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    jornadaAskChoice = !jornadaAskChoice;
     renderJornadaDialog();
   });
 
-  jornadaNoBtn.addEventListener("click", function (e) {
+  jornadaAskOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    jornadaDialogStep = null;
+    if (jornadaAskChoice) {
+      // Propone el país detectado por GPS, no un fijo — igual que el aparato real
+      // (Hugo, 26/8). Sin detección todavía (recién arrancado, sin cobertura), cae en el
+      // valor por defecto de siempre; las flechas siguen ahí para corregir a mano.
+      jornadaCountryIdx = findCodeIdx(COUNTRY_CODES, geoBorder.country || COUNTRY_DEFAULT_CODE);
+      jornadaRegionIdx = 0;
+      jornadaRegionBlockEl.hidden = true;
+      jornadaDialogStep = "country";
+    } else {
+      jornadaDialogStep = null;
+    }
     saveJornadaDialogStep();
     renderJornadaDialog();
   });
@@ -5093,6 +5128,7 @@
   function triggerJornadaDialog() {
     if (jornadaDialogStep !== null) return; // ya hay uno pendiente, no se apila otro
     jornadaDialogStep = "ask";
+    jornadaAskChoice = true; // "Sí" de partida, igual que el aparato real
     saveJornadaDialogStep();
     renderJornadaDialog();
   }
@@ -5110,6 +5146,9 @@
     jornadaAskEl.hidden = jornadaDialogStep !== "ask";
     jornadaCountryEl.hidden = jornadaDialogStep !== "country";
     jornadaManualEl.hidden = jornadaDialogStep !== "manual";
+    if (jornadaDialogStep === "ask") {
+      jornadaAskValueEl.textContent = jornadaAskChoice ? "Sí" : "No";
+    }
     if (jornadaDialogStep === "country") {
       renderJornadaCountrySelector();
       if (!jornadaRegionBlockEl.hidden) renderJornadaRegionSelector();
@@ -6616,8 +6655,10 @@
   var setupBrandEl = document.getElementById("setup-brand");
   var se5000ManualSummaryEl = document.getElementById("se5000-manual-summary");
   var se5000ManualDscEl = document.getElementById("se5000-manual-dsc");
-  var se5000ManualDscYesBtn = document.getElementById("se5000-manual-dsc-yes");
-  var se5000ManualDscNoBtn = document.getElementById("se5000-manual-dsc-no");
+  var se5000ManualDscValueEl = document.getElementById("se5000-manual-dsc-value");
+  var se5000ManualDscUpBtn = document.getElementById("se5000-manual-dsc-up");
+  var se5000ManualDscDownBtn = document.getElementById("se5000-manual-dsc-down");
+  var se5000ManualDscOkBtn = document.getElementById("se5000-manual-dsc-ok");
   var se5000ManualAddManualEl = document.getElementById("se5000-manual-addmanual");
   var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
   var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
@@ -6634,13 +6675,17 @@
   var se5000ManualActionsEl = document.getElementById("se5000-manual-actions");
   var se5000ManualUndoBtn = document.getElementById("se5000-manual-undo");
   var se5000ManualImprimirEl = document.getElementById("se5000-manual-imprimir");
-  var se5000ManualImprimirYesBtn = document.getElementById("se5000-manual-imprimir-yes");
-  var se5000ManualImprimirNoBtn = document.getElementById("se5000-manual-imprimir-no");
+  var se5000ManualImprimirRowEl = document.getElementById("se5000-manual-imprimir-row");
+  var se5000ManualImprimirValueEl = document.getElementById("se5000-manual-imprimir-value");
+  var se5000ManualImprimirUpBtn = document.getElementById("se5000-manual-imprimir-up");
+  var se5000ManualImprimirDownBtn = document.getElementById("se5000-manual-imprimir-down");
   var se5000ManualImprimirNoticeEl = document.getElementById("se5000-manual-imprimir-notice");
   var se5000ManualImprimirOkBtn = document.getElementById("se5000-manual-imprimir-ok");
   var se5000ManualConfirmEl = document.getElementById("se5000-manual-confirm");
-  var se5000ManualConfirmYesBtn = document.getElementById("se5000-manual-confirm-yes");
-  var se5000ManualConfirmNoBtn = document.getElementById("se5000-manual-confirm-no");
+  var se5000ManualConfirmValueEl = document.getElementById("se5000-manual-confirm-value");
+  var se5000ManualConfirmUpBtn = document.getElementById("se5000-manual-confirm-up");
+  var se5000ManualConfirmDownBtn = document.getElementById("se5000-manual-confirm-down");
+  var se5000ManualConfirmOkBtn = document.getElementById("se5000-manual-confirm-ok");
   var se5000ManualNochoiceEl = document.getElementById("se5000-manual-nochoice");
   var se5000ManualChangeBtn = document.getElementById("se5000-manual-change");
   var se5000ManualClearAllBtn = document.getElementById("se5000-manual-clearall");
@@ -6656,6 +6701,15 @@
   // entradas?) | "confirm" (¿Confirmar entradas?) | "nochoice" (¿Cambiar entrada? /
   // Borrar todas las entradas) | "changelist" (eligiendo qué tramo cambiar).
   var se5000ManualPhase = "dsc";
+  // Valores de los ciclos Sí/No de este flujo (ver comentario del marcado de
+  // #se5000-manual-dsc): "Sí" de partida en "dsc" y "confirm" (confirmado con fotos
+  // reales del aparato), "No" de partida en "imprimir" (esta app en concreto no
+  // imprime). se5000ManualImprimirStep separa el propio ciclo Sí/No del aviso "no
+  // disponible" que sigue si sale "Sí" — el mismo botón OK sirve para las dos cosas.
+  var se5000ManualDscChoice = true;
+  var se5000ManualImprimirChoice = false;
+  var se5000ManualImprimirStep = "choosing"; // "choosing" | "notice"
+  var se5000ManualConfirmChoice = true;
   // Ciclo de campos del tramo en curso (dentro de "entering") — actividad → fecha →
   // hora → minuto → confirmar, cada uno con su propio OK (manual pp.21-22, literal:
   // "marque el símbolo... pulse OK", luego fecha/hora/minuto, luego "pulse OK otra vez
@@ -7197,15 +7251,22 @@
   var SE5000_MANUAL_CLS_LABELS = { availability: "Disponibilidad", rest: "Descanso", other: "Otros trabajos" };
 
   function renderSe5000Manual() {
-    var total = Date.now() - se5000ManualQuietSince;
-    var remaining = se5000ManualRemainingMs();
-    se5000ManualSummaryEl.textContent = "por repartir: " + formatRemaining(remaining) +
-      " de " + formatRemaining(total) + " quieto";
-    renderSe5000ManualLog();
-
     // Reconstruido 1/9: qué se ve depende de la fase (ver comentario de se5000ManualPhase).
     var entering = se5000ManualPhase === "entering";
     var changelist = se5000ManualPhase === "changelist";
+    // El resumen "por repartir" solo tiene sentido mientras se reparte el tiempo entre
+    // tramos — en "dsc" (la primera pantalla de todas, manual p.16) no hay nada que
+    // repartir todavía, y mostrarlo ahí solo comía sitio del display minúsculo hasta
+    // desbordarlo (encontrado 2/9 midiendo scrollHeight vs clientHeight del dock, tras
+    // reconstruir los diálogos Sí/No).
+    se5000ManualSummaryEl.hidden = !(entering || changelist);
+    if (entering || changelist) {
+      var total = Date.now() - se5000ManualQuietSince;
+      var remaining = se5000ManualRemainingMs();
+      se5000ManualSummaryEl.textContent = "por repartir: " + formatRemaining(remaining) +
+        " de " + formatRemaining(total) + " quieto";
+    }
+    renderSe5000ManualLog();
     se5000ManualDscEl.hidden = se5000ManualPhase !== "dsc";
     se5000ManualAddManualEl.hidden = se5000ManualPhase !== "addmanual";
     // #se5000-manual-entering agrupa dos cosas que antes se pisaban entre sí: el
@@ -7227,6 +7288,19 @@
     se5000ManualImprimirEl.hidden = se5000ManualPhase !== "imprimir";
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
+
+    if (se5000ManualPhase === "dsc") {
+      se5000ManualDscValueEl.textContent = se5000ManualDscChoice ? "Sí" : "No";
+    }
+    if (se5000ManualPhase === "imprimir") {
+      var noticeShown = se5000ManualImprimirStep === "notice";
+      se5000ManualImprimirRowEl.hidden = noticeShown;
+      se5000ManualImprimirNoticeEl.hidden = !noticeShown;
+      if (!noticeShown) se5000ManualImprimirValueEl.textContent = se5000ManualImprimirChoice ? "Sí" : "No";
+    }
+    if (se5000ManualPhase === "confirm") {
+      se5000ManualConfirmValueEl.textContent = se5000ManualConfirmChoice ? "Sí" : "No";
+    }
 
     if (entering) {
       se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
@@ -7259,29 +7333,42 @@
   }
 
   // Manual p.16, literal: "¿Dsc. hasta ahora?" — primera pantalla de toda la secuencia.
+  // "Sí" de partida (confirmado con foto real del aparato, ver comentario del marcado).
   function enterSe5000ManualDsc() {
     se5000ManualPhase = "dsc";
+    se5000ManualDscChoice = true;
     renderSe5000Manual();
   }
 
-  // SÍ: todo el tiempo quieto fue descanso, de un tirón — va directo a "¿Imprimir
-  // entradas?" (manual p.16, ejemplo simple). País de fin no se repregunta aquí, ya
-  // quedó registrado al sacar la tarjeta (ver requestEject()).
-  se5000ManualDscYesBtn.addEventListener("click", function (e) {
+  // ▲▼: cicla Sí/No. Con solo dos valores da igual la dirección.
+  se5000ManualDscUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    var now = Date.now();
-    if (now > se5000ManualCursor) {
-      se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: "rest", origen: "manual-inicio", observado: false });
-      se5000ManualCursor = now;
-    }
-    enterSe5000ManualImprimir();
+    se5000ManualDscChoice = !se5000ManualDscChoice;
+    renderSe5000Manual();
+  });
+  se5000ManualDscDownBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualDscChoice = !se5000ManualDscChoice;
+    renderSe5000Manual();
   });
 
-  // NO: "¿Añadir e. manuales?" (manual p.16, literal).
-  se5000ManualDscNoBtn.addEventListener("click", function (e) {
+  se5000ManualDscOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    se5000ManualPhase = "addmanual";
-    renderSe5000Manual();
+    if (se5000ManualDscChoice) {
+      // SÍ: todo el tiempo quieto fue descanso, de un tirón — va directo a "¿Imprimir
+      // entradas?" (manual p.16, ejemplo simple). País de fin no se repregunta aquí, ya
+      // quedó registrado al sacar la tarjeta (ver requestEject()).
+      var now = Date.now();
+      if (now > se5000ManualCursor) {
+        se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: "rest", origen: "manual-inicio", observado: false });
+        se5000ManualCursor = now;
+      }
+      enterSe5000ManualImprimir();
+    } else {
+      // NO: "¿Añadir e. manuales?" (manual p.16, literal).
+      se5000ManualPhase = "addmanual";
+      renderSe5000Manual();
+    }
   });
 
   function enterSe5000ManualEntering() {
@@ -7387,49 +7474,68 @@
 
   // Manual p.21, literal: "¿Imprimir entradas?" — un móvil no imprime nada (Hugo, 1/9):
   // SÍ solo avisa que no está disponible; los dos caminos llevan a "¿Confirmar entradas?".
+  // "No" de partida (recomendación propia de esta app, ver comentario CSS). El mismo
+  // botón OK sirve dos veces: primero lee Sí/No; si salió "Sí", pasa al aviso "no
+  // disponible" y una segunda pulsada de OK sigue adelante — nunca pasa de largo el
+  // aviso solo.
   function enterSe5000ManualImprimir() {
     se5000ManualPhase = "imprimir";
-    se5000ManualImprimirYesBtn.hidden = false;
-    se5000ManualImprimirNoBtn.hidden = false;
-    se5000ManualImprimirNoticeEl.hidden = true;
-    se5000ManualImprimirOkBtn.hidden = true;
+    se5000ManualImprimirChoice = false;
+    se5000ManualImprimirStep = "choosing";
     renderSe5000Manual();
   }
-  se5000ManualImprimirYesBtn.addEventListener("click", function (e) {
+  se5000ManualImprimirUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    se5000ManualImprimirYesBtn.hidden = true;
-    se5000ManualImprimirNoBtn.hidden = true;
-    se5000ManualImprimirNoticeEl.hidden = false;
-    se5000ManualImprimirOkBtn.hidden = false;
-    se5000SyncDialogDocks();
+    if (se5000ManualImprimirStep !== "choosing") return;
+    se5000ManualImprimirChoice = !se5000ManualImprimirChoice;
+    renderSe5000Manual();
+  });
+  se5000ManualImprimirDownBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (se5000ManualImprimirStep !== "choosing") return;
+    se5000ManualImprimirChoice = !se5000ManualImprimirChoice;
+    renderSe5000Manual();
   });
   se5000ManualImprimirOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    enterSe5000ManualConfirm();
-  });
-  se5000ManualImprimirNoBtn.addEventListener("click", function (e) {
-    e.stopPropagation();
+    if (se5000ManualImprimirStep === "choosing" && se5000ManualImprimirChoice) {
+      se5000ManualImprimirStep = "notice";
+      renderSe5000Manual();
+      return;
+    }
     enterSe5000ManualConfirm();
   });
 
   // Manual p.21: "¿Confirmar entradas?" — los tramos ya están completos (se llega aquí
-  // siempre con el remanente a 0), no hay que rellenar nada más.
+  // siempre con el remanente a 0), no hay que rellenar nada más. "Sí" de partida
+  // (confirmado con foto real del aparato, ver comentario del marcado).
   function enterSe5000ManualConfirm() {
     se5000ManualPhase = "confirm";
+    se5000ManualConfirmChoice = true;
     renderSe5000Manual();
   }
 
-  se5000ManualConfirmYesBtn.addEventListener("click", function (e) {
+  se5000ManualConfirmUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    finishSe5000ManualEntry();
+    se5000ManualConfirmChoice = !se5000ManualConfirmChoice;
+    renderSe5000Manual();
+  });
+  se5000ManualConfirmDownBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    se5000ManualConfirmChoice = !se5000ManualConfirmChoice;
+    renderSe5000Manual();
   });
 
-  // Manual p.22: NO en "¿Confirmar entradas?" lleva a elegir entre cambiar una entrada o
-  // borrarlas todas — nunca descarta nada por sí solo.
-  se5000ManualConfirmNoBtn.addEventListener("click", function (e) {
+  se5000ManualConfirmOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
-    se5000ManualPhase = "nochoice";
-    renderSe5000Manual();
+    if (se5000ManualConfirmChoice) {
+      finishSe5000ManualEntry();
+    } else {
+      // Manual p.22: NO en "¿Confirmar entradas?" lleva a elegir entre cambiar una
+      // entrada o borrarlas todas — nunca descarta nada por sí solo.
+      se5000ManualPhase = "nochoice";
+      renderSe5000Manual();
+    }
   });
 
   se5000ManualChangeBtn.addEventListener("click", function (e) {
