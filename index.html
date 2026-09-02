@@ -4717,7 +4717,10 @@
     jornadaLog.push({ startedAt: jornadaStartAt, pais: c.code, region: null });
     saveJornadaLog();
     jornadaRegionBlockEl.hidden = true;
-    jornadaDialogStep = "manual";
+    // "¿Algo que añadir antes de retomar?" (paso "manual") tiene sentido volviendo de un
+    // descanso vivido en tiempo real — mitad de la propia entrada manual, con
+    // "¿Imprimir entradas?" a un paso, no aplica: ya se acaba de contar todo a mano.
+    jornadaDialogStep = se5000ManualPhase === "pais-wait" ? null : "manual";
     saveJornadaDialogStep();
     renderJornadaDialog();
   });
@@ -4741,7 +4744,9 @@
     });
     saveJornadaLog();
     jornadaRegionBlockEl.hidden = true;
-    jornadaDialogStep = "manual";
+    // Mismo motivo que en jornadaCountryOkBtn: sin el paso "manual" cuando esto viene
+    // de la propia entrada manual (ver se5000ManualPhase).
+    jornadaDialogStep = se5000ManualPhase === "pais-wait" ? null : "manual";
     saveJornadaDialogStep();
     renderJornadaDialog();
   });
@@ -5335,6 +5340,11 @@
   // completar este diálogo, que es solo para registrar datos, no una condición previa.
   function triggerJornadaDialog() {
     if (jornadaDialogStep !== null) return; // ya hay uno pendiente, no se apila otro
+    // El mismo descanso que se acaba de preguntar por adelantado en la propia entrada
+    // manual (ver se5000ManualReachImprimir) vuelve a pasar por aquí un poco más tarde,
+    // cuando finishSe5000ManualEntry() lo clasifica de verdad — sin este freno se
+    // preguntaría país dos veces por el mismo descanso. Se consume una sola vez.
+    if (se5000ManualPaisAsked) { se5000ManualPaisAsked = false; return; }
     jornadaDialogStep = "ask";
     jornadaAskChoice = true; // "Sí" de partida, igual que el aparato real
     saveJornadaDialogStep();
@@ -5348,6 +5358,10 @@
       jornadaCountryEl.hidden = true;
       jornadaManualEl.hidden = true;
       se5000SyncDialogDocks();
+      // País/comunidad preguntados por adelantado dentro de la propia entrada manual
+      // (ver enterSe5000ManualPaisPrompt) — al terminar este diálogo, retoma justo donde
+      // se dejó ("¿Imprimir entradas?"), en vez de quedarse con el display vacío.
+      if (se5000ManualPhase === "pais-wait") se5000ManualReachImprimir();
       return;
     }
     jornadaDialogEl.hidden = false;
@@ -7584,6 +7598,7 @@
   function enterSe5000ManualDsc() {
     se5000ManualPhase = "dsc";
     se5000ManualDscChoice = true;
+    se5000ManualPaisAsked = false; // nueva entrada manual, nueva oportunidad de preguntar país
     renderSe5000Manual();
   }
 
@@ -7728,7 +7743,7 @@
     // da por alcanzado — el hueco de unos segundos/minutos que queda es el propio tiempo
     // de rellenar el formulario, no un tramo real sin contar.
     var CATCH_UP_TOLERANCE_MS = 2 * 60000;
-    if (Date.now() - se5000ManualCursor <= CATCH_UP_TOLERANCE_MS) { enterSe5000ManualImprimir(); return; }
+    if (Date.now() - se5000ManualCursor <= CATCH_UP_TOLERANCE_MS) { se5000ManualReachImprimir(); return; }
     se5000ManualResetEndDraft();
     renderSe5000Manual();
   });
@@ -7744,7 +7759,7 @@
       se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: se5000ManualCls, origen: "manual-inicio", observado: false });
       se5000ManualCursor = now;
     }
-    enterSe5000ManualImprimir();
+    se5000ManualReachImprimir();
   });
 
   // "Podrá volver atrás... usando el botón Atrás en cualquier momento" (manual p.21) —
@@ -7762,6 +7777,63 @@
     e.stopPropagation();
     se5000ManualUndo();
   });
+
+  // Cierto una sola vez por entrada manual, justo después de haber preguntado país/
+  // comunidad por adelantado (ver se5000ManualReachImprimir) — evita que
+  // finishSe5000ManualEntry() lo vuelva a preguntar al clasificar el mismo descanso de
+  // verdad, más adelante. Se consume solo (se pone a false) la primera vez que hace
+  // falta, así que un descanso NUEVO más tarde en la misma sesión sí puede volver a
+  // disparar el diálogo con normalidad.
+  var se5000ManualPaisAsked = false;
+
+  // ¿Hay al menos un tramo de descanso de 9h o más entre los que se acaban de contar?
+  // Comprobación simple, sin efectos secundarios — a propósito NO es el mismo motor que
+  // classifyCompletedRestBlockOf (que sí muta reducedRests/compLedger): esto es solo
+  // para decidir si hace falta preguntar país por adelantado, no para clasificar de
+  // verdad. Si por un caso límite (partido, ferry) el clasificador real luego decide
+  // que en realidad no vale, la única consecuencia es haber preguntado país una vez de
+  // más — nunca al revés, y nunca afecta a jornadaStartAt ni a las compensaciones, que
+  // se siguen calculando solo en finishSe5000ManualEntry(), sin tocar.
+  function se5000ManualHasQualifyingRest() {
+    for (var i = 0; i < se5000ManualSegments.length; i++) {
+      var seg = se5000ManualSegments[i];
+      if (seg.actividad === "rest" && (seg.fin - seg.inicio) >= REDUCED_DAILY_MIN_MS) return true;
+    }
+    return false;
+  }
+
+  // País/comunidad preguntados DIRECTAMENTE (sin el "¿inicias jornada nueva?" Sí/No de
+  // en medio) — el vídeo real (2/9, tutorial en vídeo) no muestra esa pregunta previa
+  // en la secuencia de entrada manual, va derecha a "País de inicio". Mismo mecanismo
+  // que ya usa jornadaAskOkBtn en su rama "Sí" (mismas listas COUNTRY_CODES/REGION_CODES,
+  // mismo jornadaDialogStep) — reutilizado tal cual, no duplicado.
+  function enterSe5000ManualPaisPrompt() {
+    jornadaCountryIdx = findCodeIdx(COUNTRY_CODES, geoBorder.country || COUNTRY_DEFAULT_CODE);
+    jornadaRegionIdx = 0;
+    jornadaRegionBlockEl.hidden = true;
+    jornadaDialogStep = "country";
+    saveJornadaDialogStep();
+    se5000ManualPhase = "pais-wait"; // ningún sub-bloque de #se5000-manual coincide con
+    // esta fase — así que se ocultan todos a la vez sin tocar sus reglas una por una, y
+    // el hueco que deja lo llena #jornada-dialog, enganchado al mismo dock.
+    renderSe5000Manual();
+    renderJornadaDialog();
+  }
+
+  // Punto de entrada único hacia "¿Imprimir entradas?" — antes del vídeo completo (2/9)
+  // se llamaba directo a enterSe5000ManualImprimir() desde los dos sitios que cierran
+  // el último tramo (el ciclo normal y "el resto fue así"). Con el vídeo se ve que si
+  // alguno de los tramos que se acaban de contar es un descanso válido, el aparato real
+  // pregunta el país de inicio AQUÍ, antes de "¿Imprimir entradas?" — no al final de
+  // todo como hacía esta app hasta ahora.
+  function se5000ManualReachImprimir() {
+    if (se5000ActiveFlow === 1 && !se5000ManualPaisAsked && se5000ManualHasQualifyingRest()) {
+      se5000ManualPaisAsked = true;
+      enterSe5000ManualPaisPrompt();
+      return;
+    }
+    enterSe5000ManualImprimir();
+  }
 
   // Manual p.21, literal: "¿Imprimir entradas?" — un móvil no imprime nada (Hugo, 1/9):
   // SÍ solo avisa que no está disponible; los dos caminos llevan a "¿Confirmar entradas?".
