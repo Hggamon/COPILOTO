@@ -938,6 +938,18 @@
     position: relative;
   }
 
+  /* El aparato real no distingue "valor" de "etiqueta": toda la pantalla LCD es la
+     misma tipografía en bloques, no la fuente normal de una app. Hugo, 2/9, con
+     capturas reales del manual (p.32/36-37): "si este tacógrafo muestra una letra
+     siquiera que dentro del tacógrafo real no está es un fallo real". !important
+     porque tiene que ganar a cualquier regla más específica de un botón que también se
+     usa en la vista clásica (ahí SÍ debe seguir siendo la fuente normal — ver
+     .se5000-display, .se5000-display * más abajo, mismo criterio). */
+  .se5000-display,
+  .se5000-display * {
+    font-family: var(--font-display) !important;
+  }
+
   /* Los diálogos compartidos, realojados aquí mientras están activos en vista SE5000 —
      cubren el display entero (mismo fondo, sin huecos) y sustituyen lo que hubiera,
      igual que en el aparato real. Ver applyViewMode()/se5000SyncDialogDocks(). */
@@ -1038,14 +1050,21 @@
     gap: 3px;
   }
 
+  /* Texto plano con corchetes, no un botón con relieve — el LCD real no tiene esquinas
+     redondeadas ni sombras, solo caracteres. border-radius:0 pisa cualquier redondeo que
+     el botón tuviera para la vista clásica (ahí sí puede seguir siendo un botón normal). */
   #se5000-dialog-dock button {
     font-size: clamp(6px, 1.4vw, 8px);
-    padding: 2px 5px;
-    border-radius: 4px;
+    padding: 1px 3px;
+    border-radius: 0;
+    background: transparent;
+    border: none;
     min-width: 0;
     width: auto;
     height: auto;
   }
+  #se5000-dialog-dock button::before { content: "["; }
+  #se5000-dialog-dock button::after { content: "]"; }
 
   #se5000-dialog-dock .jornada-selector {
     gap: 2px;
@@ -7902,28 +7921,31 @@
       return;
     }
 
+    // Un solo ítem a la vez, nunca la lista entera (manual pp.29,36-37, literal — cada
+    // paso de "Pulse OK y seleccione:" muestra UNA sola palabra en el display, y ▲▼ la
+    // va cambiando). Corregido 2/9 tras verlo con capturas reales del manual: antes esto
+    // pintaba todas las opciones a la vez con una resaltada, que el aparato real no hace
+    // en ninguna pantalla — ni siquiera en el nivel raíz del menú.
     se5000MenuNoticeEl.hidden = true;
     se5000MenuListEl.hidden = false;
     se5000MenuListEl.innerHTML = "";
-    for (var i = 0; i < items.length; i++) {
-      var row = document.createElement("div");
-      row.className = "se5000-menu-item" + (i === se5000MenuCursor ? " selected" : "");
-      var label = items[i];
-      // Refleja el on/off de siempre (ferryMode/outOfScopeMode/ddsEnabled/etc.) sin
-      // duplicar lógica — el estado lo siguen decidiendo las mismas variables/funciones
-      // de todo el resto de la app, esto solo las lee.
-      if (screen === "lugares" && label === "Ferry/tren" && ferryMode) label += " · ACTIVO";
-      if (screen === "lugares" && label === "Fuera de aplic." && outOfScopeMode) label += " · ACTIVO";
-      if (screen === "configurac" && label === "Pantalla invertida" && invertedScreen) label += " · ACTIVA";
-      if (screen === "ajustesDds" && label === "DDS activar") label += ddsEnabled ? " · ENCENDIDA" : " · APAGADA";
-      if (screen === "ajustesDds" && label === "Advertencias DDS") label += ddsWarningsEnabled ? " · ENCENDIDAS" : " · APAGADAS";
-      if (screen === "consConductor" && driverDataConsent !== null) {
-        var current = driverDataConsent === "yes" ? "Sí" : "No";
-        if (label === current) label += " · actual";
-      }
-      row.textContent = label;
-      se5000MenuListEl.appendChild(row);
+    var label = items[se5000MenuCursor];
+    // Refleja el on/off de siempre (ferryMode/outOfScopeMode/ddsEnabled/etc.) sin
+    // duplicar lógica — el estado lo siguen decidiendo las mismas variables/funciones
+    // de todo el resto de la app, esto solo las lee.
+    if (screen === "lugares" && label === "Ferry/tren" && ferryMode) label += " · ACTIVO";
+    if (screen === "lugares" && label === "Fuera de aplic." && outOfScopeMode) label += " · ACTIVO";
+    if (screen === "configurac" && label === "Pantalla invertida" && invertedScreen) label += " · ACTIVA";
+    if (screen === "ajustesDds" && label === "DDS activar") label += ddsEnabled ? " · ENCENDIDA" : " · APAGADA";
+    if (screen === "ajustesDds" && label === "Advertencias DDS") label += ddsWarningsEnabled ? " · ENCENDIDAS" : " · APAGADAS";
+    if (screen === "consConductor" && driverDataConsent !== null) {
+      var current = driverDataConsent === "yes" ? "Sí" : "No";
+      if (label === current) label += " · actual";
     }
+    var row = document.createElement("div");
+    row.className = "se5000-menu-item selected";
+    row.textContent = label;
+    se5000MenuListEl.appendChild(row);
   }
 
   se5000NavBack.addEventListener("click", function (e) {
