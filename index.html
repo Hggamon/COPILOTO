@@ -170,21 +170,23 @@
   }
 
   #tap-hint {
-    position: absolute;
-    bottom: clamp(20px, 5vh, 40px);
+    /* Reconstruido 2/9: con position:absolute + bottom fijo, este aviso se quedaba
+       clavado a una altura de la pantalla mientras #countdown crecía por debajo (el
+       contenido nuevo del tacógrafo) — así que terminaba tapando los botones de
+       clasificar actividad o la rejilla de "Visión general", según cuánto hubiera
+       crecido la página ese momento. Hugo, 2/9: "tiene botones superpuestos". En vez
+       de intentar adivinar una altura que nunca se solape con nada, ahora vive en el
+       flujo normal del documento, al final de todo — nunca encima de otra cosa. */
     font-size: clamp(15px, 3.2vw, 20px);
     font-weight: 600;
     color: var(--fg);
     letter-spacing: 0.02em;
     padding: 0.55em 1.1em;
-    /* Opaco, no translúcido: #countdown ahora hace scroll (contenido nuevo del
-       tacógrafo), y este aviso vive con position:absolute fijo respecto a la pantalla,
-       no al scroll — con fondo translúcido, el texto que queda debajo (panel de
-       diagnóstico GPS, p. ej.) se mezclaba de forma ilegible en vez de quedar tapado. */
+    margin: clamp(16px, 4vh, 32px) auto;
+    width: fit-content;
     background: rgba(10, 10, 8, 0.94);
     border: 1px solid rgba(244, 242, 232, 0.3);
     border-radius: 10px;
-    z-index: 5;
   }
 
   .flash {
@@ -1384,28 +1386,40 @@
     overflow: hidden;
   }
 
-  /* Tamaño táctil real (64-72px de alto) para las dos bandejas que sirven de gesto de
-     inserción/extracción — la del marco en marcha y las del reposo pasivo. */
+  /* Reconstruido 2/9: la caja de 64-72px de alto con un número enorme dentro no existe
+     en el aparato real — comparado con tus fotos, la ranura de verdad es una franja
+     estrecha junto a la pantalla, sin ningún numeral grande encima. Esa altura y esa
+     etiqueta eran una invención de esta app para tener un objetivo táctil cómodo en
+     el móvil (el hueco real es demasiado preciso para acertar con el dedo) — el
+     objetivo sigue siendo cómodo, pero ahora con padding invisible en vez de una caja
+     visualmente enorme que hacía que el aparato entero no se pareciera a uno real. */
   .se5000-tray-wide {
     flex: 1 1 0;
-    height: clamp(64px, 16vh, 72px);
+    height: clamp(20px, 5.5vh, 28px);
+    padding: clamp(10px, 2.5vh, 16px) 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    box-sizing: content-box;
   }
 
   .se5000-tray-slot {
-    width: 60%;
-    height: 5px;
+    width: 55%;
+    height: 4px;
     background: #000;
-    border-radius: 3px;
+    border-radius: 2px;
     border: 1px solid #2a2820;
   }
 
+  /* El numeral grande ya no se pinta — el aparato real no tiene ninguno sobre la
+     ranura misma, solo la posición (izquierda/derecha) y los botones pequeños de
+     actividad (#se5000-btn1/2) distinguen una tarjeta de la otra, igual que en las
+     fotos reales. Se deja en el DOM (aria-label ya cubre la accesibilidad) por si
+     hace falta reactivarlo, pero oculto. */
   .se5000-tray-label {
-    font-size: clamp(15px, 3.4vw, 18px);
+    display: none;
   }
 
   /* Relleno de progreso durante los 3s de mantener pulsado — Hugo, 27/8, punto A3.
@@ -5393,8 +5407,8 @@
   // ("driving"/"rest"/"availability"/"other") en vez de la etiqueta en español — para
   // poder elegir el pictograma correcto (SE5000_PICS) en la pantalla por defecto.
   function currentActivityCls() {
-    if (isDriver2Active()) return paused2 ? (pauseClassification2 || "unknown") : "driving";
-    return paused ? (pauseClassification || "unknown") : "driving";
+    if (isDriver2Active()) return paused2 ? (pauseClassification2 || "unknown") : (deadline2 === null ? "unknown" : "driving");
+    return paused ? (pauseClassification || "unknown") : (deadline === null ? "unknown" : "driving");
   }
 
   // Compañero: qué actividad y desde cuándo, mirando el motor de intervalos del que NO
@@ -6963,10 +6977,6 @@
     localStorage.setItem(key, String(now));
     return now;
   }
-  function getQuietSinceTs() {
-    return getQuietSinceTsOf(intervalsSolo, QUIET_SINCE_KEY);
-  }
-
   // Realoja un grupo de elementos (p. ej. el aviso + los botones de un diálogo) dentro
   // del display SE5000 mientras estén visibles y esa vista esté activa — o los devuelve
   // a su sitio de siempre (justo delante de anchorEl) en caso contrario. Mismos nodos,
@@ -7968,20 +7978,31 @@
     }
 
     if (curDeadline === null) {
-      // Reposo — mismo contenido que antes vivía en #se5000-reposo (aparato encendido,
-      // tarjeta fuera), ahora en los mismos campos que cualquier otro estado en vez de
-      // en un display aparte.
-      var since = d2 ? getQuietSinceTsOf(intervalsSolo2, QUIET_SINCE_KEY_2) : getQuietSinceTs();
-      se5000LabelTop.textContent = "quieto desde hace";
-      se5000MainClock.textContent = formatRemaining(Date.now() - since);
+      // Reposo (sin tarjeta) — vídeo real del tacógrafo, 2/9 (tutorial, segundo 0:30,
+      // antes de meter ninguna tarjeta): la pantalla NO dice "quieto desde hace" — eso
+      // era invención de esta app. El aparato real sigue mostrando la misma rejilla de
+      // "Visión general" de siempre (pictograma + cifras), con los últimos datos que
+      // tenga, sin ningún aviso de espera ni display en blanco. Se reutiliza
+      // ddsDefaultScreenHtml() tal cual — currentActivityCls() ya sabe devolver
+      // "unknown" en vez de "conduciendo" cuando no hay tarjeta puesta.
+      var idleArr = d2 ? intervalsSolo2 : intervalsSolo;
+      var idleResetAt = d2 ? fourH30ResetAt2 : fourH30ResetAt;
+      se5000LabelTop.textContent = "";
+      se5000MainClock.textContent = "";
       se5000LabelBottom.textContent = "";
-      setSe5000Pic(se5000MainPic, SE5000_PICS.rest);
       se5000MainClock.style.color = "";
-      se5000DdsTitleEl.textContent = "";
-      se5000SubEl.textContent = "";
+      // El pictograma e icono grandes no viven aparte en el aparato real durante el
+      // reposo — todo lo que se ve es la rejilla de abajo, con sus propios pictogramas
+      // pequeños (ver comentario de arriba). setAttribute, no la propiedad .hidden —
+      // en un <svg> esa propiedad no siempre refleja el atributo al quitarlo después
+      // (mismo fallo ya encontrado con los pictogramas de actividad, 2/9).
+      se5000MainPic.setAttribute("hidden", "");
+      se5000DdsTitleEl.textContent = "Visión general";
+      se5000SubEl.innerHTML = ddsDefaultScreenHtml(Date.now(), idleArr, idleResetAt);
     } else {
       var isPaused = d2 ? paused2 : paused;
       var cls = d2 ? pauseClassification2 : pauseClassification;
+      se5000MainPic.removeAttribute("hidden");
 
       if (!isPaused) {
         se5000LabelTop.textContent = clockLabelTopEl.textContent;
