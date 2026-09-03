@@ -2012,17 +2012,18 @@
          "parecido", es la forma exacta del aparato real, con relleno sólido igual que una
          pantalla de puntos (LCD), nunca trazo. Hugo, 2/9: "si dejamos algo que el
          tacógrafo real no tiene, el novato aprende mal". -->
-    <!-- Conduciendo: cuadrado de borde punteado con un punto central. -->
+    <!-- Conduciendo: marco rectangular partido en 4 barras (dos verticales largas a los
+         lados, dos horizontales cortas arriba/abajo, con hueco en las 4 esquinas) más un
+         cuadrado pequeño centrado — calcado 3/9 del icono real de la leyenda "Actividades
+         disponibles" (manual p.15) ampliado al máximo. Antes era un anillo de 8
+         cuadraditos sueltos con un cuadrado grande en medio — ese patrón no existe en el
+         aparato real, era una invención con forma de "rueda dentada". -->
     <symbol id="pic-driving" viewBox="0 0 24 24">
-      <rect x="4" y="4" width="3.1" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="10.45" y="3" width="3.1" height="2.3" fill="currentColor" stroke="none" />
-      <rect x="16.9" y="4" width="3.1" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="3" y="10.45" width="2.3" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="18.7" y="10.45" width="2.3" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="4" y="16.9" width="3.1" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="10.45" y="18.7" width="3.1" height="2.3" fill="currentColor" stroke="none" />
-      <rect x="16.9" y="16.9" width="3.1" height="3.1" fill="currentColor" stroke="none" />
-      <rect x="9.4" y="9.4" width="5.2" height="5.2" fill="currentColor" stroke="none" />
+      <rect x="7" y="7.5" width="2.4" height="9.5" fill="currentColor" stroke="none" />
+      <rect x="14.6" y="7.5" width="2.4" height="9.5" fill="currentColor" stroke="none" />
+      <rect x="9.4" y="5.3" width="5.2" height="2.4" fill="currentColor" stroke="none" />
+      <rect x="9.4" y="16.8" width="5.2" height="2.4" fill="currentColor" stroke="none" />
+      <rect x="10.4" y="10.8" width="3.2" height="3.2" fill="currentColor" stroke="none" />
     </symbol>
     <!-- Descanso: tumbona vista de perfil, forma de "h". -->
     <symbol id="pic-rest" viewBox="0 0 24 24">
@@ -2030,18 +2031,26 @@
       <rect x="5" y="11" width="13.3" height="2.7" fill="currentColor" stroke="none" />
       <rect x="15.6" y="11" width="2.7" height="8" fill="currentColor" stroke="none" />
     </symbol>
-    <!-- Disponibilidad: marco cuadrado con un hueco y un punto central, anidados (evenodd:
-         marco relleno, hueco vacío, punto de nuevo relleno). -->
+    <!-- Disponibilidad: DOS cuadrados blancos que se solapan sobre fondo negro (no un
+         marco con un punto centrado como tenía antes) — calcado 3/9 del icono real del
+         manual (p.23) ampliado al máximo: cuadrado A arriba-izda, cuadrado B abajo-dcha,
+         su solape vuelve a verse negro (evenodd: fondo=1 cruce=negro,
+         A-o-B=2 cruces=blanco, A-y-B=3 cruces=negro otra vez). Antes los tres cuadrados
+         eran concéntricos (una diana), que no es lo que muestra el aparato real. -->
     <symbol id="pic-availability" viewBox="0 0 24 24">
       <path fill-rule="evenodd" fill="currentColor" stroke="none"
-        d="M4 4H20V20H4Z M7.4 7.4H16.6V16.6H7.4Z M9.7 9.7H13.3V13.3H9.7Z" />
+        d="M4 4H20V20H4Z M7 7H14V14H7Z M10 10H17V17H10Z" />
     </symbol>
-    <!-- Otros trabajos: martillos cruzados -->
+    <!-- Otros trabajos: dos picos/martillos cruzados, cabeza angulosa (no un aspa de
+         trazo redondeado como antes) — calcado 3/9 del icono real del manual (p.23)
+         ampliado al máximo: mango recto en diagonal + cabeza en forma de flecha/chevrón
+         cerca de la punta, nunca en el extremo. Con relleno, no con stroke (el trazo
+         redondeado por defecto de .se5000-pic no puede dar esquinas afiladas). -->
     <symbol id="pic-work" viewBox="0 0 24 24">
-      <path d="M4 20 14.5 9.5" />
-      <path d="M12.3 7.3l2.6 2.6 2-2-1-1 1.6-1.6-2.6-2.6-1.6 1.6-1-1z" />
-      <path d="M20 20 9.5 9.5" />
-      <path d="M11.7 7.3 9.1 9.9l-2-2 1-1-1.6-1.6 2.6-2.6 1.6 1.6 1-1z" />
+      <path fill="currentColor" stroke="none" d="M5.3 20.3 3.9 18.9 10.5 12.3 11.9 13.7Z" />
+      <path fill="currentColor" stroke="none" d="M7 6.8 12 5.2 13.6 10.2 11.2 12.6 9.6 9.7 6.6 9.3Z" />
+      <path fill="currentColor" stroke="none" d="M18.7 20.3 20.1 18.9 13.5 12.3 12.1 13.7Z" />
+      <path fill="currentColor" stroke="none" d="M17 6.8 12 5.2 10.4 10.2 12.8 12.6 14.4 9.7 17.4 9.3Z" />
     </symbol>
     <!-- Actividad desconocida: interrogación (manual p.15, "ningún tipo de actividad
          registrada") — huecos sin clasificar, nunca un icono inventado. -->
