@@ -918,9 +918,15 @@
      hecha el 26/8: franja ancha tipo radio de 1-DIN, ~3.1:1). Decisión de Hugo: mantener
      esta proporción real aunque deje hueco vacío arriba/abajo en el móvil, en vez de
      ensancharla para aprovechar la pantalla — se prioriza que se reconozca el aparato. */
+  /* Hugo, 3/9: pantalla grande y fija (tamaño de la antigua mitad "impresora" sumado a
+     la pantalla), botones físicos bajados a la altura de la vieja ranura, bandejas
+     nuevas más pequeñas debajo — el aparato pasa de "ancho y bajo" (31/10, foto real) a
+     "más alto", porque ahora todo se apila en una sola columna en vez de dos mitades
+     lado a lado. Sin aspect-ratio fijo: cada franja pide su alto con flex-basis/flex-
+     grow de abajo y el bisel entero se ajusta solo, en vez de forzar una proporción que
+     ya no encaja con el nuevo reparto. */
   .se5000-bezel {
     width: min(94vw, 480px);
-    aspect-ratio: 31 / 10;
     background: linear-gradient(180deg, var(--se-bezel-edge), var(--se-bezel));
     border: 1px solid #000;
     border-radius: 10px;
@@ -928,7 +934,7 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
-    gap: clamp(4px, 1vh, 6px);
+    gap: clamp(5px, 1.2vh, 8px);
     position: relative;
   }
 
@@ -947,35 +953,39 @@
   .se5000-rivet.bl { bottom: 5px; left: 5px; }
   .se5000-rivet.br { bottom: 5px; right: 5px; }
 
-  .se5000-top-row {
-    display: flex;
-    flex: 1;
-    gap: clamp(6px, 1.5vw, 10px);
-    min-height: 0;
+  /* Franja de marca mínima — todo el ancho que antes ocupaba el panel de la impresora
+     pasa a la pantalla (ver comentario de .se5000-bezel); esto es solo lo que queda de
+     identidad de marca, una línea de texto, no un panel. */
+  .se5000-brand-strip {
+    flex: 0 0 auto;
+    font-family: var(--font-label);
+    font-size: clamp(7px, 1.6vw, 9px);
+    color: #6b6858;
+    text-align: center;
+    letter-spacing: 0.04em;
   }
-
-  /* Mitad izquierda: pantalla + los 4 botones de navegación SOLO debajo de ella — en el
-     aparato real no ocupan el ancho completo, se quedan bajo la pantalla. */
-  .se5000-left-col {
-    flex: 0 0 46%;
-    display: flex;
-    flex-direction: column;
-    gap: clamp(3px, 0.8vh, 5px);
-    min-width: 0;
-  }
+  .se5000-brand-strip b { color: #9b9782; font-weight: 800; }
 
   .se5000-display {
     background: var(--se-lcd-grid), var(--se-display-bg);
     color: var(--se-display-fg);
     border-radius: 3px;
     border: 1px solid #8f8c78;
-    padding: clamp(2px, 0.8vh, 5px) clamp(5px, 1.5vw, 8px);
+    padding: clamp(4px, 1.4vh, 8px) clamp(6px, 2vw, 10px);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1px;
-    flex: 1;
-    min-height: 0;
+    gap: 2px;
+    /* La pantalla pasa a ser, con diferencia, la franja más alta del bisel. flex-grow
+       por sí solo no bastaba: .se5000-bezel vive dentro de #se5000-view (position:fixed,
+       justify-content:center) sin una altura propia impuesta desde fuera, así que su
+       alto de flex-columna sale de sumar el tamaño NATURAL de sus hijos — sin una
+       referencia de "espacio disponible" de la que tirar, flex-grow no tenía nada que
+       repartir y el display se quedaba encogido al alto justo de "VISIÓN GENERAL", con
+       el marco entero mucho más bajo de lo previsto. min-height fuerza el alto real
+       aunque el resto del bisel no imponga ninguno. */
+    flex: 5 1 0;
+    min-height: clamp(150px, 34vh, 230px);
     overflow: hidden;
     box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25);
     position: relative;
@@ -1263,11 +1273,17 @@
     color: var(--fg-dim);
   }
 
+  /* Bajados a donde antes estaba la ranura (Hugo, 3/9) — fila centrada de ancho
+     completo, en vez de la rejilla de 4 columnas que antes rellenaba solo el 46%
+     izquierdo. Los botones ya no derivan su tamaño del ancho del contenedor (eso los
+     habría hecho enormes con el bisel entero de ancho) — tamaño propio con clamp(),
+     igual de grandes que antes pero ahora con toda la fila para respirar. */
   .se5000-nav {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: clamp(3px, 0.8vw, 5px);
-    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(10px, 3vw, 18px);
+    flex: 1.4 0 auto;
   }
 
   .se5000-key {
@@ -1279,8 +1295,9 @@
        los cuatro botones bajo el display como cuadrados de esquinas curvas, nunca
        botones circulares. */
     border-radius: 22%;
+    width: clamp(34px, 9vw, 48px);
     aspect-ratio: 1;
-    font-size: clamp(7px, 1.9vw, 10px);
+    font-size: clamp(9px, 2.4vw, 13px);
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -1307,50 +1324,6 @@
     background: #241f14;
   }
 
-  /* Mitad derecha: tapa de la impresora — decorativa, no hace nada al tocarla (no hay
-     nada que imprimir en un móvil). Hugo decidió mantenerla igualmente: es la mitad del
-     frontal real y ayuda a reconocer el aparato de un vistazo. */
-  .se5000-printer {
-    flex: 0 0 50%;
-    position: relative;
-    background: linear-gradient(155deg, #201d17, #0d0c09);
-    border: 1px solid #3a362c;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(4px, 1.2vh, 8px);
-    overflow: hidden;
-  }
-
-  .se5000-printer-slit {
-    width: 55%;
-    height: 2px;
-    background: #000;
-    border-radius: 1px;
-    box-shadow: 0 5px 0 0 #000;
-  }
-
-  .se5000-printer-brand {
-    font-family: var(--font-label);
-    font-size: clamp(6.5px, 1.7vw, 9.5px);
-    color: #6b6858;
-    text-align: center;
-    line-height: 1.3;
-  }
-  .se5000-printer-brand b { color: #b8b5a2; font-weight: 800; }
-  .se5000-printer-brand sub { display: block; font-size: 0.55em; letter-spacing: 0.1em; color: #4a4738; }
-
-  .se5000-printer-gap {
-    position: absolute;
-    bottom: 10%;
-    left: 8%;
-    right: 8%;
-    height: 2px;
-    background: #000;
-  }
-
   /* Franja inferior, ancho completo: cada bandeja ES la ranura de insertar la tarjeta —
      Hugo, 27/8, punto A3: "las bandejas son demasiado pequeñas en móvil... puedes
      utilizar lo que vendría a ser la ranura de insertar la tarjeta para que sea el
@@ -1363,7 +1336,7 @@
     display: flex;
     align-items: stretch;
     gap: clamp(10px, 3vw, 16px);
-    flex: 0 0 auto;
+    flex: 1 0 auto;
   }
 
   .se5000-tray {
@@ -1392,11 +1365,15 @@
      etiqueta eran una invención de esta app para tener un objetivo táctil cómodo en
      el móvil (el hueco real es demasiado preciso para acertar con el dedo) — el
      objetivo sigue siendo cómodo, pero ahora con padding invisible en vez de una caja
-     visualmente enorme que hacía que el aparato entero no se pareciera a uno real. */
+     visualmente enorme que hacía que el aparato entero no se pareciera a uno real.
+     Reducida otra vez 3/9 (Hugo: "la parte de la tarjeta es muy grande") ahora que los
+     botones físicos bajaron aquí al lado y necesitan su sitio — el objetivo táctil
+     invisible (padding) baja de proporción pero sigue siendo mayor que el recuadro
+     visible, que es lo que importa para acertar con el dedo. */
   .se5000-tray-wide {
     flex: 1 1 0;
-    height: clamp(20px, 5.5vh, 28px);
-    padding: clamp(10px, 2.5vh, 16px) 0;
+    height: clamp(14px, 3.2vh, 18px);
+    padding: clamp(6px, 1.6vh, 10px) 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1650,11 +1627,19 @@
   #se5000-manual-dsc,
   #se5000-manual-addmanual,
   #se5000-manual-imprimir,
-  #se5000-manual-listo {
+  #se5000-manual-listo,
+  #se5000-manual-finalturno,
+  #se5000-manual-iniciojorna {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
+  }
+
+  #se5000-manual-finalturno-when,
+  #se5000-manual-iniciojorna-when {
+    font-family: var(--font-label);
+    font-size: 13px;
   }
 
   #se5000-manual-change,
@@ -1670,19 +1655,17 @@
     border: 1px solid var(--fg-dim);
   }
 
+  /* El aparato real no escribe "OK" dentro del LCD — nunca aparece en ninguna captura
+     del manual, solo en el TEXTO de la instrucción ("Pulse OK"), no en la pantalla. Con
+     el botón físico OK ya conectado a estos mismos elementos (ver se5000ActiveNavTarget)
+     no hace falta un botón visible aquí — se queda en el DOM para que el físico lo
+     siga pudiendo pulsar por debajo, solo deja de dibujarse. Hugo, 3/9: "abajo hay un
+     mje de (ok) eso no debe de existir". */
   #se5000-manual-addmanual-ok,
   #se5000-manual-dsc-ok,
   #se5000-manual-imprimir-ok,
   #se5000-manual-confirm-ok {
-    font-family: var(--font-label);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 0.6em 1em;
-    border-radius: 9px;
-    cursor: pointer;
-    color: var(--accent-fg);
-    background: var(--accent);
-    border: none;
+    display: none;
   }
 
   /* 2/9: los Sí/No ya no son dos botones lado a lado — son el mismo patrón de valor
@@ -1723,16 +1706,10 @@
     color: var(--fg-dim);
   }
 
+  /* Mismo motivo que dsc-ok/addmanual-ok: el OK físico ya cicla esto (ver
+     se5000ActiveNavTarget), y el LCD real nunca escribe "OK". */
   #se5000-manual-end-ok {
-    font-family: var(--font-label);
-    font-size: 13px;
-    font-weight: 700;
-    padding: 0.5em 1.2em;
-    border-radius: 9px;
-    cursor: pointer;
-    background: var(--accent);
-    color: var(--accent-fg);
-    border: none;
+    display: none;
   }
 
   #se5000-manual-clearall {
@@ -2231,6 +2208,21 @@
     <div id="se5000-manual-listo" hidden>
       <div class="status-pill">Listo para conducir</div>
     </div>
+    <!-- "final turno" / "inicio jorna." — manual p.21-22, literal: rótulos de paso de
+         un par de segundos que el aparato real muestra con la fecha/hora encima, entre
+         una pregunta y la siguiente ("final turno" al empezar a registrar entradas
+         manuales; "inicio jorna." justo después de confirmar el país de inicio). Se me
+         habían pasado por alto — Hugo, 3/9: "por qué no eres capaz de copiar cada cosa
+         que está allí". Minúsculas tal cual las muestra el aparato, no frase con
+         mayúscula inicial como el resto de esta app. -->
+    <div id="se5000-manual-finalturno" hidden>
+      <div id="se5000-manual-finalturno-when"></div>
+      <div class="status-pill">final turno</div>
+    </div>
+    <div id="se5000-manual-iniciojorna" hidden>
+      <div id="se5000-manual-iniciojorna-when"></div>
+      <div class="status-pill">inicio jorna.</div>
+    </div>
   </div>
 
   <div id="diag-panel" hidden></div>
@@ -2370,70 +2362,72 @@
   <div class="se5000-bezel">
     <span class="se5000-rivet tl"></span><span class="se5000-rivet tr"></span>
     <span class="se5000-rivet bl"></span><span class="se5000-rivet br"></span>
-    <div class="se5000-top-row">
-      <div class="se5000-left-col">
-        <div class="se5000-display">
-          <div class="se5000-display-line1">
-            <svg class="se5000-pic" id="se5000-main-pic" aria-hidden="true"><use href="#pic-driving"></use></svg>
-            <div class="se5000-clock" id="se5000-main-clock">4:30</div>
-          </div>
-          <div class="se5000-display-labels">
-            <span id="se5000-label-top">te quedan</span>
-            <span id="se5000-label-bottom">de conducción</span>
-          </div>
-          <div class="se5000-display-title" id="se5000-dds-title">Visión general</div>
-          <div class="se5000-display-sub" id="se5000-sub"></div>
-          <!-- Los diálogos compartidos se REALOJAN aquí dentro mientras la vista SE5000
-               está activa (mismos nodos, se mueven con appendChild — no se duplican).
-               Ocupa el display entero y tapa del todo lo que hubiera debajo, como en el
-               aparato real: "un mensaje ocupa el display entero y sustituye lo que
-               había" — Hugo, 26/8. Vuelven a su sitio de siempre al ocultarse o al
-               volver a la vista clásica. -->
-          <div id="se5000-dialog-dock" hidden></div>
-          <!-- Menú de 4 entradas (manual p.15), abierto con OK — sustituye lo que
-               hubiera en el display, igual que los diálogos de arriba. Solo se abre
-               con el vehículo parado (manual p.15: "por razones de seguridad de
-               tráfico solo puede poner el tacógrafo en funcionamiento cuando el
-               vehículo esté parado") — ver se5000MenuOk()/renderSe5000Menu(). -->
-          <div id="se5000-menu" hidden>
-            <div id="se5000-menu-title"></div>
-            <div id="se5000-menu-list"></div>
-            <div id="se5000-menu-notice" hidden></div>
-            <!-- Selector de país/comunidad para Lugar de inicio/fin (manual p.19),
-                 mismas listas COUNTRY_CODES/REGION_CODES que ya usa el diálogo de
-                 inicio de jornada — aquí en su versión compacta de display. -->
-            <div id="se5000-lugar" hidden>
-              <div id="se5000-lugar-label"></div>
-              <div id="se5000-lugar-value">—</div>
-              <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
-            </div>
-          </div>
-          <!-- Extracción de tarjeta (manual pp.17-18, literal): "Pulse el botón 1 o 2...
-               En la pantalla aparecerá: País de fin. Seleccione el país de fin y pulse OK
-               para confirmar... se abre la bandeja." Disparador táctil: tocar la ranura
-               (Hugo, 1/9: "los botones 1 y 2 son demasiado pequeños para acertar con el
-               dedo... tocar la ranura activa el flujo de país del manual y luego se
-               expulsa") — mismo contenido del aparato real, gesto adaptado al móvil.
-               Manda sobre el menú y sobre todo lo demás mientras esté pendiente, igual
-               que ya hacía el antiguo diálogo de confirmar. -->
-          <div id="se5000-eject-country" hidden>
-            <div id="se5000-eject-country-label">País de fin</div>
-            <div id="se5000-eject-country-value">—</div>
-            <div id="se5000-eject-country-hint">▲▼ elegir · OK confirma · ↩ cancela</div>
-          </div>
-        </div>
-        <div class="se5000-nav">
-          <button class="se5000-key" id="se5000-nav-back" type="button" aria-label="atrás">↩</button>
-          <button class="se5000-key" id="se5000-nav-down" type="button" aria-label="pantalla anterior">▼</button>
-          <button class="se5000-key" id="se5000-nav-up" type="button" aria-label="pantalla siguiente">▲</button>
-          <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, abrir menú">OK</button>
+    <!-- Hugo, 3/9: "el tamaño del display es más pequeño que la zona de las flechas...
+         puedes dejar el display del mismo tamaño de la parte donde está la marca
+         SE5000" — la pantalla pasa a ocupar el ancho completo (antes 46%, compartido
+         con el panel decorativo de la impresora a la derecha), y los botones físicos
+         bajan a donde antes estaban las bandejas. Deja de perseguir la foto exacta del
+         aparato (dos mitades lado a lado) a propósito, en favor de que el LCD sea
+         legible sin necesitar encoger la letra ni hacer scroll cada vez que cambia de
+         diálogo — mismo criterio de "réplica visual con margen para ser funcional" que
+         ya se aplicó a las bandejas el 27/8. Identidad de marca: una franja mínima
+         arriba, no un panel entero. -->
+    <div class="se5000-brand-strip" aria-hidden="true">Stoneridge <b>SE5000</b></div>
+    <div class="se5000-display">
+      <div class="se5000-display-line1">
+        <svg class="se5000-pic" id="se5000-main-pic" aria-hidden="true"><use href="#pic-driving"></use></svg>
+        <div class="se5000-clock" id="se5000-main-clock">4:30</div>
+      </div>
+      <div class="se5000-display-labels">
+        <span id="se5000-label-top">te quedan</span>
+        <span id="se5000-label-bottom">de conducción</span>
+      </div>
+      <div class="se5000-display-title" id="se5000-dds-title">Visión general</div>
+      <div class="se5000-display-sub" id="se5000-sub"></div>
+      <!-- Los diálogos compartidos se REALOJAN aquí dentro mientras la vista SE5000
+           está activa (mismos nodos, se mueven con appendChild — no se duplican).
+           Ocupa el display entero y tapa del todo lo que hubiera debajo, como en el
+           aparato real: "un mensaje ocupa el display entero y sustituye lo que
+           había" — Hugo, 26/8. Vuelven a su sitio de siempre al ocultarse o al
+           volver a la vista clásica. -->
+      <div id="se5000-dialog-dock" hidden></div>
+      <!-- Menú de 4 entradas (manual p.15), abierto con OK — sustituye lo que
+           hubiera en el display, igual que los diálogos de arriba. Solo se abre
+           con el vehículo parado (manual p.15: "por razones de seguridad de
+           tráfico solo puede poner el tacógrafo en funcionamiento cuando el
+           vehículo esté parado") — ver se5000MenuOk()/renderSe5000Menu(). -->
+      <div id="se5000-menu" hidden>
+        <div id="se5000-menu-title"></div>
+        <div id="se5000-menu-list"></div>
+        <div id="se5000-menu-notice" hidden></div>
+        <!-- Selector de país/comunidad para Lugar de inicio/fin (manual p.19),
+             mismas listas COUNTRY_CODES/REGION_CODES que ya usa el diálogo de
+             inicio de jornada — aquí en su versión compacta de display. -->
+        <div id="se5000-lugar" hidden>
+          <div id="se5000-lugar-label"></div>
+          <div id="se5000-lugar-value">—</div>
+          <div id="se5000-lugar-hint">▲▼ elegir · OK confirmar</div>
         </div>
       </div>
-      <div class="se5000-printer" aria-hidden="true">
-        <div class="se5000-printer-slit"></div>
-        <div class="se5000-printer-brand">Stoneridge <b>SE5000</b><sub>SMART 2</sub></div>
-        <div class="se5000-printer-gap"></div>
+      <!-- Extracción de tarjeta (manual pp.17-18, literal): "Pulse el botón 1 o 2...
+           En la pantalla aparecerá: País de fin. Seleccione el país de fin y pulse OK
+           para confirmar... se abre la bandeja." Disparador táctil: tocar la ranura
+           (Hugo, 1/9: "los botones 1 y 2 son demasiado pequeños para acertar con el
+           dedo... tocar la ranura activa el flujo de país del manual y luego se
+           expulsa") — mismo contenido del aparato real, gesto adaptado al móvil.
+           Manda sobre el menú y sobre todo lo demás mientras esté pendiente, igual
+           que ya hacía el antiguo diálogo de confirmar. -->
+      <div id="se5000-eject-country" hidden>
+        <div id="se5000-eject-country-label">País de fin</div>
+        <div id="se5000-eject-country-value">—</div>
+        <div id="se5000-eject-country-hint">▲▼ elegir · OK confirma · ↩ cancela</div>
       </div>
+    </div>
+    <div class="se5000-nav">
+      <button class="se5000-key" id="se5000-nav-back" type="button" aria-label="atrás">↩</button>
+      <button class="se5000-key" id="se5000-nav-down" type="button" aria-label="pantalla anterior">▼</button>
+      <button class="se5000-key" id="se5000-nav-up" type="button" aria-label="pantalla siguiente">▲</button>
+      <button class="se5000-key" id="se5000-nav-ok" type="button" aria-label="OK, abrir menú">OK</button>
     </div>
     <div class="se5000-bottom-strip">
       <div class="se5000-tray-with-btn">
@@ -6964,6 +6958,10 @@
   var se5000ManualChangeBtn = document.getElementById("se5000-manual-change");
   var se5000ManualClearAllBtn = document.getElementById("se5000-manual-clearall");
   var se5000ManualListoEl = document.getElementById("se5000-manual-listo");
+  var se5000ManualFinalTurnoEl = document.getElementById("se5000-manual-finalturno");
+  var se5000ManualFinalTurnoWhenEl = document.getElementById("se5000-manual-finalturno-when");
+  var se5000ManualIniciojornaEl = document.getElementById("se5000-manual-iniciojorna");
+  var se5000ManualIniciojornaWhenEl = document.getElementById("se5000-manual-iniciojorna-when");
 
   var se5000ManualCls = "rest";
   var se5000ManualSegments = [];
@@ -7561,6 +7559,14 @@
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
     se5000ManualListoEl.hidden = se5000ManualPhase !== "listo";
+    se5000ManualFinalTurnoEl.hidden = se5000ManualPhase !== "finalturno";
+    se5000ManualIniciojornaEl.hidden = se5000ManualPhase !== "iniciojorna";
+    if (se5000ManualPhase === "finalturno") {
+      se5000ManualFinalTurnoWhenEl.textContent = fmtDM(se5000ManualQuietSince) + "  " + fmtHM(se5000ManualQuietSince);
+    }
+    if (se5000ManualPhase === "iniciojorna") {
+      se5000ManualIniciojornaWhenEl.textContent = fmtDM(se5000ManualCursor) + "  " + fmtHM(se5000ManualCursor);
+    }
 
     if (se5000ManualPhase === "dsc") {
       se5000ManualDscValueEl.textContent = se5000ManualDscChoice ? "Sí" : "No";
@@ -7635,15 +7641,20 @@
   se5000ManualDscOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     if (se5000ManualDscChoice) {
-      // SÍ: todo el tiempo quieto fue descanso, de un tirón — va directo a "¿Imprimir
-      // entradas?" (manual p.16, ejemplo simple). País de fin no se repregunta aquí, ya
-      // quedó registrado al sacar la tarjeta (ver requestEject()).
+      // SÍ: todo el tiempo quieto fue descanso, de un tirón (manual p.17, ejemplo
+      // simple: "Descansó hasta ahora" → País de fin → País de inicio → "¿Imprimir
+      // entradas?"). País de fin no se repregunta aquí, ya quedó registrado al sacar la
+      // tarjeta (ver requestEject()) — pero País de inicio SÍ hace falta, con el mismo
+      // filtro de 9h que el resto de casos (se5000ManualReachImprimir). Antes esta rama
+      // llamaba directo a enterSe5000ManualImprimir() y se saltaba el país siempre,
+      // aunque el descanso fuera larguísimo — fallo real, encontrado 3/9 releyendo la
+      // página 17 completa del manual.
       var now = Date.now();
       if (now > se5000ManualCursor) {
         se5000ManualSegments.push({ inicio: se5000ManualCursor, fin: now, actividad: "rest", origen: "manual-inicio", observado: false });
         se5000ManualCursor = now;
       }
-      enterSe5000ManualImprimir();
+      se5000ManualReachImprimir();
     } else {
       // NO: "¿Añadir e. manuales?" (manual p.16, literal).
       se5000ManualPhase = "addmanual";
@@ -7652,10 +7663,19 @@
     }
   });
 
+  // Manual p.16, literal, paso 3: tras "¿Añadir e. manuales? Sí" → OK, el aparato real
+  // muestra un instante la fecha/hora de la última inserción de tarjeta junto con
+  // "final turno", ANTES del primer campo de actividad — no entra directo. Reconstruido
+  // 3/9 releyendo la página completa.
   function enterSe5000ManualEntering() {
-    se5000ManualPhase = "entering";
-    se5000ManualResetEndDraft();
+    se5000ManualPhase = "finalturno";
     renderSe5000Manual();
+    setTimeout(function () {
+      if (se5000ManualPhase !== "finalturno") return; // se canceló/avanzó por otro lado mientras tanto
+      se5000ManualPhase = "entering";
+      se5000ManualResetEndDraft();
+      renderSe5000Manual();
+    }, SE5000_MANUAL_TRANSITION_MS);
   }
 
   // ▲▼: cicla Sí/No, igual que el resto de preguntas de esta pantalla.
@@ -7850,6 +7870,20 @@
       enterSe5000ManualPaisPrompt();
       return;
     }
+    // Si venimos de confirmar el país (fase todavía "pais-wait" en este punto: la
+    // reponemos justo aquí, ver enterSe5000ManualPaisPrompt), el aparato real muestra
+    // antes un instante "inicio jorna." con la fecha/hora (manual p.17, paso 17) — no
+    // pasa directo a "¿Imprimir entradas?". Si nunca se preguntó país (descanso corto),
+    // no hay nada que anunciar y se salta este paso.
+    if (se5000ManualPhase === "pais-wait") {
+      se5000ManualPhase = "iniciojorna";
+      renderSe5000Manual();
+      setTimeout(function () {
+        if (se5000ManualPhase !== "iniciojorna") return;
+        enterSe5000ManualImprimir();
+      }, SE5000_MANUAL_TRANSITION_MS);
+      return;
+    }
     enterSe5000ManualImprimir();
   }
 
@@ -7911,6 +7945,7 @@
   // entre "¿Confirmar entrada? Sí" y que la pantalla pase sola a la vista de conducción
   // con las horas — no un cierre instantáneo y silencioso.
   var SE5000_MANUAL_LISTO_MS = 1600;
+  var SE5000_MANUAL_TRANSITION_MS = 1600; // "final turno" / "inicio jorna." (manual pp.16,17)
   se5000ManualConfirmOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     if (se5000ManualConfirmChoice) {
