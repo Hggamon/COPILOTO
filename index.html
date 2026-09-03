@@ -1087,15 +1087,8 @@
     font-size: clamp(9px, 1.9vw, 12px);
     padding: 0.35em 0.5em;
   }
-  #se5000-dialog-dock #se5000-manual-end-start {
-    font-size: clamp(8px, 1.7vw, 11px);
-  }
-  #se5000-dialog-dock #se5000-manual-end-value {
-    font-size: clamp(11px, 2.3vw, 15px);
-    min-width: 0;
-  }
-  #se5000-dialog-dock .se5000-end-dual {
-    gap: 6px;
+  #se5000-dialog-dock .se5000-end-strip {
+    gap: 3px;
   }
   #se5000-dialog-dock .se5000-end-col {
     font-size: clamp(11px, 2.3vw, 15px);
@@ -1545,24 +1538,40 @@
     cursor: pointer;
   }
 
-  #se5000-manual-end-value {
+  /* Marco en corchete calcado del manual (p.22) — ver comentario del marcado junto a
+     #se5000-manual-end-fields. "●[inicio]─pictograma─[fin]▶", nunca dos columnas de
+     texto sueltas como tenía antes esta app. */
+  .se5000-end-strip {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
+    flex-wrap: wrap;
+  }
+
+  .se5000-end-bullet {
+    font-size: 8px;
+    line-height: 1;
+  }
+
+  .se5000-end-link {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--fg-dim);
+  }
+
+  .se5000-end-tab {
+    font-size: 11px;
+    color: var(--fg-dim);
   }
 
   #se5000-manual-end-pic {
     width: 20px;
     height: 20px;
-  }
-
-  /* Inicio (plano) y fin (invertido, .jornada-selector-value) lado a lado — ver
-     comentario del marcado. */
-  .se5000-end-dual {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    box-sizing: content-box;
   }
 
   .se5000-end-col {
@@ -1571,17 +1580,35 @@
     font-weight: 700;
     line-height: 1.3;
     text-align: center;
-    min-width: 6ch;
+    min-width: 5ch;
   }
 
-  #se5000-manual-end-fin-col {
-    padding: 0.05em 0.4em;
+  /* Corchete de verdad (dos ticks horizontales + un trazo vertical en cada lado), no
+     un rectángulo relleno — el LCD real no dibuja una caja sólida alrededor de
+     "inicio"/"fin", solo esas esquinas sueltas. Hugo, 3/9, comparando con la página 21
+     ampliada: "te falta... los corchetes". */
+  .se5000-end-bracket {
+    position: relative;
+    padding: 0 6px;
   }
+  .se5000-end-bracket::before,
+  .se5000-end-bracket::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    width: 4px;
+    border-top: 1.6px solid currentColor;
+    border-bottom: 1.6px solid currentColor;
+  }
+  .se5000-end-bracket::before { left: -2px; border-left: 1.6px solid currentColor; }
+  .se5000-end-bracket::after { right: -2px; border-right: 1.6px solid currentColor; }
 
   /* El trozo que se puede mover en cada momento (fecha entera / solo hora / solo
-     minuto) — ver comentario del marcado junto a #se5000-manual-end-dual. Mismo
-     recuadro invertido que ya usa .jornada-selector-value en el resto de la app,
-     aplicado aquí solo al span concreto en vez de a toda la columna "fin". */
+     minuto / el símbolo mientras se elige actividad) — ver comentario del marcado
+     junto a #se5000-manual-end-fields. Mismo recuadro invertido que ya usa
+     .jornada-selector-value en el resto de la app, aplicado aquí solo al elemento
+     concreto en vez de a toda la columna. */
   .se5000-field-active {
     background: var(--se-display-fg);
     color: var(--se-display-bg);
@@ -1715,11 +1742,6 @@
     gap: 10px;
   }
 
-  #se5000-manual-end-start {
-    font-family: var(--font-display);
-    font-size: 11px;
-    color: var(--fg-dim);
-  }
 
   /* Mismo motivo que dsc-ok/addmanual-ok: el OK físico ya cicla esto (ver
      se5000ActiveNavTarget), y el LCD real nunca escribe "OK". */
@@ -1983,9 +2005,6 @@
       width: 16px;
       height: 16px;
     }
-    #se5000-manual-end-start {
-      font-size: 10px;
-    }
     .jornada-selector-arrows button {
       font-size: clamp(8px, 1.4vh, 11px);
     }
@@ -2147,51 +2166,40 @@
            mostraba una pantalla vacía en vez del registro. Fallo real, encontrado y
            corregido 2/9. -->
       <div id="se5000-manual-end-fields">
-        <!-- Campo "actividad": pictograma + etiqueta, como antes. -->
-        <div id="se5000-manual-end-start"></div>
-        <div class="jornada-selector-row">
-          <div id="se5000-manual-end-value" class="jornada-selector-value">
-            <!-- El pictograma de la actividad elegida se queda visible durante todo el
-                 resto del ciclo (fecha/hora/minuto), igual que en las capturas del manual
-                 — no desaparece al pasar al siguiente campo. -->
-            <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
-            <span id="se5000-manual-end-value-text">—</span>
+        <!-- Marco en corchete calcado del manual (p.22, capturas reales ampliadas al
+             máximo 3/9): punto "●" · [inicio en corchete] · guion · pictograma · guion ·
+             [fin en corchete] · pestaña "▶" cerrando el marco — nunca un simple texto en
+             dos columnas como tenía antes esta app (sin corchetes, sin punto, sin
+             guiones, sin pestaña). "Fin" y su guion previo solo existen desde que hay
+             algo que mostrar ahí (campo "fecha" en adelante) — en "actividad" el aparato
+             real solo muestra inicio + símbolo, ver renderSe5000Manual(). El pictograma
+             se resalta igual que un campo más (misma .se5000-field-active que fecha/
+             hora/minuto) mientras se está eligiendo la actividad, y deja de estarlo en
+             cuanto se pasa a fecha — así se ve en las capturas reales. -->
+        <div class="se5000-end-strip">
+          <span class="se5000-end-bullet" aria-hidden="true">●</span>
+          <div class="se5000-end-col se5000-end-bracket" id="se5000-manual-end-inicio-col">
+            <div id="se5000-manual-end-inicio-date"></div>
+            <div id="se5000-manual-end-inicio-time"></div>
           </div>
-          <!-- Campos "fecha"/"hora"/"minuto"/"confirmar": inicio y fin lado a lado,
-               inicio a la izquierda en plano y fin a la derecha en vídeo invertido — así
-               es como lo muestra de verdad el aparato (vídeo real, tutorial en vídeo, no
-               solo el manual en texto, 2/9: "13/11 16:21" fijo a la izquierda junto a
-               "16/11 16:01" resaltado a la derecha, nunca un único valor con "inicio:"
-               como texto aparte arriba, que es como lo tenía antes esta app). -->
-          <!-- Manual p.22, capturas reales ampliadas 3/9: la columna "fin" NO está
-               invertida entera — se ve exactamente igual que "inicio" (claro, sin
-               resaltar) salvo el trozo concreto que se puede mover en ese momento
-               (la fecha completa "18/03" en el paso de fecha; solo "18" en el de
-               hora; solo "00" en el de minuto), que aparece en un recuadro invertido
-               aparte. Antes toda la columna "fin" estaba siempre invertida de golpe,
-               sin distinguir qué parte movían las flechas — Hugo, 3/9: "no consigo
-               cambiar o seleccionar la hora o la fecha" era justo por esto, no había
-               forma de ver en qué campo estabas. -->
-          <div id="se5000-manual-end-dual" class="se5000-end-dual" hidden>
-            <div class="se5000-end-col">
-              <div id="se5000-manual-end-inicio-date"></div>
-              <div id="se5000-manual-end-inicio-time"></div>
-            </div>
-            <div class="se5000-end-col" id="se5000-manual-end-fin-col">
-              <div id="se5000-manual-end-fin-date"></div>
-              <div id="se5000-manual-end-fin-time"><span id="se5000-manual-end-fin-hour"></span>:<span id="se5000-manual-end-fin-minute"></span></div>
-            </div>
+          <span class="se5000-end-link" aria-hidden="true">─</span>
+          <svg class="se5000-pic" id="se5000-manual-end-pic" aria-hidden="true" hidden><use href="#pic-rest"></use></svg>
+          <span class="se5000-end-link" id="se5000-manual-end-link2" aria-hidden="true">─</span>
+          <div class="se5000-end-col se5000-end-bracket" id="se5000-manual-end-fin-col">
+            <div id="se5000-manual-end-fin-date"></div>
+            <div id="se5000-manual-end-fin-time"><span id="se5000-manual-end-fin-hour"></span>:<span id="se5000-manual-end-fin-minute"></span></div>
           </div>
-          <!-- Ninguna captura real del manual dibuja flechas ▲▼ dentro del LCD en estas
-               pantallas (ni en "marque el símbolo", ni en fecha/hora/minuto) — con el
-               físico ya conectado (se5000ActiveNavTarget) no hacen falta aquí. Se
-               quedan en el DOM para que el físico las siga pudiendo pulsar por debajo,
-               solo dejan de dibujarse. Hugo, 3/9: "al lado hay dos flechas que no
-               deben estar allí". -->
-          <div class="jornada-selector-arrows" id="se5000-manual-end-arrows">
-            <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
-            <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
-          </div>
+          <span class="se5000-end-tab" id="se5000-manual-end-tab" aria-hidden="true">▶</span>
+        </div>
+        <!-- Ninguna captura real del manual dibuja flechas ▲▼ dentro del LCD en estas
+             pantallas (ni en "marque el símbolo", ni en fecha/hora/minuto) — con el
+             físico ya conectado (se5000ActiveNavTarget) no hacen falta aquí. Se
+             quedan en el DOM para que el físico las siga pudiendo pulsar por debajo,
+             solo dejan de dibujarse. Hugo, 3/9: "al lado hay dos flechas que no
+             deben estar allí". -->
+        <div class="jornada-selector-arrows" id="se5000-manual-end-arrows">
+          <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
+          <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
         </div>
         <button id="se5000-manual-end-ok" type="button">OK</button>
       </div>
@@ -6972,17 +6980,17 @@
   var se5000ManualAddManualOkBtn = document.getElementById("se5000-manual-addmanual-ok");
   var se5000ManualEnteringEl = document.getElementById("se5000-manual-entering");
   var se5000ManualEndFieldsEl = document.getElementById("se5000-manual-end-fields");
-  var se5000ManualEndStartEl = document.getElementById("se5000-manual-end-start");
-  var se5000ManualEndValueEl = document.getElementById("se5000-manual-end-value");
-  var se5000ManualEndDualEl = document.getElementById("se5000-manual-end-dual");
+  var se5000ManualEndInicioColEl = document.getElementById("se5000-manual-end-inicio-col");
   var se5000ManualEndInicioDateEl = document.getElementById("se5000-manual-end-inicio-date");
   var se5000ManualEndInicioTimeEl = document.getElementById("se5000-manual-end-inicio-time");
+  var se5000ManualEndFinColEl = document.getElementById("se5000-manual-end-fin-col");
   var se5000ManualEndFinDateEl = document.getElementById("se5000-manual-end-fin-date");
   var se5000ManualEndFinTimeEl = document.getElementById("se5000-manual-end-fin-time");
   var se5000ManualEndFinHourEl = document.getElementById("se5000-manual-end-fin-hour");
   var se5000ManualEndFinMinuteEl = document.getElementById("se5000-manual-end-fin-minute");
+  var se5000ManualEndLink2El = document.getElementById("se5000-manual-end-link2");
+  var se5000ManualEndTabEl = document.getElementById("se5000-manual-end-tab");
   var se5000ManualEndPicEl = document.getElementById("se5000-manual-end-pic");
-  var se5000ManualEndValueTextEl = document.getElementById("se5000-manual-end-value-text");
   var se5000ManualEndDownBtn = document.getElementById("se5000-manual-end-down");
   var se5000ManualEndUpBtn = document.getElementById("se5000-manual-end-up");
   var se5000ManualEndOkBtn = document.getElementById("se5000-manual-end-ok");
@@ -7564,7 +7572,6 @@
     se5000ManualEndField = "activity";
   }
 
-  var SE5000_MANUAL_CLS_LABELS = { availability: "Disponibilidad", rest: "Descanso", other: "Otros trabajos" };
 
   function renderSe5000Manual() {
     // Reconstruido 1/9: qué se ve depende de la fase (ver comentario de se5000ManualPhase).
@@ -7641,21 +7648,21 @@
       se5000ManualEndPicEl.removeAttribute("hidden");
       setSe5000Pic(se5000ManualEndPicEl, SE5000_PICS[se5000ManualCls] || SE5000_PICS.rest);
       var isActivityField = se5000ManualEndField === "activity";
-      // Campo "actividad": pictograma + etiqueta, una sola caja de valor.
-      // Campos "fecha"/"hora"/"minuto"/"confirmar": inicio y fin lado a lado — inicio
-      // fijo en plano a la izquierda, fin en vídeo invertido a la derecha, los dos con
-      // fecha y hora completas siempre visibles (así lo muestra el vídeo real del
-      // aparato: "13/11 16:21" junto a "16/11 16:01", nunca un único valor con
-      // "inicio:" como línea de texto aparte, que es como lo tenía antes esta app).
-      se5000ManualEndValueEl.hidden = !isActivityField;
-      se5000ManualEndDualEl.hidden = isActivityField;
-      se5000ManualEndStartEl.hidden = !isActivityField;
-      if (isActivityField) {
-        se5000ManualEndStartEl.textContent = "inicio: " + fmtLocalDateTime(se5000ManualCursor);
-        se5000ManualEndValueTextEl.textContent = SE5000_MANUAL_CLS_LABELS[se5000ManualCls];
-      } else {
-        se5000ManualEndInicioDateEl.textContent = fmtDM(se5000ManualCursor);
-        se5000ManualEndInicioTimeEl.textContent = fmtHM(se5000ManualCursor);
+      // "Inicio" + el pictograma se ven siempre (manual p.22: el símbolo ya sale en el
+      // primer paso, "marque el símbolo", junto al inicio del tramo). "Fin" — y el
+      // guion que lo une al pictograma, y la pestaña que cierra el marco — solo desde
+      // que hay algo que mostrar ahí: el campo "fecha" en adelante, nunca durante
+      // "actividad" (esa captura del manual no tiene columna derecha todavía).
+      se5000ManualEndFinColEl.hidden = isActivityField;
+      se5000ManualEndLink2El.hidden = isActivityField;
+      se5000ManualEndTabEl.hidden = isActivityField;
+      // El símbolo se resalta como un campo más (mismo .se5000-field-active que fecha/
+      // hora/minuto) mientras es lo que se está eligiendo — deja de estarlo en cuanto
+      // se avanza a fecha, igual que en las capturas reales.
+      se5000ManualEndPicEl.classList.toggle("se5000-field-active", isActivityField);
+      se5000ManualEndInicioDateEl.textContent = fmtDM(se5000ManualCursor);
+      se5000ManualEndInicioTimeEl.textContent = fmtHM(se5000ManualCursor);
+      if (!isActivityField) {
         se5000ManualEndFinDateEl.textContent = fmtDM(se5000ManualEndDraft);
         var finD = new Date(se5000ManualEndDraft);
         se5000ManualEndFinHourEl.textContent = String(finD.getHours()).padStart(2, "0");
