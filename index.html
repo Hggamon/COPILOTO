@@ -1522,6 +1522,17 @@
     text-align: center;
   }
 
+  /* #se5000-manual-rest es un <button> real (a diferencia del resto de .se5000-tray-hint,
+     que son solo texto) — quita el aspecto por defecto del navegador para que se vea
+     igual que los demás avisos de esta franja. */
+  button#se5000-manual-rest {
+    background: none;
+    border: none;
+    padding: 0.3em 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
   /* --- Entradas manuales al iniciar, actividad por actividad --- */
   #se5000-manual {
     width: min(92vw, 420px);
@@ -2161,9 +2172,6 @@
           </div>
         </div>
         <button id="se5000-manual-end-ok" type="button">OK</button>
-        <div id="se5000-manual-actions">
-          <button id="se5000-manual-rest" type="button">el resto fue así</button>
-        </div>
       </div>
       <!-- Manual p.21-22: "podrá volver atrás y cambiar sus entradas manuales usando el
            botón Atrás en cualquier momento". El aparato real tiene un botón Atrás físico
@@ -2313,7 +2321,7 @@
       </div>
     </div>
     <div id="jornada-manual" hidden>
-      <div id="jornada-manual-note" class="status-pill"></div>
+      <div id="jornada-manual-note" class="status-pill">¿algo que añadir antes de retomar?</div>
       <button id="jornada-manual-none" type="button">Nada que añadir</button>
     </div>
   </div>
@@ -2458,6 +2466,16 @@
        en la pantalla del tacógrafo). Vive aquí, fuera del bisel, igual que el resto de
        avisos de la app — nunca dentro de .se5000-display. -->
   <div class="se5000-tray-hint" id="se5000-manual-summary" hidden></div>
+  <!-- "El resto fue así" — atajo propio de esta app (Hugo, 3/9: no existe en el aparato
+       real, tampoco tiene botón físico equivalente entre los cuatro de siempre) — mismo
+       motivo que "por repartir" arriba, fuera del bisel en vez de dentro del LCD
+       simulado. -->
+  <button class="se5000-tray-hint" id="se5000-manual-rest" type="button" hidden>el resto fue así</button>
+  <!-- "Hay un hueco sin clasificar arriba, resuélvelo primero" — aviso propio de esta
+       app (Hugo, 3/9: no es texto del aparato real), antes mezclado dentro del mismo
+       status-pill que "¿algo que añadir antes de retomar?" en #jornada-manual. Mismo
+       criterio que el resto de esta franja: fuera del LCD simulado. -->
+  <div class="se5000-tray-hint" id="se5000-manual-gap-hint" hidden>hay un hueco sin clasificar arriba — resuélvelo primero</div>
 </div>
 
 <div id="status-pills">
@@ -2836,6 +2854,7 @@
   var jornadaManualEl = document.getElementById("jornada-manual");
   var jornadaManualNoteEl = document.getElementById("jornada-manual-note");
   var jornadaManualNoneBtn = document.getElementById("jornada-manual-none");
+  var se5000ManualGapHintEl = document.getElementById("se5000-manual-gap-hint");
   var pauseClassifyAnchor = document.getElementById("pause-classify-anchor");
   var gapClassifyAnchor = document.getElementById("gap-classify-anchor");
   var jornadaDialogAnchor = document.getElementById("jornada-dialog-anchor");
@@ -5357,6 +5376,7 @@
       jornadaAskEl.hidden = true;
       jornadaCountryEl.hidden = true;
       jornadaManualEl.hidden = true;
+      se5000ManualGapHintEl.hidden = true;
       se5000SyncDialogDocks();
       // País/comunidad preguntados por adelantado dentro de la propia entrada manual
       // (ver enterSe5000ManualPaisPrompt) — al terminar este diálogo, retoma justo donde
@@ -5376,11 +5396,9 @@
       if (!jornadaRegionBlockEl.hidden) renderJornadaRegionSelector();
     }
     if (jornadaDialogStep === "manual") {
-      jornadaManualNoteEl.textContent = unobservedGap
-        ? "hay un hueco sin clasificar arriba — resuélvelo primero"
-        : "¿algo que añadir antes de retomar?";
       jornadaManualNoneBtn.hidden = !!unobservedGap;
     }
+    se5000ManualGapHintEl.hidden = !(jornadaDialogStep === "manual" && unobservedGap);
     se5000SyncDialogDocks();
   }
 
@@ -6929,7 +6947,6 @@
   var se5000ManualEndOkBtn = document.getElementById("se5000-manual-end-ok");
   var se5000ManualRestBtn = document.getElementById("se5000-manual-rest");
   var se5000ManualLogEl = document.getElementById("se5000-manual-log");
-  var se5000ManualActionsEl = document.getElementById("se5000-manual-actions");
   var se5000ManualUndoBtn = document.getElementById("se5000-manual-undo");
   var se5000ManualImprimirEl = document.getElementById("se5000-manual-imprimir");
   var se5000ManualImprimirRowEl = document.getElementById("se5000-manual-imprimir-row");
@@ -7537,8 +7554,9 @@
     se5000ManualUndoBtn.hidden = !(betweenTramos && se5000ManualSegments.length > 0);
     se5000ManualLogEl.hidden = !(betweenTramos || changelist);
     // El atajo tampoco hace falta a mitad de ajustar una cifra — solo tiene sentido
-    // antes de empezar (o entre un tramo y el siguiente).
-    se5000ManualActionsEl.hidden = !betweenTramos;
+    // antes de empezar (o entre un tramo y el siguiente). Vive fuera del bisel (ver su
+    // marcado) así que se controla igual que se5000TrayHintEl/se5000ManualSummaryEl.
+    se5000ManualRestBtn.hidden = !betweenTramos;
     se5000ManualImprimirEl.hidden = se5000ManualPhase !== "imprimir";
     se5000ManualConfirmEl.hidden = se5000ManualPhase !== "confirm";
     se5000ManualNochoiceEl.hidden = se5000ManualPhase !== "nochoice";
@@ -8471,6 +8489,42 @@
     se5000MenuListEl.appendChild(row);
   }
 
+  // Fallo real, encontrado 3/9 (Hugo: "no te puedes mover con las flechas de afuera del
+  // tacógrafo, tienes que hacerlo con las que están dentro de la pantalla"): los botones
+  // físicos ▲▼OK de debajo del display solo sabían mover el carrusel DDS o el menú — el
+  // resto de diálogos (¿Dsc. hasta ahora?, entrada manual, país de inicio...) solo se
+  // podían tocar directamente en sus propias flechas pequeñas DENTRO del LCD simulado.
+  // En el aparato real es al revés: esas flechas pequeñas son solo dibujo (parte del
+  // contenido de la pantalla, no un botón aparte) — todo se maneja siempre con los
+  // cuatro botones físicos de abajo. Esta función centraliza "qué manejador de ▲/▼/OK
+  // toca ahora mismo" según qué esté realmente en pantalla, y los botones físicos
+  // delegan en él en vez de duplicar cada rama de cada diálogo.
+  function se5000ActiveNavTarget() {
+    if (jornadaDialogStep === "ask") {
+      return { up: jornadaAskUpBtn, down: jornadaAskDownBtn, ok: jornadaAskOkBtn };
+    }
+    if (jornadaDialogStep === "country") {
+      if (!jornadaRegionBlockEl.hidden) return { up: jornadaRegionUpBtn, down: jornadaRegionDownBtn, ok: jornadaRegionOkBtn };
+      return { up: jornadaCountryUpBtn, down: jornadaCountryDownBtn, ok: jornadaCountryOkBtn };
+    }
+    if (jornadaDialogStep === "manual") {
+      return { up: null, down: null, ok: jornadaManualNoneBtn };
+    }
+    if (se5000ActiveFlow !== null) {
+      if (se5000ManualPhase === "dsc") return { up: se5000ManualDscUpBtn, down: se5000ManualDscDownBtn, ok: se5000ManualDscOkBtn };
+      if (se5000ManualPhase === "addmanual") return { up: se5000ManualAddManualUpBtn, down: se5000ManualAddManualDownBtn, ok: se5000ManualAddManualOkBtn };
+      if (se5000ManualPhase === "entering") return { up: se5000ManualEndUpBtn, down: se5000ManualEndDownBtn, ok: se5000ManualEndOkBtn };
+      if (se5000ManualPhase === "imprimir") return { up: se5000ManualImprimirUpBtn, down: se5000ManualImprimirDownBtn, ok: se5000ManualImprimirOkBtn };
+      if (se5000ManualPhase === "confirm") return { up: se5000ManualConfirmUpBtn, down: se5000ManualConfirmDownBtn, ok: se5000ManualConfirmOkBtn };
+      // "nochoice"/"changelist"/"listo"/"pais-wait": sin equivalente físico de ▲▼ (son
+      // dos botones de texto o una lista, no un ciclo de un solo valor) — de momento
+      // siguen tocándose directo en pantalla, como el resto de la app antes de este
+      // arreglo. Pendiente de revisar con más calma.
+      return { up: null, down: null, ok: null };
+    }
+    return null;
+  }
+
   se5000NavBack.addEventListener("click", function (e) {
     e.stopPropagation();
     // El país de fin pendiente manda sobre todo lo demás del marco físico — A4, 27/8:
@@ -8484,7 +8538,7 @@
     // El resto de fases de la entrada manual (dsc/addmanual/imprimir/confirm/nochoice/
     // changelist) son preguntas de Sí/No/OK sin equivalente de "deshacer" en el manual —
     // ↩ no hace nada ahí en vez de colarse hasta el carrusel de DDS por debajo.
-    if (se5000ActiveFlow !== null) { return; }
+    if (se5000ActiveFlow !== null || jornadaDialogStep !== null) { return; }
     if (se5000MenuStack.length) { se5000MenuBack(); return; }
     ddsScreenIndex = 0;
     renderDdsScreen();
@@ -8493,6 +8547,8 @@
   se5000NavUp.addEventListener("click", function (e) {
     e.stopPropagation();
     if (pendingEjectDriver !== null) { ejectCountryMove(-1); return; }
+    var target = se5000ActiveNavTarget();
+    if (target) { if (target.up) target.up.click(); return; }
     if (se5000MenuStack.length) { se5000MenuMove(-1); return; }
     tgDdsUpBtn.click();
     renderSe5000View();
@@ -8500,6 +8556,8 @@
   se5000NavDown.addEventListener("click", function (e) {
     e.stopPropagation();
     if (pendingEjectDriver !== null) { ejectCountryMove(1); return; }
+    var target = se5000ActiveNavTarget();
+    if (target) { if (target.down) target.down.click(); return; }
     if (se5000MenuStack.length) { se5000MenuMove(1); return; }
     tgDdsDownBtn.click();
     renderSe5000View();
@@ -8514,6 +8572,8 @@
   }
   function se5000NavOkTap() {
     if (pendingEjectDriver !== null) { ejectCountryOk(); return; }
+    var target = se5000ActiveNavTarget();
+    if (target) { if (target.ok) target.ok.click(); return; }
     if (se5000MenuStack.length) { se5000MenuOk(); return; }
     // Manual p.15: el menú solo se abre con el vehículo parado — en marcha, OK no hace
     // nada, igual que en el aparato real ("por razones de seguridad de tráfico...").
