@@ -6820,6 +6820,28 @@
   var VIEW_MODE_KEY = "copiloto-vista-se5000";
   var QUIET_SINCE_KEY = "copiloto-quieto-desde";
   var QUIET_SINCE_KEY_2 = "copiloto-quieto-desde-2";
+
+  // Ayuda de prueba, solo para Hugo (3/9): abrir con "?probar=ayer1830" en la URL
+  // simula que la última vez que se sacó la tarjeta fue ayer a las 18:30, para poder
+  // rellenar entradas manuales con un hueco de horas real en vez de tener que esperar
+  // de verdad — el mismo truco que se ha usado para probar cada arreglo de esta sesión
+  // (localStorage[QUIET_SINCE_KEY] a una fecha pasada), ahora sin tocar la consola del
+  // navegador. Se consume una sola vez (borra el parámetro de la URL) para no dejar la
+  // simulación pegada en visitas futuras — no es una función del tacógrafo real, solo
+  // un atajo de esta app para poder probar.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    if (params.get("probar") === "ayer1830") {
+      var d = new Date();
+      d.setDate(d.getDate() - 1);
+      d.setHours(18, 30, 0, 0);
+      localStorage.setItem(QUIET_SINCE_KEY, String(d.getTime()));
+      params.delete("probar");
+      var qs = params.toString();
+      history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+    }
+  })();
+
   var se5000Mode = localStorage.getItem(VIEW_MODE_KEY) === "on";
   // Qué conductor está a mitad de meter la tarjeta ahora mismo: null (nadie, se ve la
   // pantalla pasiva de reposo) | 1 | 2. Sustituye a la vieja se5000SetupPhase — ahora
