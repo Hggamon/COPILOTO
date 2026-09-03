@@ -1035,10 +1035,16 @@
 
   /* Todo lo que viva dentro del dock se reduce a la escala del display — los mismos
      diálogos, en la pantalla grande clásica, usan tamaños pensados para ocupar toda la
-     pantalla del teléfono; aquí tienen que caber en una franja pequeña. */
+     pantalla del teléfono; aquí tienen que caber en la franja del LCD. Tamaños subidos
+     3/9 (Hugo: "el display es muy grande, el problema es que lo de dentro es muy
+     pequeño") — el ancho del bisel no cambió, pero el alto sí, mucho: estos clamp()
+     seguían con el máximo pensado para el dock minúsculo de antes de agrandar la
+     pantalla, así que quedaba letra de 6-8px flotando en un hueco enorme. El ancho
+     sigue siendo el límite real (por eso el máximo de cada clamp no se dispara sin
+     más), pero ya no hace falta que sea tan conservador. */
   #se5000-dialog-dock .status-pill {
-    font-size: clamp(6px, 1.4vw, 8px);
-    padding: 2px 5px;
+    font-size: clamp(10px, 2.4vw, 14px);
+    padding: 3px 7px;
     border-radius: 4px;
     max-width: 100%;
   }
@@ -1046,14 +1052,12 @@
   /* #pause-status y #gap-status tienen su propia regla por id (clamp(13px,2.6vw,16px) y
      similar) pensada para la pantalla clásica a tamaño completo — esa regla por id gana
      por especificidad a .status-pill de arriba, así que nunca se encogían aquí dentro.
-     Encontrado inspeccionando el bezel real a 390px de ancho (1/9): el texto largo de
-     "a la espera de movimiento · faltan Xh Ymin para 9h" desbordaba el display entero y
-     descuadraba el marco (se veía casi el doble de alto de lo que marca su aspect-ratio
-     31/10). Mismo tamaño que ya usa .status-pill aquí dentro, para que quepa. */
+     Mismo tamaño que .status-pill aquí dentro, para que quepa el texto largo de
+     "a la espera de movimiento · faltan Xh Ymin para 9h". */
   #se5000-dialog-dock #pause-status,
   #se5000-dialog-dock #gap-status {
-    font-size: clamp(6px, 1.4vw, 8px);
-    padding: 2px 5px;
+    font-size: clamp(10px, 2.4vw, 14px);
+    padding: 3px 7px;
     border-radius: 4px;
     max-width: 100%;
     margin-top: 0;
@@ -1068,50 +1072,50 @@
      tamaño completo, no para la franja del bezel. */
   #se5000-dialog-dock #se5000-manual {
     width: 100%;
-    gap: 2px;
+    gap: 5px;
   }
   #se5000-dialog-dock #se5000-manual-entering,
   #se5000-dialog-dock #se5000-manual-end-fields {
-    gap: 1px;
+    gap: 4px;
   }
   #se5000-dialog-dock #se5000-manual-end-pic {
-    width: 12px;
-    height: 12px;
+    width: 18px;
+    height: 18px;
   }
   #se5000-dialog-dock #se5000-manual-actions button,
   #se5000-dialog-dock #se5000-manual-undo {
-    font-size: clamp(5px, 1.2vw, 7px);
-    padding: 0.35em 0.4em;
+    font-size: clamp(9px, 1.9vw, 12px);
+    padding: 0.35em 0.5em;
   }
   #se5000-dialog-dock #se5000-manual-end-start {
-    font-size: clamp(5px, 1.1vw, 6.5px);
+    font-size: clamp(8px, 1.7vw, 11px);
   }
   #se5000-dialog-dock #se5000-manual-end-value {
-    font-size: clamp(6px, 1.4vw, 7.5px);
+    font-size: clamp(11px, 2.3vw, 15px);
     min-width: 0;
   }
   #se5000-dialog-dock .se5000-end-dual {
-    gap: 4px;
+    gap: 6px;
   }
   #se5000-dialog-dock .se5000-end-col {
-    font-size: clamp(6px, 1.4vw, 7.5px);
-    line-height: 1.15;
+    font-size: clamp(11px, 2.3vw, 15px);
+    line-height: 1.2;
     min-width: 0;
   }
   #se5000-dialog-dock #se5000-manual-end-fin-col {
     padding: 0 0.3em;
   }
   #se5000-dialog-dock #se5000-manual-end-ok {
-    font-size: clamp(5px, 1.2vw, 7px);
+    font-size: clamp(9px, 1.9vw, 12px);
     padding: 0.35em 0.6em;
   }
   #se5000-dialog-dock #se5000-manual-imprimir-notice {
-    font-size: clamp(5px, 1.1vw, 6.5px);
+    font-size: clamp(8px, 1.7vw, 11px);
   }
   #se5000-dialog-dock #se5000-manual-log,
   #se5000-dialog-dock .se5000-manual-log-row {
-    font-size: clamp(5px, 1.1vw, 6.5px);
-    max-height: 8vh;
+    font-size: clamp(8px, 1.7vw, 11px);
+    max-height: 16vh;
   }
 
   #se5000-dialog-dock #pause-classify,
@@ -1133,19 +1137,19 @@
     gap: 0;
   }
   #se5000-dialog-dock .jornada-selector-arrows button {
-    font-size: clamp(4.5px, 1vw, 6px);
+    font-size: clamp(7px, 1.5vw, 10px);
     line-height: 1;
     padding: 0 2px;
   }
 
   /* "Descanso de 9h+ detectado · ¿inicias jornada nueva?" es el texto de status-pill más
-     largo de todos los que viven en el dock — a dos líneas dentro del display minúsculo,
-     desbordaba el marco (encontrado 2/9 con el mismo scrollHeight vs clientHeight que el
-     resto de estas correcciones). line-height más ajustado, sin tocar el tamaño de letra
-     ni el texto en sí. */
+     largo de todos los que viven en el dock — con el display grande (3/9) ya cabe a dos
+     líneas sin desbordar el marco, con el mismo tamaño que el resto de .status-pill del
+     dock; el line-height algo más ajustado es solo para las dos líneas, no para
+     compensar falta de sitio como antes. */
   #se5000-dialog-dock #jornada-ask .status-pill {
-    font-size: clamp(5px, 1.1vw, 6.5px);
-    line-height: 1.05;
+    font-size: clamp(10px, 2.4vw, 14px);
+    line-height: 1.15;
     padding: 0 5px;
   }
 
@@ -1153,8 +1157,8 @@
      redondeadas ni sombras, solo caracteres. border-radius:0 pisa cualquier redondeo que
      el botón tuviera para la vista clásica (ahí sí puede seguir siendo un botón normal). */
   #se5000-dialog-dock button {
-    font-size: clamp(6px, 1.4vw, 8px);
-    padding: 1px 3px;
+    font-size: clamp(9px, 1.9vw, 12px);
+    padding: 2px 4px;
     border-radius: 0;
     background: transparent;
     border: none;
@@ -1166,17 +1170,17 @@
   #se5000-dialog-dock button::after { content: "]"; }
 
   #se5000-dialog-dock .jornada-selector {
-    gap: 2px;
-    margin-top: 1px;
+    gap: 3px;
+    margin-top: 2px;
   }
 
   #se5000-dialog-dock .jornada-selector-label,
   #se5000-dialog-dock #gap-classify-label {
-    font-size: clamp(5px, 1.1vw, 6.5px);
+    font-size: clamp(8px, 1.6vw, 10px);
   }
 
   #se5000-dialog-dock .jornada-selector-value {
-    font-size: clamp(6.5px, 1.5vw, 8.5px);
+    font-size: clamp(10px, 2.2vw, 13px);
     min-width: 8ch;
   }
 
@@ -1574,6 +1578,17 @@
     padding: 0.05em 0.4em;
   }
 
+  /* El trozo que se puede mover en cada momento (fecha entera / solo hora / solo
+     minuto) — ver comentario del marcado junto a #se5000-manual-end-dual. Mismo
+     recuadro invertido que ya usa .jornada-selector-value en el resto de la app,
+     aplicado aquí solo al span concreto en vez de a toda la columna "fin". */
+  .se5000-field-active {
+    background: var(--se-display-fg);
+    color: var(--se-display-bg);
+    padding: 0 0.1em;
+    border-radius: 1px;
+  }
+
   #se5000-manual-rest {
     background: var(--accent);
     color: var(--accent-fg);
@@ -1709,6 +1724,12 @@
   /* Mismo motivo que dsc-ok/addmanual-ok: el OK físico ya cicla esto (ver
      se5000ActiveNavTarget), y el LCD real nunca escribe "OK". */
   #se5000-manual-end-ok {
+    display: none;
+  }
+
+  /* Ninguna captura real del manual dibuja flechas ▲▼ en el LCD — ver comentario del
+     marcado. Igual que -ok arriba: sigue en el DOM para el físico, solo no se dibuja. */
+  #se5000-manual-end-arrows {
     display: none;
   }
 
@@ -2133,17 +2154,32 @@
                solo el manual en texto, 2/9: "13/11 16:21" fijo a la izquierda junto a
                "16/11 16:01" resaltado a la derecha, nunca un único valor con "inicio:"
                como texto aparte arriba, que es como lo tenía antes esta app). -->
+          <!-- Manual p.22, capturas reales ampliadas 3/9: la columna "fin" NO está
+               invertida entera — se ve exactamente igual que "inicio" (claro, sin
+               resaltar) salvo el trozo concreto que se puede mover en ese momento
+               (la fecha completa "18/03" en el paso de fecha; solo "18" en el de
+               hora; solo "00" en el de minuto), que aparece en un recuadro invertido
+               aparte. Antes toda la columna "fin" estaba siempre invertida de golpe,
+               sin distinguir qué parte movían las flechas — Hugo, 3/9: "no consigo
+               cambiar o seleccionar la hora o la fecha" era justo por esto, no había
+               forma de ver en qué campo estabas. -->
           <div id="se5000-manual-end-dual" class="se5000-end-dual" hidden>
             <div class="se5000-end-col">
               <div id="se5000-manual-end-inicio-date"></div>
               <div id="se5000-manual-end-inicio-time"></div>
             </div>
-            <div class="se5000-end-col jornada-selector-value" id="se5000-manual-end-fin-col">
+            <div class="se5000-end-col" id="se5000-manual-end-fin-col">
               <div id="se5000-manual-end-fin-date"></div>
-              <div id="se5000-manual-end-fin-time"></div>
+              <div id="se5000-manual-end-fin-time"><span id="se5000-manual-end-fin-hour"></span>:<span id="se5000-manual-end-fin-minute"></span></div>
             </div>
           </div>
-          <div class="jornada-selector-arrows">
+          <!-- Ninguna captura real del manual dibuja flechas ▲▼ dentro del LCD en estas
+               pantallas (ni en "marque el símbolo", ni en fecha/hora/minuto) — con el
+               físico ya conectado (se5000ActiveNavTarget) no hacen falta aquí. Se
+               quedan en el DOM para que el físico las siga pudiendo pulsar por debajo,
+               solo dejan de dibujarse. Hugo, 3/9: "al lado hay dos flechas que no
+               deben estar allí". -->
+          <div class="jornada-selector-arrows" id="se5000-manual-end-arrows">
             <button id="se5000-manual-end-up" type="button" aria-label="subir">▲</button>
             <button id="se5000-manual-end-down" type="button" aria-label="bajar">▼</button>
           </div>
@@ -6934,6 +6970,8 @@
   var se5000ManualEndInicioTimeEl = document.getElementById("se5000-manual-end-inicio-time");
   var se5000ManualEndFinDateEl = document.getElementById("se5000-manual-end-fin-date");
   var se5000ManualEndFinTimeEl = document.getElementById("se5000-manual-end-fin-time");
+  var se5000ManualEndFinHourEl = document.getElementById("se5000-manual-end-fin-hour");
+  var se5000ManualEndFinMinuteEl = document.getElementById("se5000-manual-end-fin-minute");
   var se5000ManualEndPicEl = document.getElementById("se5000-manual-end-pic");
   var se5000ManualEndValueTextEl = document.getElementById("se5000-manual-end-value-text");
   var se5000ManualEndDownBtn = document.getElementById("se5000-manual-end-down");
@@ -7610,7 +7648,17 @@
         se5000ManualEndInicioDateEl.textContent = fmtDM(se5000ManualCursor);
         se5000ManualEndInicioTimeEl.textContent = fmtHM(se5000ManualCursor);
         se5000ManualEndFinDateEl.textContent = fmtDM(se5000ManualEndDraft);
-        se5000ManualEndFinTimeEl.textContent = fmtHM(se5000ManualEndDraft);
+        var finD = new Date(se5000ManualEndDraft);
+        se5000ManualEndFinHourEl.textContent = String(finD.getHours()).padStart(2, "0");
+        se5000ManualEndFinMinuteEl.textContent = String(finD.getMinutes()).padStart(2, "0");
+        // Manual p.22, capturas reales: solo el trozo que se puede mover ahora mismo
+        // aparece invertido (la fecha entera en el paso "fecha", solo la hora en
+        // "hora", solo el minuto en "minuto") — el resto de la columna "fin" se ve
+        // igual que "inicio", en plano. Nada resaltado durante "confirmar": ya no se
+        // está ajustando ninguna cifra, solo queda pulsar OK.
+        se5000ManualEndFinDateEl.classList.toggle("se5000-field-active", se5000ManualEndField === "date");
+        se5000ManualEndFinHourEl.classList.toggle("se5000-field-active", se5000ManualEndField === "hour");
+        se5000ManualEndFinMinuteEl.classList.toggle("se5000-field-active", se5000ManualEndField === "minute");
       }
     }
 
