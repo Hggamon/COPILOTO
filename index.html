@@ -4107,12 +4107,42 @@
     driver2PillEl.hidden = false;
   }
 
-  function switchActiveDriver(target) {
+  // Fallo real, encontrado 4/9 probando en el móvil (Hugo: sacó la tarjeta 1, no le
+  // dejaba sacar la 2 porque "está en marcha" aunque llevaba rato en disponibilidad).
+  // Causa: performEject() llamaba a esta función solo para ENSEÑAR los datos del
+  // conductor 2 en la pantalla compartida (ya no queda tarjeta 1 que mostrar) — pero la
+  // función también asume "el que entra empieza a conducir" y reanuda al que llega si
+  // estaba pausado. Sin tarjeta 1, sacar la 2 sí es un relevo real; cuando solo se saca
+  // la 1 y la 2 sigue igual que estaba, no lo es. `displayOnly` separa las dos cosas:
+  // cambia qué conductor se ve, sin tocar el estado real de ninguno de los dos.
+  function switchActiveDriver(target, displayOnly) {
     if (target !== 1 && target !== 2) return;
     if (target === activeDriver) return;
     var outgoing = activeDriver;
     activeDriver = target;
     saveDoubleCrew();
+
+    if (displayOnly) {
+      if (target === 2 && deadline2 !== null) {
+        if (paused2) {
+          clockEl.textContent = formatRemaining(pausedRemainingMs2);
+          paintState(pausedRemainingMs2, pausedRemainingMs2 <= 0 ? Date.now() - deadline2 : 0);
+          renderPauseUI(paused2, pauseSource2, pauseClassification2);
+        } else {
+          tick2("switch");
+        }
+      } else if (target === 1 && deadline !== null) {
+        if (paused) {
+          clockEl.textContent = formatRemaining(pausedRemainingMs);
+          paintState(pausedRemainingMs, pausedRemainingMs <= 0 ? Date.now() - deadline : 0);
+          renderPauseUI(paused, pauseSource, pauseClassification);
+        } else {
+          tick("switch");
+        }
+      }
+      renderDoubleCrewUI();
+      return;
+    }
 
     // El que deja de conducir se pausa (si no lo estaba ya) con disponibilidad por
     // defecto — mientras el otro conduce, es disponibilidad por definición (art. 4). Si
@@ -7746,7 +7776,7 @@
         // El compañero sigue con la tarjeta puesta (orden recomendado: 1 antes que 2) —
         // la pantalla pasa a mostrar sus números, sin volver a la pantalla de ajuste. El
         // aparato real sigue funcionando con la tarjeta que queda dentro.
-        if (activeDriver !== 2) switchActiveDriver(2);
+        if (activeDriver !== 2) switchActiveDriver(2, true);
         renderDoubleCrewUI();
       } else {
         countdownScreen.hidden = true;
