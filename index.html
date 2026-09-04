@@ -865,12 +865,18 @@
        selector de país/comunidad) — todos los tamaños y tipografías nuevos de esta
        pieza, agrupados aquí en un solo sitio para poder ajustarlos sin tocar la
        estructura (Hugo, 1/9). Misma escala que ya usaba .se5000-display-title/-sub. */
-    --se-menu-title-fs: clamp(5.5px, 1.2vw, 7px);
-    --se-menu-item-fs: clamp(6px, 1.5vw, 8px);
-    --se-menu-notice-fs: clamp(5.5px, 1.2vw, 7px);
+    /* Recalibrado 4/9: estos tamaños se fijaron cuando el LCD ocupaba el 46% del bisel
+       (antes del rediseño del 3/9, que lo llevó al 100%) y nunca se habían vuelto a
+       tocar — Hugo probando en el móvil: "el display grande [pero] las letras quedan
+       pequeñas... cuesta ver lo que pone y los pictogramas". Mismo ×2.5 aprox. en
+       min/preferido/máximo de cada uno, para conservar la forma de cada clamp() tal
+       cual estaba, solo escalada al tamaño real del display de hoy. */
+    --se-menu-title-fs: clamp(14px, 3.1vw, 18px);
+    --se-menu-item-fs: clamp(15px, 3.9vw, 20px);
+    --se-menu-notice-fs: clamp(14px, 3.1vw, 18px);
     --se-menu-gap: clamp(1px, 0.4vh, 2px);
     --se-menu-pad: clamp(3px, 1vh, 6px);
-    --se-key-activity-fs: clamp(7px, 1.9vw, 10px);
+    --se-key-activity-fs: clamp(18px, 4.9vw, 26px);
     --se-key-activity-size: clamp(20px, 5.5vw, 26px);
   }
 
@@ -1246,7 +1252,7 @@
 
   .se5000-display-title {
     font-family: var(--font-label);
-    font-size: clamp(5.5px, 1.2vw, 7px);
+    font-size: clamp(14px, 3.2vw, 18px);
     text-transform: uppercase;
     letter-spacing: 0.02em;
     color: var(--se-display-dim);
@@ -1257,7 +1263,7 @@
 
   .se5000-display-sub {
     font-family: var(--font-display);
-    font-size: clamp(5px, 1.1vw, 6.5px);
+    font-size: clamp(13px, 2.8vw, 16px);
     color: var(--se-display-dim);
     white-space: pre-line;
     line-height: 1.25;
