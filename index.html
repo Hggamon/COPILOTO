@@ -694,6 +694,27 @@
     width: 100%;
   }
 
+  #driver-names-block {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    max-width: 60ch;
+    margin: 0 auto 10px;
+    width: 100%;
+  }
+
+  #driver-names-block input {
+    font-family: inherit;
+    font-size: inherit;
+    text-align: center;
+    outline: none;
+  }
+
+  #driver-names-block input::placeholder {
+    color: var(--fg-dim);
+  }
+
   #ayuda-pills .status-pill {
     text-align: center;
     position: static;
@@ -1671,7 +1692,8 @@
   #se5000-manual-imprimir,
   #se5000-manual-listo,
   #se5000-manual-finalturno,
-  #se5000-manual-iniciojorna {
+  #se5000-manual-iniciojorna,
+  #se5000-manual-greeting {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1679,7 +1701,9 @@
   }
 
   #se5000-manual-finalturno-when,
-  #se5000-manual-iniciojorna-when {
+  #se5000-manual-iniciojorna-when,
+  #se5000-manual-greeting-label,
+  #se5000-manual-greeting-when {
     font-family: var(--font-label);
     font-size: 13px;
   }
@@ -2276,6 +2300,18 @@
       <div id="se5000-manual-iniciojorna-when"></div>
       <div class="status-pill">inicio jorna.</div>
     </div>
+    <!-- Saludo con nombre — 4/9, no está en el manual: el aparato real identifica la
+         tarjeta por su chip solo, sin preguntar nada. Aquí, a falta de chip, sustituye esa
+         identificación por un nombre puesto una vez (Ayuda). Se salta entero (nunca se
+         muestra esta fase) si esa tarjeta no tiene nombre puesto — nunca obliga a
+         rellenarlo. "Última extr. tarjeta" es un dato real que la app ya calculaba
+         (se5000ManualQuietSince, usado también por "final turno"), solo faltaba
+         mostrarlo aquí. -->
+    <div id="se5000-manual-greeting" hidden>
+      <div id="se5000-manual-greeting-name" class="status-pill"></div>
+      <div id="se5000-manual-greeting-label">Última extr. tarjeta</div>
+      <div id="se5000-manual-greeting-when"></div>
+    </div>
   </div>
 
   <div id="diag-panel" hidden></div>
@@ -2537,6 +2573,14 @@
 
 <div id="ayuda" class="screen" hidden>
   <div id="ayuda-title">Ayuda — resumen del conductor</div>
+  <!-- Nombre de cada conductor — 4/9, no existe en el manual (el aparato real identifica
+       la tarjeta por su chip, sin preguntar nada). Aquí sustituye esa identificación:
+       opcional, se guarda solo, y alimenta el saludo de la entrada manual y las etiquetas
+       de la bitácora (ver driverName/driverName2, describeJornadaHTML). -->
+  <div id="driver-names-block">
+    <input id="driver-name-input" class="status-pill" type="text" maxlength="40" placeholder="Nombre conductor 1 (opcional)">
+    <input id="driver-name-input-2" class="status-pill" type="text" maxlength="40" placeholder="Nombre conductor 2 (opcional)">
+  </div>
   <div id="ayuda-pills">
     <div id="jornada-status" class="status-pill" hidden></div>
     <div id="reduced-rests" class="status-pill">reducidos usados: 0 de 3</div>
@@ -2551,6 +2595,16 @@
     <div id="week-drive-2" class="status-pill" hidden></div>
     <div id="biweek-drive-2" class="status-pill" hidden></div>
     <div id="comp-pending-2" class="status-pill" hidden></div>
+    <!-- Intercambio de bandejas — 4/9, no es un botón del aparato real (ahí es sacar y
+         meter las tarjetas con la mano, manual p.18: "cuando los conductores cambien sus
+         asientos tienen que cambiar sus tarjetas"). Aquí sustituye ese gesto físico: mueve
+         TODO el estado emparejado (intervalos, bloque de 4h30, jornada, reducidos,
+         compensación, nombre) de golpe entre las dos tarjetas, sin pasar por país de fin
+         ni por una entrada manual nueva — no es una extracción real, es un relevo de
+         asiento con las dos tarjetas puestas todo el rato. Solo visible con tripulación
+         doble y los dos parados (con cualquiera en marcha no se puede, igual que sacar
+         una tarjeta). -->
+    <div id="swap-trays-btn" class="status-pill" hidden>intercambiar bandejas</div>
     <div id="cc-rest-status" class="status-pill" hidden></div>
     <div id="ferry-toggle" class="status-pill">modo ferry/tren: activar</div>
     <div id="ferry-invalid-note" class="status-pill" hidden></div>
@@ -2576,6 +2630,41 @@
 <script>
 (function () {
   "use strict";
+
+  // Ayuda de prueba, solo para Hugo: abrir con "?probar=ayer1800" en la URL simula que
+  // las DOS tarjetas se sacaron ayer a las 18:00 (4/9: "deja la hora fijada... déjalo así
+  // durante el día de hoy para probar todo lo que haces"), con los nombres ya puestos
+  // para poder entrar directo a probar el saludo, el intercambio de bandejas y la
+  // bitácora sin tener que rellenar nada a mano primero. Tiene que vivir aquí, antes de
+  // CUALQUIER otra cosa: driverName/driverName2 (y varias piezas más) se cargan de
+  // localStorage a variables UNA sola vez al arrancar — si este bloque corriera después
+  // de esa carga (como su primera versión, más abajo en el fichero), el valor que acaba
+  // de escribir en localStorage ya no llegaría a leerse (fallo real, encontrado 4/9
+  // probando este mismo atajo). Por eso las claves van literales, no por su nombre de
+  // variable (QUIET_SINCE_KEY, DRIVER_NAME_KEY...): esas todavía no existen a esta
+  // altura del fichero. Fallo real de la primera versión de este atajo (3/9, "a mí me
+  // salta la hora real"): fijar solo QUIET_SINCE_KEY no bastaba —
+  // getQuietSinceTsOf() mira PRIMERO si hay un intervalo abierto de verdad en
+  // intervalsSolo/2, y ese manda sin más; limpiar TODO el localStorage antes de fijar la
+  // simulación lo resuelve. No es una función del tacógrafo real, solo un atajo de esta
+  // app para poder probar. Se consume una sola vez (borra el parámetro de la URL) para
+  // no dejar la simulación pegada en visitas futuras.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    if (params.get("probar") === "ayer1800") {
+      localStorage.clear();
+      var d = new Date();
+      d.setDate(d.getDate() - 1);
+      d.setHours(18, 0, 0, 0);
+      localStorage.setItem("copiloto-quieto-desde", String(d.getTime()));
+      localStorage.setItem("copiloto-quieto-desde-2", String(d.getTime()));
+      localStorage.setItem("copiloto-driver-name", "Hugo Gamón");
+      localStorage.setItem("copiloto-driver-name-2", "Victoria Vargas");
+      params.delete("probar");
+      var qs = params.toString();
+      history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+    }
+  })();
 
   var BLOCK_MS = (4 * 60 + 30) * 60 * 1000;
   // PROYECTO.md, frontera entre medir y avisar: los números son réplica exacta del SE5000
@@ -2707,6 +2796,10 @@
   // reloj y eso da tiempo de más".
   var MULTI_MANNING_GRACE_MS = 60 * 60 * 1000;
   var DRIVER2_JOINED_KEY = "copiloto-driver2-joined-at";
+  // Nombre de cada conductor — 4/9, sustituye a la identificación por chip que un aparato
+  // real hace solo. Opcional (string vacía = sin poner), nunca bloquea nada si falta.
+  var DRIVER_NAME_KEY = "copiloto-driver-name";
+  var DRIVER_NAME_KEY_2 = "copiloto-driver-name-2";
   var JORNADA_WARN_MS = 15 * 60 * 1000;
   var JORNADA_DIALOG_KEY = "copiloto-jornada-dialog-" + DRIVER_ID; // paso pendiente del diálogo de inicio de jornada (§4), si lo hay
   var JORNADA_LOG_KEY = "copiloto-jornada-log-" + DRIVER_ID; // [{ startedAt, pais, region }] — historial de países declarados al iniciar jornada
@@ -2894,6 +2987,12 @@
   var ferryInvalidNoteEl = document.getElementById("ferry-invalid-note");
   var jornadaStatusEl = document.getElementById("jornada-status");
   var jornadaStatusEl2 = document.getElementById("jornada-status-2");
+  var driverNameInputEl = document.getElementById("driver-name-input");
+  var driverNameInputEl2 = document.getElementById("driver-name-input-2");
+  var swapTraysBtn = document.getElementById("swap-trays-btn");
+  var se5000ManualGreetingEl = document.getElementById("se5000-manual-greeting");
+  var se5000ManualGreetingNameEl = document.getElementById("se5000-manual-greeting-name");
+  var se5000ManualGreetingWhenEl = document.getElementById("se5000-manual-greeting-when");
   var clockLabelEl = document.getElementById("clock-label");
   var jornadaDialogEl = document.getElementById("jornada-dialog");
   var jornadaAskEl = document.getElementById("jornada-ask");
@@ -2975,6 +3074,8 @@
   var jornadaStartAt = null;  // timestamp de fin del último descanso diario/semanal válido — arranque de la ventana de jornada actual
   var jornadaStartAt2 = null; // mismo dato, conductor 2 — ver JORNADA_START_KEY_2
   var driver2JoinedAt = null; // timestamp de la última vez que se metió la tarjeta del conductor 2 — art. 4(o)/8(5), ver multiManningQualifies()
+  var driverName = "";  // nombre puesto para la tarjeta 1, "" = sin poner
+  var driverName2 = ""; // mismo dato, tarjeta 2
   var jornadaDialogStep = null; // null | "ask" | "country" | "manual" — paso actual del diálogo de inicio de jornada (§4)
   var jornadaAskChoice = true; // valor mostrado en el ciclo Sí/No de "ask" — "Sí" de partida, igual que el aparato real
   var jornadaLog = null;      // [{ startedAt, pais, region }]
@@ -4082,6 +4183,9 @@
     // seguro llamarla en el primer repintado (antes de cargar el estado) que a partir de
     // ahí — mismo criterio que el resto de píldoras del conductor 2 de arriba.
     renderJornadaUI2();
+    // Solo con los dos parados de verdad (nunca en marcha, igual que sacar una tarjeta) y
+    // sin un hueco de GPS a medias (ver swapTrays()).
+    swapTraysBtn.hidden = !(doubleCrewOn && paused && paused2 && !unobservedGap);
     renderDriver2Pill();
   }
 
@@ -4170,6 +4274,90 @@
     }
 
     renderDoubleCrewUI();
+  }
+
+  // Intercambio de bandejas (4/9, manual p.18: "cuando los conductores cambien sus
+  // asientos tienen que cambiar sus tarjetas, ya que el tiempo de conducción se
+  // registrará en la tarjeta de conductor actual"). No es una extracción real — las dos
+  // tarjetas siguen puestas todo el rato — así que no pasa por país de fin ni por una
+  // entrada manual nueva: es una transición de actividad (quien se va a la 2 pasa a
+  // disponibilidad, quien se va a la 1 pasa a conducir) más el propio traslado de TODO
+  // el estado que sigue a la PERSONA, no a la bandeja: intervalos, bloque de 4h30,
+  // jornada, reducidos, compensación, extensiones semanales, 9h/30h y nombre. Solo con
+  // el vehículo parado de verdad (los dos en pausa, sin hueco de GPS a medias) — igual
+  // que sacar una tarjeta, el aparato real no permite esto en marcha.
+  function swapTrays() {
+    if (!doubleCrewOn || !paused || !paused2 || unobservedGap) return;
+
+    // 1. Bandeja 1 → disponibilidad (reutiliza selectClassification: si ya estaba
+    // parado, esto solo reclasifica el tramo en curso; mirrored=true porque esto no es
+    // el espejo automático de actividad, es un paso propio del intercambio).
+    selectClassification("availability", 1, true);
+    // 2. Bandeja 2 → conducir (reutiliza resumeCountdown2: revisa el bloque de 4h30 con
+    // los datos de quien AÚN está en la bandeja 2 en este instante, antes de moverlos).
+    resumeCountdown2();
+
+    // 3. El intercambio de verdad — todo lo de arriba se hizo con cada uno todavía en su
+    // bandeja de siempre; ahora se traslada de golpe.
+    var t;
+    t = intervalsSolo; intervalsSolo = intervalsSolo2; intervalsSolo2 = t;
+    t = deadline; deadline = deadline2; deadline2 = t;
+    t = paused; paused = paused2; paused2 = t;
+    t = pauseSource; pauseSource = pauseSource2; pauseSource2 = t;
+    t = pausedRemainingMs; pausedRemainingMs = pausedRemainingMs2; pausedRemainingMs2 = t;
+    t = pauseClassification; pauseClassification = pauseClassification2; pauseClassification2 = t;
+    t = announced; announced = announced2; announced2 = t;
+    t = dailyDrive; dailyDrive = dailyDrive2; dailyDrive2 = t;
+    t = weeklyExt; weeklyExt = weeklyExt2; weeklyExt2 = t;
+    t = weekDrive; weekDrive = weekDrive2; weekDrive2 = t;
+    t = fourH30ResetAt; fourH30ResetAt = fourH30ResetAt2; fourH30ResetAt2 = t;
+    t = restBlockActive; restBlockActive = restBlockActive2; restBlockActive2 = t;
+    t = reducedRests; reducedRests = reducedRests2; reducedRests2 = t;
+    t = compLedger; compLedger = compLedger2; compLedger2 = t;
+    t = jornadaStartAt; jornadaStartAt = jornadaStartAt2; jornadaStartAt2 = t;
+    t = driverName; driverName = driverName2; driverName2 = t;
+    t = ccRest1; ccRest1 = ccRest2; ccRest2 = t;
+
+    // 4. Persiste todo bajo sus claves de siempre — cada "bandeja N" sigue guardándose en
+    // la clave "-N" de siempre, lo que cambia es qué hay dentro.
+    saveIntervals(); saveIntervals2();
+    savePauseState(); savePauseState2();
+    saveFlags(); saveFlags2();
+    saveDailyDrive(); saveDailyDrive2();
+    saveWeeklyExt(); saveWeeklyExt2();
+    saveWeekDriveOf(WEEK_DRIVE_KEY, weekDrive); saveWeekDriveOf(WEEK_DRIVE_KEY_2, weekDrive2);
+    saveFourH30ResetAt(); saveFourH30ResetAt2();
+    saveRestBlockActive(); saveRestBlockActive2();
+    saveReducedRests(); saveReducedRests2();
+    saveCompLedger(); saveCompLedger2();
+    saveJornadaStartAt(); saveJornadaStartAt2();
+    saveDriverName(); saveDriverName2();
+    saveCcRest(CC_REST_KEY_1, ccRest1);
+    saveCcRest(CC_REST_KEY_2, ccRest2);
+    driverNameInputEl.value = driverName;
+    driverNameInputEl2.value = driverName2;
+
+    // 5. tickTimer/tickTimer2 están ligados al NOMBRE de la bandeja, no a la persona —
+    // tras mover los datos hay que resincronizarlos con paused/paused2 ya intercambiados.
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    clearThresholdTimers();
+    if (tickTimer2) { clearInterval(tickTimer2); tickTimer2 = null; }
+    clearThresholdTimers2();
+    if (!paused && deadline !== null) { tick("switch"); tickTimer = setInterval(tick, 1000); scheduleThresholds(); }
+    if (!paused2 && deadline2 !== null) { tick2("switch"); tickTimer2 = setInterval(tick2, 1000); scheduleThresholds2(); }
+
+    renderDoubleCrewUI();
+    renderJornadaUI();
+    renderJornadaUI2();
+    renderReducedRestsUI();
+    renderReducedRestsUI2();
+    renderCompLedgerUI();
+    renderCompLedgerUI2();
+    renderWeeklyExtUI();
+    renderWeeklyExtUI2();
+    renderCcRestUI();
+    renderPauseUI(paused, pauseSource, pauseClassification);
+    renderDriver2Pill();
   }
 
   function clampDigits(el, max) {
@@ -4808,6 +4996,22 @@
     renderDoubleCrewUI();
   });
 
+  // Se guarda al perder el foco, no en cada tecla — igual que cualquier ajuste, sin
+  // validación (un nombre vacío es "sin poner", nunca un error).
+  driverNameInputEl.addEventListener("change", function () {
+    driverName = driverNameInputEl.value.trim();
+    saveDriverName();
+  });
+  driverNameInputEl2.addEventListener("change", function () {
+    driverName2 = driverNameInputEl2.value.trim();
+    saveDriverName2();
+  });
+
+  swapTraysBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    swapTrays();
+  });
+
   ferryToggleEl.addEventListener("click", function (e) {
     e.stopPropagation();
     toggleFerryMode();
@@ -4976,6 +5180,10 @@
   fourH30ResetAt2 = loadFourH30ResetAt2();
   jornadaStartAt = loadJornadaStartAt();
   driver2JoinedAt = loadDriver2JoinedAt();
+  driverName = loadDriverName();
+  driverName2 = loadDriverName2();
+  driverNameInputEl.value = driverName;
+  driverNameInputEl2.value = driverName2;
   jornadaDialogStep = loadJornadaDialogStep();
   jornadaLog = loadJornadaLog();
   // Adelantado desde más abajo en el arranque (antes solo se cargaba después de toda la
@@ -5399,6 +5607,17 @@
   function saveDriver2JoinedAt() {
     if (driver2JoinedAt === null) localStorage.removeItem(DRIVER2_JOINED_KEY);
     else localStorage.setItem(DRIVER2_JOINED_KEY, String(driver2JoinedAt));
+  }
+
+  function loadDriverName() { return localStorage.getItem(DRIVER_NAME_KEY) || ""; }
+  function saveDriverName() {
+    if (driverName) localStorage.setItem(DRIVER_NAME_KEY, driverName);
+    else localStorage.removeItem(DRIVER_NAME_KEY);
+  }
+  function loadDriverName2() { return localStorage.getItem(DRIVER_NAME_KEY_2) || ""; }
+  function saveDriverName2() {
+    if (driverName2) localStorage.setItem(DRIVER_NAME_KEY_2, driverName2);
+    else localStorage.removeItem(DRIVER_NAME_KEY_2);
   }
 
   function fmtDuration(ms) {
@@ -6104,7 +6323,7 @@
       if (ev.tipo === "jornada_inicio") {
         currentByDriver[driver] = {
           driver: driver, inicioTs: ev.ts, ventanaMs: ev.datos.ventanaMs, referenciaMs: ev.datos.referenciaMs,
-          topeTs: ev.datos.topeTs, events: []
+          topeTs: ev.datos.topeTs, nombre: ev.datos.conductorNombre || null, events: []
         };
         groups.push(currentByDriver[driver]);
       }
@@ -6148,7 +6367,14 @@
     // Etiqueta de conductor solo si hay jornadas de los dos en la hoja (Hugo, 4/9: "no es
     // necesario una bitácora aparte, basta que en una misma hoja se pueda identificar a
     // los dos") — con un único conductor, mantenerla siempre visible sería ruido nuevo.
-    var driverLabel = showDriverLabel ? ("Conductor " + group.driver + " — ") : "";
+    // Nombre puesto (Ayuda) si lo hay — "así queda personalizado el informe" (Hugo, 4/9).
+    // Se prefiere el nombre GRABADO en el propio jornada_inicio (group.nombre) al nombre
+    // en vivo: si más adelante cambia de bandeja con "intercambiar bandejas", esta
+    // jornada ya cerrada no debe reetiquetarse sola. group.nombre es null en eventos de
+    // antes de que existiera este campo — ahí sí cae en el nombre en vivo, y sin nombre
+    // en ningún sitio, en "Conductor N" de siempre.
+    var driverNameForLabel = group.nombre || (group.driver === 2 ? driverName2 : driverName) || ("Conductor " + group.driver);
+    var driverLabel = showDriverLabel ? (driverNameForLabel + " — ") : "";
     var html = '<div class="' + cls + '">';
     html += '<div class="bitacora-jornada-header">' + driverLabel + fechaStr + " — inicio de jornada " + fmtHM(group.inicioTs) +
       (unreliable ? " · registro no fiable (hueco sin clasificar)" : "") +
@@ -6623,11 +6849,16 @@
   function onJornadaAdvance(endTs2) {
     jornadaStartAt = endTs2;
     saveJornadaStartAt();
+    // conductorNombre queda grabado TAL COMO ESTABA en este instante (4/9) — si más
+    // adelante la bandeja 1 cambia de dueño con "intercambiar bandejas", esta jornada ya
+    // cerrada no debe reetiquetarse sola con el nombre nuevo. describeJornadaHTML()
+    // prefiere este dato al de driverName en vivo.
     logEvento(1, "jornada_inicio", {
       inicio: endTs2,
       referenciaMs: jornadaReferenceMs(),
       ventanaMs: jornadaWindowMs(),
-      topeTs: endTs2 + jornadaWindowMs()
+      topeTs: endTs2 + jornadaWindowMs(),
+      conductorNombre: driverName
     });
     exportarRegistro();
     logEvento(1, "exportacion", { motivo: "automatica-cierre-jornada" });
@@ -6694,7 +6925,8 @@
       inicio: endTs2,
       referenciaMs: jornadaReferenceMs(),
       ventanaMs: jornadaWindowMs2(),
-      topeTs: endTs2 + jornadaWindowMs2()
+      topeTs: endTs2 + jornadaWindowMs2(),
+      conductorNombre: driverName2
     });
     exportarRegistro();
     logEvento(2, "exportacion", { motivo: "automatica-cierre-jornada" });
@@ -7066,33 +7298,6 @@
   var QUIET_SINCE_KEY = "copiloto-quieto-desde";
   var QUIET_SINCE_KEY_2 = "copiloto-quieto-desde-2";
 
-  // Ayuda de prueba, solo para Hugo (3/9): abrir con "?probar=ayer1830" en la URL
-  // simula que la última vez que se sacó la tarjeta fue ayer a las 18:30, para poder
-  // rellenar entradas manuales con un hueco de horas real en vez de tener que esperar
-  // de verdad — el mismo truco que se ha usado para probar cada arreglo de esta sesión.
-  // Fallo real de la primera versión (3/9, "a mí me salta la hora real"): fijar solo
-  // localStorage[QUIET_SINCE_KEY] no bastaba — getQuietSinceTsOf() mira PRIMERO si hay
-  // un intervalo abierto de verdad en intervalsSolo/2 (openIntervalOf) y, si lo hay,
-  // ese manda sobre QUIET_SINCE_KEY sin más. Con cualquier uso real anterior de la app
-  // (probar la cuenta atrás clásica, por ejemplo) ya queda un intervalo abierto con la
-  // hora de ese momento, así que el "ayer 18:30" simulado nunca llegaba a aplicarse.
-  // Arreglo: limpiar TODO el localStorage antes de fijar la simulación, para partir de
-  // cero de verdad — no es una función del tacógrafo real, solo un atajo de esta app
-  // para poder probar. Se consume una sola vez (borra el parámetro de la URL) para no
-  // dejar la simulación pegada en visitas futuras.
-  (function () {
-    var params = new URLSearchParams(location.search);
-    if (params.get("probar") === "ayer1830") {
-      localStorage.clear();
-      var d = new Date();
-      d.setDate(d.getDate() - 1);
-      d.setHours(18, 30, 0, 0);
-      localStorage.setItem(QUIET_SINCE_KEY, String(d.getTime()));
-      params.delete("probar");
-      var qs = params.toString();
-      history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
-    }
-  })();
 
   var se5000Mode = localStorage.getItem(VIEW_MODE_KEY) === "on";
   // Qué conductor está a mitad de meter la tarjeta ahora mismo: null (nadie, se ve la
@@ -7560,13 +7765,26 @@
     se5000ManualCursor = se5000ManualQuietSince;
     se5000ManualSegments = [];
     se5000ManualCls = "rest";
-    se5000ManualPhase = "dsc";
     se5000ManualEndField = null;
     se5000ManualEndDraft = null;
     se5000ActiveFlow = n;
     renderSetupView();
     se5000SyncDialogDocks();
-    renderSe5000Manual();
+    // Saludo con nombre (4/9) — solo si esa tarjeta tiene uno puesto (Ayuda). Sin nombre,
+    // va directa a "¿Descansó hasta ahora?" como siempre, sin ningún paso de más.
+    var name = (n === 2) ? driverName2 : driverName;
+    if (name) {
+      se5000ManualPhase = "greeting";
+      renderSe5000Manual();
+      setTimeout(function () {
+        if (se5000ManualPhase !== "greeting" || se5000ActiveFlow !== n) return; // se canceló/avanzó por otro lado mientras tanto
+        se5000ManualPhase = "dsc";
+        renderSe5000Manual();
+      }, SE5000_GREETING_MS);
+    } else {
+      se5000ManualPhase = "dsc";
+      renderSe5000Manual();
+    }
   }
 
   // Orquestación de las bandejas (manual pp.16-19, "Situación con dos conductores").
@@ -7899,11 +8117,16 @@
     se5000ManualListoEl.hidden = se5000ManualPhase !== "listo";
     se5000ManualFinalTurnoEl.hidden = se5000ManualPhase !== "finalturno";
     se5000ManualIniciojornaEl.hidden = se5000ManualPhase !== "iniciojorna";
+    se5000ManualGreetingEl.hidden = se5000ManualPhase !== "greeting";
     if (se5000ManualPhase === "finalturno") {
       se5000ManualFinalTurnoWhenEl.textContent = fmtDM(se5000ManualQuietSince) + "  " + fmtHM(se5000ManualQuietSince);
     }
     if (se5000ManualPhase === "iniciojorna") {
       se5000ManualIniciojornaWhenEl.textContent = fmtDM(se5000ManualCursor) + "  " + fmtHM(se5000ManualCursor);
+    }
+    if (se5000ManualPhase === "greeting") {
+      se5000ManualGreetingNameEl.textContent = (se5000ActiveFlow === 2) ? driverName2 : driverName;
+      se5000ManualGreetingWhenEl.textContent = fmtDM(se5000ManualQuietSince) + "  " + fmtHM(se5000ManualQuietSince);
     }
 
     if (se5000ManualPhase === "dsc") {
@@ -8314,6 +8537,7 @@
   // con las horas — no un cierre instantáneo y silencioso.
   var SE5000_MANUAL_LISTO_MS = 1600;
   var SE5000_MANUAL_TRANSITION_MS = 1600; // "final turno" / "inicio jorna." (manual pp.16,17)
+  var SE5000_GREETING_MS = 2200; // saludo con nombre — algo más que las transiciones de arriba, hay más que leer (nombre + fecha/hora)
   se5000ManualConfirmOkBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     if (se5000ManualConfirmChoice) {
