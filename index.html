@@ -2299,6 +2299,12 @@
         </div>
         <button id="tg-dds-down" class="tg-dds-btn" type="button" aria-label="pantalla siguiente">▼</button>
       </div>
+      <!-- Vista clásica, 4/9: acceso a las mismas 11 vistas de INFORMACIÓN del SE5000
+           (reutilizando SE5000_INFO_TITLES/infoLines(), ningún dato nuevo) más una línea
+           de modo didáctico (PROYECTO.md, capa 3: "esta app dice por qué") — la pantalla
+           SE5000 se queda como réplica literal, esto solo existe aquí. -->
+      <button id="tg-info-toggle" class="status-pill" type="button">ⓘ información</button>
+      <div id="tg-info-explain" class="status-pill" hidden></div>
     </div>
   </div>
 
@@ -2539,6 +2545,7 @@
     <div id="biweek-drive" class="status-pill">bisemanal: 0min de 90h</div>
     <div id="comp-pending" class="status-pill" hidden></div>
     <!-- Conductor 2: mismas píldoras, solo visibles con tripulación doble activa. -->
+    <div id="jornada-status-2" class="status-pill" hidden></div>
     <div id="reduced-rests-2" class="status-pill" hidden></div>
     <div id="weekly-extensions-2" class="status-pill" hidden></div>
     <div id="week-drive-2" class="status-pill" hidden></div>
@@ -2673,6 +2680,10 @@
   var SPLIT_BREAK_FIRST_MS = 15 * 60 * 1000;  // primera parte de una pausa partida válida del art. 7 (¡ojo!: no confundir con el partido de descanso diario de abajo, que es 3h+9h)
   var SPLIT_BREAK_SECOND_MS = 30 * 60 * 1000; // segunda parte, en ese orden
   var JORNADA_START_KEY = "copiloto-jornada-start-" + DRIVER_ID; // ventana de jornada: desde el fin del último descanso diario/semanal válido
+  // Conductor 2, 4/9: mismo esquema que arriba (ver REST_BLOCK_ACTIVE_KEY_2 y hermanas) —
+  // era la única pieza de "conductor 2 mismas píldoras" que faltaba, según su propio
+  // comentario en reducedRestTick2 ("sin ventana de jornada porque todavía no tiene una").
+  var JORNADA_START_KEY_2 = "copiloto-jornada-start-2";
   // La ventana de jornada es un RESULTADO (referencia − descanso exigido), no una
   // constante fija — Hugo, 27/8, punto B1: "elimina cualquier 15h escrito fijo en el
   // código". Ver jornadaReferenceMs()/jornadaRestFloorMs()/jornadaWindowMs() más abajo.
@@ -2795,8 +2806,9 @@
   }
 
   // Canal permanente — solo eventos CON SIGNIFICADO (ver bitacora-estructura.md para la
-  // lista). "driver" hoy siempre 1: el conductor 2 queda fuera de esta primera pieza,
-  // mismo alcance que ya tiene la exportación.
+  // lista). "driver" es 1 o 2 de verdad desde el 4/9 (antes siempre 1, el conductor 2
+  // quedaba fuera) — cada punto que cierra un tramo/descanso/jornada pasa el conductor
+  // real, nunca fijo.
   function logEvento(driver, tipo, datos) {
     if (!bitacoraDB) return;
     try {
@@ -2881,6 +2893,7 @@
   var ferryToggleEl = document.getElementById("ferry-toggle");
   var ferryInvalidNoteEl = document.getElementById("ferry-invalid-note");
   var jornadaStatusEl = document.getElementById("jornada-status");
+  var jornadaStatusEl2 = document.getElementById("jornada-status-2");
   var clockLabelEl = document.getElementById("clock-label");
   var jornadaDialogEl = document.getElementById("jornada-dialog");
   var jornadaAskEl = document.getElementById("jornada-ask");
@@ -2922,6 +2935,8 @@
   var tgActivityBtn = document.getElementById("tg-activity-btn");
   var tgDdsUpBtn = document.getElementById("tg-dds-up");
   var tgDdsDownBtn = document.getElementById("tg-dds-down");
+  var tgInfoToggleBtn = document.getElementById("tg-info-toggle");
+  var tgInfoExplainEl = document.getElementById("tg-info-explain");
   var tgDdsTitleEl = document.getElementById("tg-dds-title");
   var tgDdsEl = document.getElementById("tg-dds");
 
@@ -2958,6 +2973,7 @@
   var intervalsSolo2 = null;  // mismo modelo, conductor 2
   var fourH30ResetAt2 = null; // ídem, conductor 2
   var jornadaStartAt = null;  // timestamp de fin del último descanso diario/semanal válido — arranque de la ventana de jornada actual
+  var jornadaStartAt2 = null; // mismo dato, conductor 2 — ver JORNADA_START_KEY_2
   var driver2JoinedAt = null; // timestamp de la última vez que se metió la tarjeta del conductor 2 — art. 4(o)/8(5), ver multiManningQualifies()
   var jornadaDialogStep = null; // null | "ask" | "country" | "manual" — paso actual del diálogo de inicio de jornada (§4)
   var jornadaAskChoice = true; // valor mostrado en el ciclo Sí/No de "ask" — "Sí" de partida, igual que el aparato real
@@ -2999,6 +3015,12 @@
   // declaración).
   var SE5000_PICS = { driving: "#pic-driving", rest: "#pic-rest", availability: "#pic-availability", other: "#pic-work", unknown: "#pic-unknown" };
   var ddsScreenIndex = 0;
+  // Vista clásica, 4/9: modo aparte para recorrer INFORMACIÓN (SE5000_INFO_TITLES/
+  // infoLines(), definidas más abajo) sin tocar ddsScreenIndex — ese índice también
+  // gobierna el carrusel DDS de la pantalla SE5000 (réplica literal), así que no puede
+  // arrastrar consigo un rango que el aparato real no tiene ahí.
+  var classicInfoMode = false;
+  var classicInfoIdx = 0;
   // Dos series reales, manual p.12, literal — "el tacógrafo cuenta con dos series
   // estándar de vistas de pantalla... dependiendo de [si DDS está ENCENDIDO o APAGADO],
   // las series de vistas son diferentes". CONFIGURAC. → Ajustes DDS → DDS activar
@@ -3635,7 +3657,7 @@
           geoBorder.country = detected;
           geoBorder.pendingCountry = null;
           geoBorder.pendingCountrySince = null;
-          logEvento(1, "frontera_confirmada", { pais: detected });
+          logEvento(isDriver2Active() ? 2 : 1, "frontera_confirmada", { pais: detected });
         }
       } else {
         geoBorder.pendingCountry = detected;
@@ -3911,10 +3933,17 @@
     var closedIv2 = transitionInterval2(now, "conduccion", "manual");
     // Art. 7, igual que en resumeCountdown(): antes de esta migración el bloque de 4h30
     // del conductor 2 nunca se reiniciaba con una pausa válida, solo a mano.
-    if (breakQualifiesForReset(closedIv2, intervalsSolo2, fourH30ResetAt2)) {
+    var breakEval2 = evaluateBreakForReset(closedIv2, intervalsSolo2, fourH30ResetAt2);
+    if (breakEval2.qualifies) {
       pausedRemainingMs2 = BLOCK_MS;
       fourH30ResetAt2 = now;
       saveFourH30ResetAt2();
+      logEvento(2, "bloque_reset", {
+        kind: breakEval2.kind,
+        pausas: breakEval2.kind === "single"
+          ? [{ inicio: breakEval2.firstIv.inicio, fin: breakEval2.firstIv.fin }]
+          : [{ inicio: breakEval2.firstIv.inicio, fin: breakEval2.firstIv.fin }, { inicio: breakEval2.secondIv.inicio, fin: breakEval2.secondIv.fin }]
+      });
     }
     paused2 = false;
     pauseSource2 = null;
@@ -4049,6 +4078,10 @@
     } else {
       compPendingEl2.hidden = true;
     }
+    // renderJornadaUI2() ya se guarda sola (jornadaStartAt2 === null → oculta), igual de
+    // seguro llamarla en el primer repintado (antes de cargar el estado) que a partir de
+    // ahí — mismo criterio que el resto de píldoras del conductor 2 de arriba.
+    renderJornadaUI2();
     renderDriver2Pill();
   }
 
@@ -4435,7 +4468,10 @@
   // compañero, nunca depende de cuál esté "activo" en pantalla). Sin "n" se conserva el
   // comportamiento de siempre de la vista clásica (isDriver2Active(), un solo panel que
   // se puede alternar) para no tocar nada de lo que ya funcionaba ahí.
-  function selectClassification(cls, n) {
+  // `mirrored` (interno, nunca lo pasa un botón real): true solo en la llamada que
+  // replica la actividad hacia el otro conductor, para no rebotar de vuelta — ver el
+  // bloque de espejo al final de la función.
+  function selectClassification(cls, n, mirrored) {
     var forD2 = n === undefined ? isDriver2Active() : (n === 2);
     if (forD2) {
       if (!paused2) {
@@ -4466,6 +4502,25 @@
       renderPauseUI(paused, pauseSource, pauseClassification);
     }
     renderDriver2Pill();
+
+    // Hugo, 4/9 (confirmado desde cabina — "funciona igual en cabina", sin cita en el
+    // manual): con el camión parado, la actividad no se manipula por separado. Si el
+    // conductor marca otros trabajos aunque el compañero no se baje, al compañero se le
+    // asigna la misma actividad — nunca queda uno en "otros trabajos" y el otro en
+    // "disponibilidad" estando los dos parados. Mientras cualquiera de los dos conduce de
+    // verdad, esto no aplica: su disponibilidad automática sigue mandando (ver
+    // startCountdown2/switchActiveDriver, art. 4 vía MITMA/manual de inspección DGTT,
+    // "el tacógrafo registra automáticamente conducción al conductor y disponibilidad al
+    // segundo conductor" mientras el vehículo está en movimiento).
+    if (!mirrored && doubleCrewOn) {
+      var otherN = forD2 ? 1 : 2;
+      var otherDeadline = forD2 ? deadline : deadline2;
+      var otherPaused = forD2 ? paused : paused2;
+      var otherDriving = otherDeadline !== null && !otherPaused;
+      if (otherDeadline !== null && !otherDriving) {
+        selectClassification(cls, otherN, true);
+      }
+    }
   }
 
   for (var ci = 0; ci < classifyBtns.length; ci++) {
@@ -4487,6 +4542,12 @@
 
   tgDdsUpBtn.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (classicInfoMode) {
+      var ni = SE5000_INFO_TITLES.length;
+      classicInfoIdx = (classicInfoIdx + ni - 1) % ni;
+      renderDdsScreen();
+      return;
+    }
     var n = currentDdsTitles().length;
     ddsScreenIndex = (ddsScreenIndex + n - 1) % n;
     renderDdsScreen();
@@ -4494,7 +4555,23 @@
 
   tgDdsDownBtn.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (classicInfoMode) {
+      classicInfoIdx = (classicInfoIdx + 1) % SE5000_INFO_TITLES.length;
+      renderDdsScreen();
+      return;
+    }
     ddsScreenIndex = (ddsScreenIndex + 1) % currentDdsTitles().length;
+    renderDdsScreen();
+  });
+
+  // Alterna entre el carrusel DDS de siempre y las 11 vistas de INFORMACIÓN — mismo
+  // #tg-dds/#tg-dds-title de siempre, solo cambia qué fuente de datos alimentan (ver
+  // renderDdsScreen()). El texto del botón indica hacia dónde lleva la próxima pulsación,
+  // no en qué modo está ahora mismo (mismo criterio que un interruptor real).
+  tgInfoToggleBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    classicInfoMode = !classicInfoMode;
+    tgInfoToggleBtn.textContent = classicInfoMode ? "◂ volver" : "ⓘ información";
     renderDdsScreen();
   });
 
@@ -4597,7 +4674,7 @@
         renderWeeklyExtUI();
       }
 
-      if (!forDriver2) logEvento(1, "hueco_clasificado", { desde: unobservedGap.startTs, actividad: cls });
+      logEvento(forDriver2 ? 2 : 1, "hueco_clasificado", { desde: unobservedGap.startTs, actividad: cls });
       unobservedGap = null;
       saveUnobservedGap();
       renderGapUI();
@@ -5242,6 +5319,7 @@
   function transitionInterval2(ts, actividad, origen, observado) {
     var closed = transitionIntervalOf(intervalsSolo2, ts, actividad, origen, observado);
     saveIntervals2();
+    logEvento(2, "actividad", { actividad: actividad, origen: origen, observado: observado !== false });
     return closed;
   }
 
@@ -5276,6 +5354,13 @@
   }
   function saveJornadaStartAt() {
     localStorage.setItem(JORNADA_START_KEY, String(jornadaStartAt));
+  }
+  function loadJornadaStartAt2() {
+    var raw = parseInt(localStorage.getItem(JORNADA_START_KEY_2), 10);
+    return isNaN(raw) ? null : raw;
+  }
+  function saveJornadaStartAt2() {
+    localStorage.setItem(JORNADA_START_KEY_2, String(jornadaStartAt2));
   }
   function loadDriver2JoinedAt() {
     var raw = parseInt(localStorage.getItem(DRIVER2_JOINED_KEY), 10);
@@ -5330,6 +5415,15 @@
     return (reducedRests.count >= WEEKLY_REDUCED_MAX) ? REGULAR_DAILY_MIN_MS : REDUCED_DAILY_MIN_MS;
   }
 
+  // Mismo cálculo, conductor 2 — solo cambia qué contador de reducidos semanales mira
+  // (reducedRests2, no reducedRests). multiManningQualifies() se reutiliza tal cual: si el
+  // equipo cualifica para el régimen de 30h/9h, cualifica para los dos conductores a la
+  // vez, no es un hecho que cada uno tenga por separado.
+  function jornadaRestFloorMs2() {
+    if (multiManningQualifies()) return REDUCED_DAILY_MIN_MS;
+    return (reducedRests2.count >= WEEKLY_REDUCED_MAX) ? REGULAR_DAILY_MIN_MS : REDUCED_DAILY_MIN_MS;
+  }
+
   // ventana = referencia − descanso — Hugo, 27/8, punto B1: "elimina cualquier 15h
   // escrito fijo en el código". El resultado es el número que manda para el color de la
   // píldora (el tope legal real); en modo simple con reducciones todavía disponibles,
@@ -5341,14 +5435,23 @@
     return jornadaReferenceMs() - jornadaRestFloorMs();
   }
 
-  function renderJornadaUI() {
-    if (jornadaStartAt === null) {
-      jornadaStatusEl.hidden = true;
+  // Mismo cálculo, conductor 2 — jornadaReferenceMs()/multiManningQualifies() se
+  // reutilizan (hechos del equipo), solo cambia el suelo de descanso (jornadaRestFloorMs2).
+  function jornadaWindowMs2() {
+    return jornadaReferenceMs() - jornadaRestFloorMs2();
+  }
+
+  // Genérica desde el principio (4/9), mismo criterio que evaluateBreakForReset() y
+  // compañía: para que conductor 1 y conductor 2 compartan el texto exacto de la píldora
+  // de jornada sin dos copias que puedan divergir.
+  function renderJornadaUIOf(startAt, windowMs, reducedCount, statusEl, label) {
+    if (startAt === null) {
+      statusEl.hidden = true;
       return;
     }
-    var elapsed = Date.now() - jornadaStartAt;
-    var windowMs = jornadaWindowMs();
-    var topeTs = jornadaStartAt + windowMs;
+    var elapsed = Date.now() - startAt;
+    var topeTs = startAt + windowMs;
+    var prefix = label ? label + " — " : "";
     if (multiManningQualifies()) {
       // B1: doble tripulación cualificada — ventana de 21h (30h − 9h, art. 8(5)) para
       // EMPEZAR el descanso, que es el número que manda para el color de aviso (regla 1
@@ -5357,28 +5460,37 @@
       // período de 30h (por cuándo debe estar COMPLETO el descanso, no solo empezado) —
       // Hugo, 27/8: ejemplo de prueba obligatorio, "tarjeta a las 05:00 en doble → tope a
       // las 11:00 del día siguiente" (05:00 + 30h).
-      var referenceTs = jornadaStartAt + MULTI_MANNING_REFERENCE_MS;
-      jornadaStatusEl.textContent = "jornada (doble, ref. 30h): " + fmtDuration(elapsed) +
+      var referenceTs = startAt + MULTI_MANNING_REFERENCE_MS;
+      statusEl.textContent = prefix + "jornada (doble, ref. 30h): " + fmtDuration(elapsed) +
         " · empezar descanso de 9h antes de las " + fmtLocalDateTime(topeTs) +
         " · período de 30h termina a las " + fmtLocalDateTime(referenceTs);
     } else {
-      var showReduced = reducedRests.count < WEEKLY_REDUCED_MAX;
+      var showReduced = reducedCount < WEEKLY_REDUCED_MAX;
       if (showReduced) {
         var window11 = SINGLE_REFERENCE_MS - REGULAR_DAILY_MIN_MS;
-        var tope11Ts = jornadaStartAt + window11;
-        jornadaStatusEl.textContent = "jornada: " + fmtDuration(elapsed) +
+        var tope11Ts = startAt + window11;
+        statusEl.textContent = prefix + "jornada: " + fmtDuration(elapsed) +
           " · 9h antes de las " + fmtLocalDateTime(topeTs) +
           " · o 11h antes de las " + fmtLocalDateTime(tope11Ts);
       } else {
         // Las 3 reducciones de la semana ya se gastaron: la línea de 9h desaparece y la
-        // ventana pasa sola de 15h a 13h (jornadaWindowMs() ya lo calcula solo, al
-        // exigir 11h en vez de 9h en jornadaRestFloorMs()).
-        jornadaStatusEl.textContent = "jornada (sin reducidos disponibles): " + fmtDuration(elapsed) +
+        // ventana pasa sola de 15h a 13h (jornadaWindowMs()/2() ya lo calcula solo, al
+        // exigir 11h en vez de 9h en jornadaRestFloorMs()/2()).
+        statusEl.textContent = prefix + "jornada (sin reducidos disponibles): " + fmtDuration(elapsed) +
           " · descanso de 11h antes de las " + fmtLocalDateTime(topeTs);
       }
     }
-    jornadaStatusEl.hidden = false;
-    applyWarnLevel(jornadaStatusEl, warnLevel(windowMs - elapsed, JORNADA_WARN_MS));
+    statusEl.hidden = false;
+    applyWarnLevel(statusEl, warnLevel(windowMs - elapsed, JORNADA_WARN_MS));
+  }
+
+  function renderJornadaUI() {
+    renderJornadaUIOf(jornadaStartAt, jornadaWindowMs(), reducedRests.count, jornadaStatusEl, doubleCrewOn ? "conductor 1" : "");
+  }
+
+  function renderJornadaUI2() {
+    if (!doubleCrewOn) { jornadaStatusEl2.hidden = true; return; }
+    renderJornadaUIOf(jornadaStartAt2, jornadaWindowMs2(), reducedRests2.count, jornadaStatusEl2, "conductor 2");
   }
 
   function loadJornadaDialogStep() {
@@ -5522,11 +5634,25 @@
       var dd = new Date(now);
       field8 = String(dd.getHours()).padStart(2, "0") + ":" + String(dd.getMinutes()).padStart(2, "0");
     }
+    // Pictograma de número de conductor/ranura (manual p.58, "Conductor o ranura" /
+    // "Compañero del conductor o ranura"), calcado el 4/9 de la propia captura de pantalla
+    // que el manual reutiliza como ejemplo genérico en las páginas 35-37 (Bluetooth/ITS/
+    // RHMI) — ampliada al máximo se lee "1[pic] hh:mm ▮▮ hh:mm" / "2[pic] hh:mm hh:mm",
+    // confirmado además con fotos reales de cabina de Hugo. El comentario de esta función
+    // ya documentaba ese formato desde el 2/9 ("1[pic]... / 2[pic]...") pero el número
+    // nunca llegó a implementarse — mismo recuadro invertido que .se5000-field-active usa
+    // en el resto de la app para "esto es un símbolo del propio LCD", no una etiqueta
+    // nueva. Solo se muestra junto a datos reales (nunca junto al "—" de "sin compañero"):
+    // no hay una captura real de esa situación en la que basarse.
+    var mainNum = isDriver2Active() ? 2 : 1;
+    var mainNumHtml = '<span class="se5000-field-active">' + mainNum + '</span>';
     var compPicHtml = comp
-      ? '<svg class="se5000-dds-pic"><use href="' + (SE5000_PICS[comp.cls] || SE5000_PICS.unknown) + '"></use></svg><span>' + fmtDurationCompact(comp.sinceMs) + '</span>'
+      ? '<span class="se5000-field-active">' + comp.num + '</span>' +
+        '<svg class="se5000-dds-pic"><use href="' + (SE5000_PICS[comp.cls] || SE5000_PICS.unknown) + '"></use></svg><span>' + fmtDurationCompact(comp.sinceMs) + '</span>'
       : '<span class="se5000-dds-dim">—</span>';
     return (
       '<div class="se5000-dds-row">' +
+        mainNumHtml +
         '<svg class="se5000-dds-pic"><use href="' + (SE5000_PICS[cls] || SE5000_PICS.unknown) + '"></use></svg>' +
         '<span>' + fmtDurationCompact(now - since) + '</span>' +
         '<span class="se5000-dds-sep">▮▮</span>' +
@@ -5665,6 +5791,20 @@
   function renderDdsScreen() {
     if (!tgDdsEl) return;
     var now = Date.now();
+    // Modo INFORMACIÓN de la vista clásica (4/9) — mismo punto de entrada que ya usan
+    // todos los sitios que refrescan el reloj cada segundo, así el contador de la vista 0
+    // ("queda hasta descanso") y las horas de las vistas 3/4 se mantienen vivas sin
+    // cablear un segundo bucle de refresco aparte.
+    if (classicInfoMode) {
+      var lines = infoLines(classicInfoIdx, now);
+      tgDdsTitleEl.textContent = (classicInfoIdx + 1) + "/" + SE5000_INFO_TITLES.length + " " + SE5000_INFO_TITLES[classicInfoIdx];
+      tgDdsEl.innerHTML = lines.map(function (l) { return '<div>' + l + '</div>'; }).join("");
+      var explain = classicInfoExplain(classicInfoIdx);
+      tgInfoExplainEl.textContent = explain || "";
+      tgInfoExplainEl.hidden = !explain;
+      return;
+    }
+    tgInfoExplainEl.hidden = true;
     var idx = ddsScreenIndex;
     var d2 = isDriver2Active();
     var arr = d2 ? intervalsSolo2 : intervalsSolo;
@@ -5917,22 +6057,30 @@
   }
 
   // Agrupa los eventos por jornada: cada "jornada_inicio" abre un grupo nuevo con todo lo
-  // que pase hasta el siguiente (o hasta ahora, si es la última). Lo anterior al primer
-  // jornada_inicio registrado se ignora — no hay jornada que describir todavía.
+  // que pase hasta el siguiente (o hasta ahora, si es la última) — DEL MISMO CONDUCTOR. Lo
+  // anterior al primer jornada_inicio de cada uno se ignora — no hay jornada que describir
+  // todavía. Un solo grupo "current" servía mientras solo el conductor 1 generaba
+  // jornada_inicio; ahora que el 2 también lo hace (4/9), su jornada_inicio cerraría por
+  // error la del 1 (y viceversa) si compartieran el mismo puntero — de ahí currentByDriver,
+  // uno por conductor, para que cada evento vaya solo al grupo de SU conductor. Al final se
+  // ordenan por fecha de inicio para que renderBitacoraFromEvents pueda intercalar las dos
+  // series en una sola hoja cronológica, tal como pidió Hugo.
   function groupEventsByJornada(events) {
     var groups = [];
-    var current = null;
+    var currentByDriver = {};
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
+      var driver = ev.driver || 1;
       if (ev.tipo === "jornada_inicio") {
-        current = {
-          inicioTs: ev.ts, ventanaMs: ev.datos.ventanaMs, referenciaMs: ev.datos.referenciaMs,
+        currentByDriver[driver] = {
+          driver: driver, inicioTs: ev.ts, ventanaMs: ev.datos.ventanaMs, referenciaMs: ev.datos.referenciaMs,
           topeTs: ev.datos.topeTs, events: []
         };
-        groups.push(current);
+        groups.push(currentByDriver[driver]);
       }
-      if (current) current.events.push(ev);
+      if (currentByDriver[driver]) currentByDriver[driver].events.push(ev);
     }
+    groups.sort(function (a, b) { return a.inicioTs - b.inicioTs; });
     return groups;
   }
 
@@ -5955,7 +6103,7 @@
     return pauses;
   }
 
-  function describeJornadaHTML(group, isCurrent) {
+  function describeJornadaHTML(group, isCurrent, showDriverLabel) {
     var fecha = new Date(group.inicioTs);
     var fechaStr = String(fecha.getDate()).padStart(2, "0") + "/" + String(fecha.getMonth() + 1).padStart(2, "0") + "/" + fecha.getFullYear();
     // Marca DISTINTA de "límite superado": esto dice "no me fío del dato", no "se pasó
@@ -5967,8 +6115,12 @@
     var exceeded = isCurrent && group.topeTs && Date.now() > group.topeTs;
 
     var cls = "bitacora-jornada" + (unreliable ? " unreliable" : "") + (exceeded ? " danger" : "");
+    // Etiqueta de conductor solo si hay jornadas de los dos en la hoja (Hugo, 4/9: "no es
+    // necesario una bitácora aparte, basta que en una misma hoja se pueda identificar a
+    // los dos") — con un único conductor, mantenerla siempre visible sería ruido nuevo.
+    var driverLabel = showDriverLabel ? ("Conductor " + group.driver + " — ") : "";
     var html = '<div class="' + cls + '">';
-    html += '<div class="bitacora-jornada-header">' + fechaStr + " — inicio de jornada " + fmtHM(group.inicioTs) +
+    html += '<div class="bitacora-jornada-header">' + driverLabel + fechaStr + " — inicio de jornada " + fmtHM(group.inicioTs) +
       (unreliable ? " · registro no fiable (hueco sin clasificar)" : "") +
       (exceeded ? " · tope de jornada superado" : "") + "</div>";
     if (group.topeTs) {
@@ -6019,9 +6171,17 @@
       bitacoraContentEl.textContent = "Todavía no hay ninguna jornada registrada.";
       return;
     }
+    // "Actual" es por conductor, no por posición en la lista mezclada: si el conductor 2
+    // acaba de abrir una jornada más reciente, la del conductor 1 sigue siendo la vigente
+    // PARA ÉL (con su propio aviso de tope superado si toca), no deja de serlo solo porque
+    // haya una fila más nueva de otro conductor por debajo.
+    var lastByDriver = {};
+    groups.forEach(function (g) { lastByDriver[g.driver] = g; });
+    var showDriverLabel = groups.some(function (g) { return g.driver === 2; });
     var html = "";
     for (var i = groups.length - 1; i >= 0; i--) {
-      html += describeJornadaHTML(groups[i], i === groups.length - 1);
+      var g = groups[i];
+      html += describeJornadaHTML(g, g === lastByDriver[g.driver], showDriverLabel);
     }
     bitacoraContentEl.innerHTML = html;
   }
@@ -6043,8 +6203,18 @@
   // Ni "conduccion" (obvio) ni "desconocida" cuentan tampoco: un hueco sin clasificar no
   // se supone que fuera una pausa válida (§7, regla 5: cuenta como conducción a efectos de
   // cálculo mientras no se clasifique).
-  function isRealBreakActivity(actividad) {
-    return actividad === "rest" || actividad === "availability";
+  // POA (manual SE5000 p.30, "Periodo de disponibilidad"): que la disponibilidad cuente
+  // para la pausa de 45 es un interruptor del aparato, no una constante fija — "el POA se
+  // puede calcular como pausa (SÍ) o no calcular como pausa (NO)". Hugo, 4/9, fijando esa
+  // decisión pendiente desde DUDAS.md ("Qué suma para los 45"): "disponibilidad puede
+  // valer para el segundo conductor pero nunca para el primero ni si va solo" — POA = NO
+  // para el conductor 1/solitario, POA = SÍ solo para el conductor 2 en tripulación doble.
+  // `arr` ya identifica de cuál de los dos registros viene el intervalo (intervalsSolo vs
+  // intervalsSolo2, ver las cuatro funciones que llaman a esta), así que no hace falta
+  // ningún parámetro nuevo en sus firmas ni en sus puntos de llamada.
+  function isRealBreakActivity(actividad, arr) {
+    if (actividad === "rest") return true;
+    return actividad === "availability" && arr === intervalsSolo2;
   }
 
   // Genérica desde el principio (arr/resetAt como parámetros, no globals fijos) para que
@@ -6056,7 +6226,7 @@
   // la regla una segunda vez ni arriesgarse a que las dos versiones diverjan.
   function evaluateBreakForReset(closedIv, arr, resetAt) {
     var none = { qualifies: false, kind: null, firstIv: null, secondIv: null };
-    if (!closedIv || !isRealBreakActivity(closedIv.actividad)) return none;
+    if (!closedIv || !isRealBreakActivity(closedIv.actividad, arr)) return none;
     // Art. 9: un descanso que superó los límites del modo ferry/tren (más de 2
     // interrupciones o más de 1h en total) no vale para nada — Hugo, 25/8, regla 1: ante
     // la duda se resuelve del lado malo, y aquí no hay duda, el propio artículo lo dice.
@@ -6066,7 +6236,7 @@
     }
     var since = resetAt === null ? 0 : resetAt;
     var breaks = arr.filter(function (iv) {
-      return isRealBreakActivity(iv.actividad) && iv.fin !== null && iv.inicio >= since;
+      return isRealBreakActivity(iv.actividad, arr) && iv.fin !== null && iv.inicio >= since;
     });
     for (var i = 0; i < breaks.length; i++) {
       if ((breaks[i].fin - breaks[i].inicio) < SPLIT_BREAK_FIRST_MS) continue;
@@ -6077,10 +6247,6 @@
       }
     }
     return none;
-  }
-
-  function breakQualifiesForReset(closedIv, arr, resetAt) {
-    return evaluateBreakForReset(closedIv, arr, resetAt).qualifies;
   }
 
   // --- Deployment 2 (1/9): piezas para "Tiempo que queda de descanso" (p.13) y "Horario
@@ -6097,7 +6263,7 @@
     var total = 0;
     for (var i = 0; i < arr.length; i++) {
       var iv = arr[i];
-      if (!isRealBreakActivity(iv.actividad)) continue;
+      if (!isRealBreakActivity(iv.actividad, arr)) continue;
       var end = iv.fin === null ? now : iv.fin;
       var start = Math.max(iv.inicio, since);
       if (end > start) total += (end - start);
@@ -6113,12 +6279,12 @@
   // (no está en un descanso/disponibilidad real). Manual p.13, "Tiempo que queda de
   // descanso": campo 2 (ejemplo `0h 45`).
   function breakBlockProgress(openIv, arr, resetAt, now) {
-    if (!openIv || !isRealBreakActivity(openIv.actividad)) return null;
+    if (!openIv || !isRealBreakActivity(openIv.actividad, arr)) return null;
     var since = resetAt === null ? 0 : resetAt;
     var hasFirstSegment = false;
     for (var i = 0; i < arr.length; i++) {
       var iv = arr[i];
-      if (iv === openIv || !isRealBreakActivity(iv.actividad) || iv.fin === null || iv.inicio < since) continue;
+      if (iv === openIv || !isRealBreakActivity(iv.actividad, arr) || iv.fin === null || iv.inicio < since) continue;
       if ((iv.fin - iv.inicio) >= SPLIT_BREAK_FIRST_MS) { hasFirstSegment = true; break; }
     }
     var neededMs = hasFirstSegment ? SPLIT_BREAK_SECOND_MS : FULL_BREAK_MS;
@@ -6170,7 +6336,7 @@
   function lastBreakEndTs(arr, fallback) {
     for (var i = arr.length - 1; i >= 0; i--) {
       var iv = arr[i];
-      if (isRealBreakActivity(iv.actividad) && iv.fin !== null) return iv.fin;
+      if (isRealBreakActivity(iv.actividad, arr) && iv.fin !== null) return iv.fin;
     }
     return fallback;
   }
@@ -6324,23 +6490,26 @@
   // tramo en orden — mismo motor que ya clasifica un descanso en vivo
   // (classifyCompletedRestBlockOf), para que un descanso contado a mano tenga exactamente
   // las mismas consecuencias (anclar jornadaStartAt, contar como reducido, abrir
-  // compensación) que uno vivido con el GPS en marcha. Solo para el conductor "solo"
-  // (único con ventana de jornada por ahora). `arr` ya tiene TODOS los segmentos
+  // compensación) que uno vivido con el GPS en marcha. `arr` ya tiene TODOS los segmentos
   // empujados de golpe — para que classifyCompletedRestBlockOf (que mira el penúltimo
   // descanso cerrado, buscando un partido 3+9 válido) no vea tramos que en el replay
   // todavía no han "pasado", se le pasa una vista truncada hasta el tramo que se está
   // clasificando en cada vuelta, nunca el array completo. Hugo, 27/8, punto B2.
-  function replayManualRestClassification(segments, arr) {
+  // Genérica desde el 4/9 (antes solo servía al conductor 1, "único con ventana de
+  // jornada por ahora" — ya no es el caso) — driverNum/reducedState/compArr/onJornadaValid/
+  // saveReducedFn/saveCompFn como parámetros, mismo criterio que el resto de funciones
+  // "Of" de este bloque.
+  function replayManualRestClassification(segments, arr, driverNum, reducedState, compArr, onJornadaValid, saveReducedFn, saveCompFn) {
     var baseLen = arr.length - segments.length;
     for (var i = 0; i < segments.length; i++) {
       var seg = segments[i];
       if (seg.actividad !== "rest") continue;
       var upTo = arr.slice(0, baseLen + i + 1);
-      var category = classifyCompletedRestBlockOf(seg.fin - seg.inicio, seg.fin, upTo, reducedRests, compLedger, onJornadaAdvance);
-      logEvento(1, "descanso_clasificado", { duracionMs: seg.fin - seg.inicio, categoria: category, origen: "manual" });
+      var category = classifyCompletedRestBlockOf(seg.fin - seg.inicio, seg.fin, upTo, reducedState, compArr, onJornadaValid);
+      logEvento(driverNum, "descanso_clasificado", { duracionMs: seg.fin - seg.inicio, categoria: category, origen: "manual" });
     }
-    saveReducedRests();
-    saveCompLedger();
+    saveReducedFn();
+    saveCompFn();
   }
 
   function checkCompensationDeadlinesOf(compArr, now, driverLabel) {
@@ -6460,8 +6629,7 @@
     checkCompensationDeadlines(now);
   }
 
-  // Envoltorios del conductor 2: mismas funciones genéricas, sin ventana de jornada
-  // (onJornadaValid = null) porque todavía no tiene una.
+  // Envoltorios del conductor 2: mismas funciones genéricas.
   function loadRestBlockActive2() { return loadRestBlockActiveOf(REST_BLOCK_ACTIVE_KEY_2); }
   function saveRestBlockActive2() { saveRestBlockActiveOf(REST_BLOCK_ACTIVE_KEY_2, restBlockActive2); }
   function loadReducedRests2() { return loadReducedRestsOf(REDUCED_RESTS_KEY_2); }
@@ -6471,6 +6639,39 @@
   function renderReducedRestsUI2() { if (!doubleCrewOn) return; renderReducedRestsUIOf(reducedRestsEl2, reducedRests2, "conductor 2"); }
   function renderCompLedgerUI2() { if (!doubleCrewOn) return; renderCompLedgerUIOf(compPendingEl2, compLedger2, "conductor 2"); }
 
+  // Mismo papel que classifyCompletedRestBlock(), conductor 2 — 4/9, cierra el hueco que
+  // dejaba el comentario de arriba ("sin ventana de jornada porque todavía no tiene una").
+  function classifyCompletedRestBlock2(durationMs, endTs) {
+    var category = classifyCompletedRestBlockOf(durationMs, endTs, intervalsSolo2, reducedRests2, compLedger2, function (endTs2) {
+      onJornadaAdvance2(endTs2);
+    });
+    logEvento(2, "descanso_clasificado", { duracionMs: durationMs, categoria: category });
+    saveReducedRests2();
+    saveCompLedger2();
+    renderReducedRestsUI2();
+    renderCompLedgerUI2();
+    return category;
+  }
+
+  // Mismo papel que onJornadaAdvance(), conductor 2. jornadaReferenceMs()/
+  // multiManningQualifies() son hechos del equipo y se reutilizan tal cual — solo el
+  // suelo de descanso (jornadaRestFloorMs2/jornadaWindowMs2) y el propio arranque
+  // (jornadaStartAt2) son del conductor 2.
+  function onJornadaAdvance2(endTs2) {
+    jornadaStartAt2 = endTs2;
+    saveJornadaStartAt2();
+    logEvento(2, "jornada_inicio", {
+      inicio: endTs2,
+      referenciaMs: jornadaReferenceMs(),
+      ventanaMs: jornadaWindowMs2(),
+      topeTs: endTs2 + jornadaWindowMs2()
+    });
+    exportarRegistro();
+    logEvento(2, "exportacion", { motivo: "automatica-cierre-jornada" });
+    renderJornadaUI2();
+    triggerJornadaDialog();
+  }
+
   function checkCompensationDeadlines2(now) {
     var changed = checkCompensationDeadlinesOf(compLedger2, now, ", conductor 2");
     if (changed) saveCompLedger2();
@@ -6479,7 +6680,9 @@
 
   function reducedRestTick2() {
     var now = Date.now();
-    var result = reducedRestTickOf(restBlockActive2, paused2, pauseClassification2, reducedRests2, compLedger2, intervalsSolo2, now, ", conductor 2", null);
+    var result = reducedRestTickOf(restBlockActive2, paused2, pauseClassification2, reducedRests2, compLedger2, intervalsSolo2, now, ", conductor 2", function (endTs) {
+      onJornadaAdvance2(endTs);
+    });
     restBlockActive2 = result.restBlockActive;
     saveRestBlockActive2();
     saveReducedRests2();
@@ -6606,8 +6809,18 @@
     if (driverNum === 1) logEvento(1, "hueco_detectado", { desde: sinceTs });
 
     if (driverNum === 2) {
-      // El conductor 2 no tiene (todavía) contador de reducidos/racha de descanso propio
-      // — solo el registro de intervalos, que se cierra más abajo igual que para el 1.
+      logEvento(2, "hueco_detectado", { desde: sinceTs });
+      // Mismo criterio que el conductor 1 justo abajo: el hueco rompe la continuidad de
+      // cualquier bloque de descanso en curso — 4/9, ya con classifyCompletedRestBlock2
+      // construido (antes no existía, así que aquí no se cerraba nada). El conductor 2 no
+      // tiene racha de descanso propia (restStreak) todavía — eso es un contador distinto
+      // (extensiones semanales art. 8(6 ter)), fuera del alcance de hoy.
+      if (restBlockActive2) {
+        var partialMs2 = sinceTs - restBlockActive2.startTs;
+        if (partialMs2 > 0) classifyCompletedRestBlock2(partialMs2, sinceTs);
+        restBlockActive2 = null;
+        saveRestBlockActive2();
+      }
       renderGapUI();
       updateReliabilityUI();
       if (deadline2 !== null || paused2) transitionInterval2(sinceTs, "desconocida", "hueco", false);
@@ -6763,6 +6976,7 @@
   restBlockActive2 = loadRestBlockActive2();
   reducedRests2 = loadReducedRests2();
   compLedger2 = loadCompLedger2();
+  jornadaStartAt2 = loadJornadaStartAt2();
   ccRest1 = loadCcRest(CC_REST_KEY_1);
   ccRest2 = loadCcRest(CC_REST_KEY_2);
   renderWeeklyExtUI();
@@ -6772,6 +6986,7 @@
   renderCompLedgerUI();
   renderCompLedgerUI2();
   renderCcRestUI();
+  renderJornadaUI2();
 
   unobservedGap = loadUnobservedGap();
   geoBorder = loadGeoBorder();
@@ -7346,6 +7561,7 @@
       if (deadline !== null) {
         announce("Se recomienda meter antes la bandeja 2 en un arranque conjunto. Continuando igualmente.");
       }
+      logEvento(2, "tarjeta_insertada", {});
       // Ancla del margen de gracia de 60 min (art. 4(o)/8(5), ver multiManningQualifies())
       // — el momento físico de meter la tarjeta, no cuando termine de responder las
       // preguntas del flujo de entrada manual.
@@ -7474,6 +7690,7 @@
         // contrario al recomendado (1 antes que 2).
         announce("Se recomienda sacar antes la bandeja 1, esperar a que expulse, y luego la 2.");
       }
+      logEvento(2, "tarjeta_sacada", {});
       closeIntervalOf(intervalsSolo2, Date.now());
       saveIntervals2();
       if (tickTimer2) clearInterval(tickTimer2);
@@ -7592,6 +7809,13 @@
   // fecha/hora (inicio + 15 min, nunca más allá de ahora ni antes del propio inicio);
   // el conductor lo corrige con ▲▼ de todas formas, igual que en las capturas del
   // manual ("la fecha del 18/03 es correcta pero hay que cambiar la del 21/03").
+  // Fallo real, encontrado 3/9 (Hugo, prueba real: un tramo corto de "otros trabajos"
+  // seguido de "el resto fue así" dejó 10 horas seguidas mal clasificadas): esta función
+  // nunca tocaba se5000ManualCls, así que el tramo siguiente arrancaba con la actividad
+  // del anterior en vez de un valor por defecto — el manual siempre exige "marcar el
+  // símbolo" en cada tramo nuevo (p.22), nunca lo da por heredado. "rest" es el mismo
+  // valor por defecto que ya usan startCardInsertFlow(), "Borrar todas las entradas" y
+  // elegir una entrada de la lista para cambiarla — se reutiliza aquí, no se inventa uno.
   function se5000ManualResetEndDraft() {
     var now = Date.now();
     var draft = se5000ManualCursor + 15 * 60000;
@@ -7599,6 +7823,7 @@
     if (draft < se5000ManualCursor) draft = se5000ManualCursor;
     se5000ManualEndDraft = draft;
     se5000ManualEndField = "activity";
+    se5000ManualCls = "rest";
   }
 
 
@@ -7904,6 +8129,26 @@
     se5000ManualResetEndDraft();
     renderSe5000Manual();
   }
+
+  // Fallo real, encontrado 2/9 (Hugo, vídeo real): con una ventana de solo 1 minuto, cada
+  // fallo de validación en "confirmar" mandaba de vuelta a "minuto" (arreglado ya), pero
+  // seguía sin haber forma de retroceder un campo suelto si el error estaba más atrás —
+  // p. ej. corregir la fecha estando ya en "minuto" obligaba a recorrer fecha→hora→minuto
+  // enteros otra vez. El manual no describe esto campo a campo (su único mecanismo de
+  // corrección, p.21-22, es reabrir el tramo ENTERO desde "¿Cambiar entrada?", y solo tras
+  // llegar a "¿Confirmar entradas?") — esto es un paso más fino, pero dentro del mismo
+  // límite que ya pediste: nunca toca un tramo ya confirmado con OK en "confirmar", solo
+  // los pasos de haber avanzado de campo con OK dentro del tramo TODAVÍA abierto.
+  // confirmar→minuto→hora→fecha→actividad, un campo por pulsación. En "actividad" (el
+  // primer campo de la entrada) ya no hay campo anterior dentro de este mismo tramo — ahí
+  // ↩ pasa a hacer lo de siempre, deshacer el último tramo ya cerrado (se5000ManualUndo).
+  function se5000ManualStepBackField() {
+    if (se5000ManualEndField === "confirm") { se5000ManualEndField = "minute"; renderSe5000Manual(); return; }
+    if (se5000ManualEndField === "minute") { se5000ManualEndField = "hour"; renderSe5000Manual(); return; }
+    if (se5000ManualEndField === "hour") { se5000ManualEndField = "date"; renderSe5000Manual(); return; }
+    if (se5000ManualEndField === "date") { se5000ManualEndField = "activity"; renderSe5000Manual(); return; }
+    se5000ManualUndo();
+  }
   se5000ManualUndoBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     se5000ManualUndo();
@@ -8106,7 +8351,11 @@
     // entonces avisará en cuanto arranque la cuenta) — el fallback de "ahora" que hace
     // startCountdown() cuando jornadaStartAt sigue sin valor es solo para el primerísimo
     // uso de la app, nunca para pisar un período ya en curso.
-    if (n === 1) replayManualRestClassification(se5000ManualSegments, arr);
+    if (n === 2) {
+      replayManualRestClassification(se5000ManualSegments, arr, 2, reducedRests2, compLedger2, onJornadaAdvance2, saveReducedRests2, saveCompLedger2);
+    } else {
+      replayManualRestClassification(se5000ManualSegments, arr, 1, reducedRests, compLedger, onJornadaAdvance, saveReducedRests, saveCompLedger);
+    }
     save();
     localStorage.removeItem(key);
     se5000ActiveFlow = null;
@@ -8352,6 +8601,23 @@
     // físico (manual pp.30-31). Esta app no es un tacógrafo de verdad: no existe nada
     // de esto que leer, y no se inventa.
     return ["no aplica en esta app"];
+  }
+
+  // Modo didáctico de la vista clásica (PROYECTO.md, capa 3: "un tacógrafo cambia el
+  // pictograma y no dice nada; esta app dice por qué") — explica CADA vista de
+  // INFORMACIÓN, no solo el número. Vive aquí, no en la pantalla SE5000: esa se queda como
+  // réplica literal (nada añadido a lo que el aparato real muestra), la vista clásica es
+  // la única pantalla de la app donde añadir esto no rompe esa regla. Null en las 5
+  // últimas: su propio contenido ("no aplica en esta app") ya es la explicación completa,
+  // añadir una frase aparte sería repetir lo mismo con más palabras.
+  function classicInfoExplain(idx) {
+    if (idx === 0) return "Si no paras e inicias un descanso antes de esa hora, incumples el límite de conducción sin descanso.";
+    if (idx === 1) return "Desde tu última pausa de 45 (o 15+30) hasta ahora — tu propio bloque de conducción, art. 7.";
+    if (idx === 2) return doubleCrewOn ? "Lo mismo que el campo anterior, pero del compañero — cada uno lleva el suyo, nunca se suman." : "Solo existe con tripulación doble activa.";
+    if (idx === 3) return "La hora que verías en un reloj de pared aquí mismo, con tu zona horaria ya aplicada.";
+    if (idx === 4) return "La misma hora, pero en UTC — la que de verdad queda grabada en la tarjeta del conductor.";
+    if (idx === 5) return "La calidad de la señal GPS que está usando la app ahora mismo para saber si te mueves.";
+    return null;
   }
 
   function se5000MenuOpen() {
@@ -8659,10 +8925,11 @@
     // ↩ lo cancela (nunca saca la tarjeta sin confirmar), nunca hace ninguna otra cosa
     // mientras esté pendiente.
     if (pendingEjectDriver !== null) { cancelEjectCountry(); return; }
-    // Manual p.21: "el botón Atrás en cualquier momento" durante las entradas manuales
-    // deshace el último tramo — cuando ese flujo está enganchado al display (conductor 2
-    // a mitad de ruta), el ↩ físico hace lo mismo que el botón propio de la pantalla.
-    if (se5000ActiveFlow !== null && se5000ManualPhase === "entering") { se5000ManualUndo(); return; }
+    // Manual p.21: "el botón Atrás en cualquier momento" durante las entradas manuales.
+    // Dentro de un tramo abierto retrocede un campo (ver se5000ManualStepBackField) —
+    // solo al llegar al primer campo ("actividad") pasa a deshacer el último tramo ya
+    // cerrado, que es el único "atrás" que describe el manual literalmente.
+    if (se5000ActiveFlow !== null && se5000ManualPhase === "entering") { se5000ManualStepBackField(); return; }
     // El resto de fases de la entrada manual (dsc/addmanual/imprimir/confirm/nochoice/
     // changelist) son preguntas de Sí/No/OK sin equivalente de "deshacer" en el manual —
     // ↩ no hace nada ahí en vez de colarse hasta el carrusel de DDS por debajo.
