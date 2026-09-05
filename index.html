@@ -852,6 +852,12 @@
   }
   .ruta-parada-info { line-height: 1.4; }
   .ruta-parada-tipo { font-weight: 700; }
+  .ruta-parada-botones {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
   .ruta-parada-probar {
     flex: 0 0 auto;
     font-size: clamp(10px, 2vw, 12px);
@@ -861,6 +867,7 @@
     padding: 0.4em 0.7em;
     cursor: pointer;
     white-space: nowrap;
+    text-align: center;
   }
 
   .bitacora-jornada {
@@ -6824,6 +6831,17 @@
       d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   }
 
+  // Entrega al navegador (copiloto-especificacion.md §6): la app no guía, entrega la
+  // coordenada. "geo:" es el intent estandar de Android — el móvil pregunta con qué app
+  // abrirlo y el conductor elige su navegador de camión, nunca Google Maps a la fuerza.
+  // Siempre UN punto, nunca la ruta entera de golpe (pendiente sin confirmar: cuántas
+  // paradas admite de verdad el enlace multi-parada, ver DUDAS.md) — esto evita el
+  // problema de raíz sin depender de esa respuesta.
+  function rutaAbrirNavegador(p) {
+    var etiqueta = encodeURIComponent(p.tipo);
+    location.href = "geo:" + p.lat + "," + p.lng + "?q=" + p.lat + "," + p.lng + "(" + etiqueta + ")";
+  }
+
   function renderRutaPlan(plan) {
     rutaPlanEl.innerHTML = "";
     plan.forEach(function (p, idx) {
@@ -6835,15 +6853,25 @@
         " · cerca de " + p.lat.toFixed(4) + "," + p.lng.toFixed(4);
       info.querySelector(".ruta-parada-tipo").textContent = p.tipo;
       row.appendChild(info);
+
+      var botones = document.createElement("div");
+      botones.className = "ruta-parada-botones";
       if (idx < plan.length - 1) {
-        var btn = document.createElement("div");
-        btn.className = "ruta-parada-probar";
-        btn.textContent = "probar en pantalla";
-        btn.addEventListener("click", function () {
+        var btnProbar = document.createElement("div");
+        btnProbar.className = "ruta-parada-probar";
+        btnProbar.textContent = "probar en pantalla";
+        btnProbar.addEventListener("click", function () {
           setRouteAlert(p.tipo.toUpperCase(), p.tipo + ", cerca de aquí.", "ruta-plan-" + idx);
         });
-        row.appendChild(btn);
+        botones.appendChild(btnProbar);
       }
+      var btnIr = document.createElement("div");
+      btnIr.className = "ruta-parada-probar";
+      btnIr.textContent = "ir aquí";
+      btnIr.addEventListener("click", function () { rutaAbrirNavegador(p); });
+      botones.appendChild(btnIr);
+      row.appendChild(botones);
+
       rutaPlanEl.appendChild(row);
     });
   }
