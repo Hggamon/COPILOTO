@@ -6711,6 +6711,100 @@
   var RUTA_MARGEN_MS = 20 * 60 * 1000; // nunca apurar hasta el último minuto
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
 
+  // ------------------------------------------------------------
+  // Decodificador del "flexible polyline" de HERE — puerto literal (mismo algoritmo,
+  // solo adaptado el estilo) de la implementación oficial de HERE Europe B.V., licencia
+  // MIT: github.com/heremaps/flexible-polyline/blob/master/javascript/src/index.js.
+  // No es una reinvención a propósito: un error aquí coloca al conductor en el sitio
+  // equivocado. Hace falta porque la interpolación en línea recta que usaba antes
+  // rutaProyectarPlan() podía caer fuera de la carretera — Hugo, 5/9, encontró un punto
+  // interpolado en línea recta en pleno mar cerca de Valencia.
+  // ------------------------------------------------------------
+  var RUTA_POLY_DECODE_TABLE = [
+    62, -1, -1, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+    22, 23, 24, 25, -1, -1, -1, -1, 63, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+    36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
+  ];
+  var RUTA_POLY_NUM = (typeof BigInt !== "undefined") ? BigInt : Number;
+
+  function rutaPolyDecodeChar(ch) {
+    return RUTA_POLY_DECODE_TABLE[ch.charCodeAt(0) - 45];
+  }
+
+  function rutaPolyDecodeUnsignedValues(encoded) {
+    var result = RUTA_POLY_NUM(0);
+    var shift = RUTA_POLY_NUM(0);
+    var resList = [];
+    for (var i = 0; i < encoded.length; i++) {
+      var value = RUTA_POLY_NUM(rutaPolyDecodeChar(encoded[i]));
+      result = result | ((value & RUTA_POLY_NUM(0x1F)) << shift);
+      if ((value & RUTA_POLY_NUM(0x20)) === RUTA_POLY_NUM(0)) {
+        resList.push(result);
+        result = RUTA_POLY_NUM(0);
+        shift = RUTA_POLY_NUM(0);
+      } else {
+        shift = shift + RUTA_POLY_NUM(5);
+      }
+    }
+    if (shift > 0) throw new Error("Polyline de HERE mal formado");
+    return resList;
+  }
+
+  function rutaPolyToSigned(val) {
+    var res = val;
+    if (res & RUTA_POLY_NUM(1)) res = ~res;
+    res = res >> RUTA_POLY_NUM(1);
+    return Number(res.toString());
+  }
+
+  function rutaPolyDecodeHeader(version, encodedHeader) {
+    if (Number(version.toString()) !== 1) throw new Error("Versión de polyline de HERE no soportada");
+    var headerNumber = Number(encodedHeader.toString());
+    return {
+      precision: headerNumber & 15,
+      thirdDim: (headerNumber >> 4) & 7,
+      thirdDimPrecision: (headerNumber >> 7) & 15
+    };
+  }
+
+  function rutaDecodePolyline(encoded) {
+    var decoded = rutaPolyDecodeUnsignedValues(encoded);
+    var header = rutaPolyDecodeHeader(decoded[0], decoded[1]);
+    var factorDegree = Math.pow(10, header.precision);
+    var lastLat = 0, lastLng = 0;
+    var res = [];
+    var i = 2;
+    while (i < decoded.length) {
+      lastLat += rutaPolyToSigned(decoded[i]);
+      lastLng += rutaPolyToSigned(decoded[i + 1]);
+      res.push({ lat: lastLat / factorDegree, lng: lastLng / factorDegree });
+      i += header.thirdDim ? 3 : 2; // se ignora la 3ª dimensión (altitud) si la trae
+    }
+    return res;
+  }
+
+  // Punto real sobre la carretera a una fracción de distancia dada de un tramo — sustituye
+  // la interpolación en línea recta entre origen y destino del tramo. haversineMeters() ya
+  // existe en la app (border/geo), se reutiliza tal cual.
+  function rutaPointAtFraction(puntosPolyline, frac) {
+    if (!puntosPolyline || puntosPolyline.length < 2) return puntosPolyline ? puntosPolyline[0] : { lat: 0, lng: 0 };
+    var distancias = [0];
+    var total = 0;
+    for (var i = 1; i < puntosPolyline.length; i++) {
+      total += haversineMeters(puntosPolyline[i - 1].lat, puntosPolyline[i - 1].lng, puntosPolyline[i].lat, puntosPolyline[i].lng);
+      distancias.push(total);
+    }
+    var objetivo = Math.max(0, Math.min(1, frac)) * total;
+    for (var j = 1; j < distancias.length; j++) {
+      if (distancias[j] >= objetivo) {
+        var segFrac = (distancias[j] === distancias[j - 1]) ? 0 : (objetivo - distancias[j - 1]) / (distancias[j] - distancias[j - 1]);
+        return rutaInterpolar(puntosPolyline[j - 1], puntosPolyline[j], segFrac);
+      }
+    }
+    return puntosPolyline[puntosPolyline.length - 1];
+  }
+
   function rutaParsearCoordenadas(texto) {
     var m = texto.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
     if (!m) return null;
@@ -6755,7 +6849,7 @@
     var vias = puntos.slice(1, -1).map(function (p) { return "via=" + p.lat + "," + p.lng; }).join("&");
     var url = "https://router.hereapi.com/v8/routes?transportMode=truck&origin=" + origin +
       "&destination=" + destinoStr + (vias ? "&" + vias : "") +
-      "&return=summary&truck[grossWeight]=" + RUTA_TRUCK.grossWeight + "&truck[height]=" + RUTA_TRUCK.height +
+      "&return=summary,polyline&truck[grossWeight]=" + RUTA_TRUCK.grossWeight + "&truck[height]=" + RUTA_TRUCK.height +
       "&apikey=" + RUTA_HERE_KEY;
     return fetch(url).then(function (res) {
       return res.json().then(function (data) { return { res: res, data: data }; });
@@ -6763,7 +6857,9 @@
       var err = rutaErrorHere(r.res, r.data);
       if (err) throw err;
       if (!r.data.routes || !r.data.routes.length) throw new Error("HERE no devolvió ninguna ruta para esos puntos");
-      return r.data.routes[0].sections.map(function (s) { return { durationMs: s.summary.duration * 1000, lengthM: s.summary.length }; });
+      return r.data.routes[0].sections.map(function (s) {
+        return { durationMs: s.summary.duration * 1000, lengthM: s.summary.length, puntos: rutaDecodePolyline(s.polyline) };
+      });
     });
   }
 
@@ -6819,7 +6915,7 @@
         restanteMs -= limite;
         fracRecorrida += limite / tramos[i].durationMs;
 
-        var puntoAprox = rutaInterpolar(puntos[i], puntos[i + 1], fracRecorrida);
+        var puntoAprox = rutaPointAtFraction(tramos[i].puntos, fracRecorrida);
         var esFinVentana = margenLimite <= margenBloque;
         var tipo, duracionParadaMs;
         if (modo === "doble") {
