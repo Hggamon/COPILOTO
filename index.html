@@ -6958,15 +6958,59 @@
     location.href = "geo:" + p.lat + "," + p.lng + "?q=" + p.lat + "," + p.lng + "(" + etiqueta + ")";
   }
 
+  // Busca el sitio real más cercano (gasolinera o aparcamiento) al punto exacto de la
+  // carretera donde se cumple el límite legal — Hugo, 5/9: probó "ir aquí" y el pin caía
+  // en la carretera, 1,4 km más allá de la gasolinera real más cercana. El punto de la
+  // carretera es correcto (dónde se cumple el límite), pero no es un sitio donde parar.
+  // Decisión ya tomada en esta misma conversación: se muestran TODOS los sitios sin
+  // filtrar por si están marcados aptos para camión (esa etiqueta viene casi siempre
+  // vacía en España/Francia) — se etiquetan como "sin verificar", nunca se ocultan.
+  function rutaBuscarSitioReal(lat, lng, radioM) {
+    var query = "[out:json][timeout:15];(node[\"amenity\"=\"fuel\"](around:" + radioM + "," + lat + "," + lng +
+      ");node[\"amenity\"=\"parking\"][\"access\"!=\"private\"](around:" + radioM + "," + lat + "," + lng + "););out body 20;";
+    return fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.elements || !data.elements.length) return null;
+        var mejor = null, mejorDist = Infinity;
+        data.elements.forEach(function (el) {
+          var d = haversineMeters(lat, lng, el.lat, el.lon);
+          if (d < mejorDist) { mejorDist = d; mejor = el; }
+        });
+        if (!mejor) return null;
+        var esGasolinera = mejor.tags && mejor.tags.amenity === "fuel";
+        var nombre = (mejor.tags && (mejor.tags.name || mejor.tags.brand)) ||
+          (esGasolinera ? "Gasolinera sin nombre en OSM" : "Aparcamiento sin nombre en OSM");
+        return { lat: mejor.lat, lng: mejor.lon, nombre: nombre, distanciaM: mejorDist };
+      })
+      .catch(function () { return null; }); // si Overpass falla, se sigue con el punto de la carretera — nunca romper el plan por esto
+  }
+
+  // Añade, a cada parada que lo necesite (todas menos "llegada a destino"), el sitio real
+  // más cercano encontrado. Si Overpass no encuentra nada en el radio, la parada se queda
+  // con el punto de la carretera tal cual, marcado como sin confirmar.
+  function rutaEnriquecerConSitios(plan) {
+    var pendientes = plan.filter(function (p) { return p.tipo !== "Llegada a destino"; });
+    return Promise.all(pendientes.map(function (p) {
+      return rutaBuscarSitioReal(p.lat, p.lng, 10000).then(function (sitio) {
+        if (sitio) { p.sitio = sitio; }
+      });
+    })).then(function () { return plan; });
+  }
+
   function renderRutaPlan(plan) {
     rutaPlanEl.innerHTML = "";
     plan.forEach(function (p, idx) {
+      var destinoLat = p.sitio ? p.sitio.lat : p.lat;
+      var destinoLng = p.sitio ? p.sitio.lng : p.lng;
       var row = document.createElement("div");
       row.className = "ruta-parada";
       var info = document.createElement("div");
       info.className = "ruta-parada-info";
-      info.innerHTML = "<div class=\"ruta-parada-tipo\"></div>" + rutaFmtHora(p.hora) +
-        " · cerca de " + p.lat.toFixed(4) + "," + p.lng.toFixed(4);
+      var ubicacionTxt = p.sitio
+        ? p.sitio.nombre + ", a " + Math.round(p.sitio.distanciaM) + " m de donde toca parar"
+        : "cerca de " + p.lat.toFixed(4) + "," + p.lng.toFixed(4) + " (sin sitio confirmado cerca)";
+      info.innerHTML = "<div class=\"ruta-parada-tipo\"></div>" + rutaFmtHora(p.hora) + " · " + ubicacionTxt;
       info.querySelector(".ruta-parada-tipo").textContent = p.tipo;
       row.appendChild(info);
 
@@ -6984,7 +7028,7 @@
       var btnIr = document.createElement("div");
       btnIr.className = "ruta-parada-probar";
       btnIr.textContent = "ir aquí";
-      btnIr.addEventListener("click", function () { rutaAbrirNavegador(p); });
+      btnIr.addEventListener("click", function () { rutaAbrirNavegador({ lat: destinoLat, lng: destinoLng, tipo: p.tipo }); });
       botones.appendChild(btnIr);
       row.appendChild(botones);
 
@@ -7025,8 +7069,11 @@
     Promise.all(textos.map(rutaResolverPunto)).then(function (puntos) {
       return rutaPedirHere(puntos).then(function (tramos) {
         var plan = rutaProyectarPlan(tramos, puntos);
-        renderRutaPlan(plan);
-        rutaSetStatus(tramos.length + " tramo(s) calculado(s) con HERE — plan " + (doubleCrewOn ? "en doble tripulación." : "en solitario."), false);
+        rutaSetStatus("Ruta calculada, buscando sitios reales cercanos a cada parada…", false);
+        return rutaEnriquecerConSitios(plan).then(function (planConSitios) {
+          renderRutaPlan(planConSitios);
+          rutaSetStatus(tramos.length + " tramo(s) calculado(s) con HERE — plan " + (doubleCrewOn ? "en doble tripulación." : "en solitario."), false);
+        });
       });
     }).catch(function (e) {
       rutaSetStatus("No se pudo calcular: " + e.message, true);
