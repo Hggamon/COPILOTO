@@ -992,6 +992,28 @@
     letter-spacing: 0.04em;
   }
   .se5000-brand-strip b { color: #9b9782; font-weight: 800; }
+  /* Aviso de ruta: debe distinguirse del logo sin necesidad de leerlo (DUDAS.md, 27/8:
+     "uno es seguridad y urgente, el otro es didáctico y calmado"). Reutiliza el mismo
+     ámbar de aviso que ya usa el reloj grande (--bg-amber), no un color inventado aparte. */
+  .se5000-brand-strip.route-alert {
+    background: var(--bg-amber);
+    padding: 0.1em 0;
+  }
+  #se5000-brand-route {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3em;
+    font-size: clamp(11px, 2.6vw, 15px);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #ffd98a;
+  }
+  .se5000-brand-route-pic {
+    width: 1.1em;
+    height: 1.1em;
+    flex: 0 0 auto;
+  }
 
   .se5000-display {
     background: var(--se-lcd-grid), var(--se-display-bg);
@@ -2107,6 +2129,13 @@
       <path d="M8.2 9a3.8 3.8 0 1 1 5.9 3.2c-1.1.75-1.6 1.35-1.6 2.55" />
       <circle cx="12" cy="18.6" r="0.35" fill="currentColor" stroke="none" />
     </symbol>
+    <!-- Salida de autopista (capa 2, organizador de ruta) — la franja de la marca no es
+         réplica del aparato (DUDAS.md, 27/8: ese hueco "pasa a ser el espacio de la app
+         dentro del marco"), así que este pictograma es propio, no calcado del manual.
+         Flecha simple apuntando a una rampa de salida. -->
+    <symbol id="pic-exit" viewBox="0 0 24 24">
+      <path fill="currentColor" stroke="none" d="M3 11.2h11.2L10.8 7.8l1.7-1.7L18.8 12.4l-6.3 6.3-1.7-1.7 3.4-3.4H3Z" />
+    </symbol>
   </defs>
 </svg>
 
@@ -2473,7 +2502,18 @@
          diálogo — mismo criterio de "réplica visual con margen para ser funcional" que
          ya se aplicó a las bandejas el 27/8. Identidad de marca: una franja mínima
          arriba, no un panel entero. -->
-    <div class="se5000-brand-strip" aria-hidden="true">Stoneridge <b>SE5000</b></div>
+    <!-- Tres usos de este hueco, por prioridad fijada el 27/8 (DUDAS.md): 1) aviso de
+         ruta (capa 2) — gana siempre; 2) explicación en cristiano de la pregunta del
+         display (pendiente, ver "Textos y presentación" en ESTADO.md); 3) logo, el resto
+         del tiempo. Deben distinguirse sin leer (clase route-alert cambia el fondo) —
+         "uno es seguridad y urgente, el otro es didáctico y calmado". -->
+    <div class="se5000-brand-strip" id="se5000-brand-strip" aria-hidden="true">
+      <span id="se5000-brand-logo">Stoneridge <b>SE5000</b></span>
+      <span id="se5000-brand-route" hidden>
+        <svg class="se5000-brand-route-pic" aria-hidden="true"><use href="#pic-exit"></use></svg>
+        <span id="se5000-brand-route-text"></span>
+      </span>
+    </div>
     <div class="se5000-display">
       <div class="se5000-display-line1">
         <svg class="se5000-pic" id="se5000-main-pic" aria-hidden="true"><use href="#pic-driving"></use></svg>
@@ -3351,6 +3391,47 @@
     utter.lang = "es-ES";
     speechSynthesis.cancel();
     speechSynthesis.speak(utter);
+  }
+
+  // ============================================================
+  // Aviso de ruta en la franja de marca (capa 2, organizador de ruta) — 5/9.
+  // Prioridad fijada el 27/8 en DUDAS.md: esto gana siempre sobre la explicación en
+  // cristiano (pendiente de construir) y sobre el logo. En pantalla solo lo esencial
+  // ("salida 16 · km 185"); el aviso largo va por voz, nunca para leer (regla de Hugo,
+  // 27/8, aplicable a todo aviso, no solo a este). routeAlertId evita repetir el aviso
+  // por voz en cada repintado (renderSe5000View corre cada segundo) — solo habla cuando
+  // cambia de verdad (nuevo umbral de km, o un aviso distinto).
+  // ============================================================
+  var routeAlert = null;          // { textoCorto, textoVoz, id } | null
+  var routeAlertSpokenId = null;
+
+  function setRouteAlert(textoCorto, textoVoz, id) {
+    routeAlert = { textoCorto: textoCorto, textoVoz: textoVoz, id: id };
+    if (id !== routeAlertSpokenId) {
+      routeAlertSpokenId = id;
+      announce(textoVoz);
+    }
+    renderBrandStrip();
+  }
+
+  function clearRouteAlert() {
+    if (!routeAlert) return;
+    routeAlert = null;
+    routeAlertSpokenId = null;
+    renderBrandStrip();
+  }
+
+  function renderBrandStrip() {
+    if (routeAlert) {
+      se5000BrandLogoEl.hidden = true;
+      se5000BrandRouteEl.hidden = false;
+      se5000BrandRouteTextEl.textContent = routeAlert.textoCorto;
+      se5000BrandStripEl.classList.add("route-alert");
+    } else {
+      se5000BrandLogoEl.hidden = false;
+      se5000BrandRouteEl.hidden = true;
+      se5000BrandStripEl.classList.remove("route-alert");
+    }
   }
 
   function onWakeLockReleased() {
@@ -7433,6 +7514,10 @@
   var se5000SubEl = document.getElementById("se5000-sub");
   var se5000DdsTitleEl = document.getElementById("se5000-dds-title");
   var se5000TrayHintEl = document.getElementById("se5000-tray-hint");
+  var se5000BrandStripEl = document.getElementById("se5000-brand-strip");
+  var se5000BrandLogoEl = document.getElementById("se5000-brand-logo");
+  var se5000BrandRouteEl = document.getElementById("se5000-brand-route");
+  var se5000BrandRouteTextEl = document.getElementById("se5000-brand-route-text");
   var se5000NavBack = document.getElementById("se5000-nav-back");
   var se5000NavUp = document.getElementById("se5000-nav-up");
   var se5000NavDown = document.getElementById("se5000-nav-down");
@@ -8773,6 +8858,7 @@
 
     renderEjectCountry();
     renderSe5000Menu();
+    renderBrandStrip();
   }
 
   var clockLabelTopEl = document.getElementById("clock-label-top");
@@ -9278,5 +9364,26 @@
   applyViewMode();
 
   dailyDriveTimer = setInterval(dailyDriveTick, DAILY_TICK_MS);
+
+  // Ayuda de prueba, solo para Hugo: abrir con "?probar=ruta" simula la aproximación a
+  // una salida (organizador de ruta, capa 2) sin tener que construir todavía la pantalla
+  // de meter origen/destino. Tres avisos por voz (10/5/3 km, cada uno más corto que el
+  // anterior — PROYECTO.md: "en pantalla solo lo esencial, todo mensaje largo por voz"),
+  // el texto en pantalla no cambia mientras se aproxima (mismo criterio que el ejemplo de
+  // DUDAS.md, "salida 16 · km 185"), y se apaga solo al "llegar". No es una función del
+  // organizador real, solo un atajo para ver/oír la franja funcionando hoy mismo.
+  (function () {
+    if (new URLSearchParams(location.search).get("probar") !== "ruta") return;
+    var TEXTO_CORTO = "SALIDA 16 · km 185";
+    var pasos = [
+      { retrasoMs: 500, id: "salida16-10km", voz: "En 10 kilómetros, salida 16. Área La Pausa, último parking seguro antes de tu descanso." },
+      { retrasoMs: 6000, id: "salida16-5km", voz: "En 5 kilómetros, salida 16." },
+      { retrasoMs: 11000, id: "salida16-3km", voz: "En 3 kilómetros, salida 16." },
+    ];
+    pasos.forEach(function (p) {
+      setTimeout(function () { setRouteAlert(TEXTO_CORTO, p.voz, p.id); }, p.retrasoMs);
+    });
+    setTimeout(clearRouteAlert, 16000);
+  })();
 })();
 </script>
