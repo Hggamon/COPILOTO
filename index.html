@@ -6717,11 +6717,27 @@
     return { lat: parseFloat(m[1]), lng: parseFloat(m[2]), nombre: texto.trim() };
   }
 
+  // Distingue "HERE contestó pero sin resultado" de "HERE rechazó la llamada" (401/403,
+  // p. ej. por la restricción de dominio) — un mensaje genérico no deja saber cuál pasó,
+  // y sin saberlo no se puede diagnosticar nada (Hugo, 5/9: probó en el móvil y el error
+  // no decía cuál de los dos casos era).
+  function rutaErrorHere(res, data) {
+    if (!res.ok) {
+      var detalle = (data && (data.error_description || data.error)) || res.statusText;
+      return new Error("HERE rechazó la llamada (HTTP " + res.status + "): " + detalle);
+    }
+    return null;
+  }
+
   function rutaGeocodificar(texto) {
     var url = "https://geocode.search.hereapi.com/v1/geocode?q=" + encodeURIComponent(texto) + "&apikey=" + RUTA_HERE_KEY;
-    return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-      if (!data.items || !data.items.length) throw new Error("No se encontró \"" + texto + "\"");
-      var it = data.items[0];
+    return fetch(url).then(function (res) {
+      return res.json().then(function (data) { return { res: res, data: data }; });
+    }).then(function (r) {
+      var err = rutaErrorHere(r.res, r.data);
+      if (err) throw err;
+      if (!r.data.items || !r.data.items.length) throw new Error("No se encontró \"" + texto + "\"");
+      var it = r.data.items[0];
       return { lat: it.position.lat, lng: it.position.lng, nombre: it.title };
     });
   }
@@ -6741,9 +6757,13 @@
       "&destination=" + destinoStr + (vias ? "&" + vias : "") +
       "&return=summary&truck[grossWeight]=" + RUTA_TRUCK.grossWeight + "&truck[height]=" + RUTA_TRUCK.height +
       "&apikey=" + RUTA_HERE_KEY;
-    return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-      if (!data.routes || !data.routes.length) throw new Error("HERE no devolvió ninguna ruta para esos puntos");
-      return data.routes[0].sections.map(function (s) { return { durationMs: s.summary.duration * 1000, lengthM: s.summary.length }; });
+    return fetch(url).then(function (res) {
+      return res.json().then(function (data) { return { res: res, data: data }; });
+    }).then(function (r) {
+      var err = rutaErrorHere(r.res, r.data);
+      if (err) throw err;
+      if (!r.data.routes || !r.data.routes.length) throw new Error("HERE no devolvió ninguna ruta para esos puntos");
+      return r.data.routes[0].sections.map(function (s) { return { durationMs: s.summary.duration * 1000, lengthM: s.summary.length }; });
     });
   }
 
