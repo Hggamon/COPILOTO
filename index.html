@@ -762,7 +762,7 @@
     white-space: pre-wrap;
   }
 
-  #nav-tacografo-desde-bitacora {
+  #nav-tacografo-desde-bitacora, #nav-tacografo-desde-ruta {
     align-self: center;
     margin-top: 10px;
     font-size: clamp(12px, 2.2vw, 15px);
@@ -773,6 +773,94 @@
     border-radius: 10px;
     padding: 0.5em 1.1em;
     cursor: pointer;
+  }
+
+  /* Organizador de ruta (beta), capa 2 — 5/9 */
+  #ruta {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: clamp(20px, 6vh, 60px) clamp(16px, 5vw, 32px);
+    gap: 14px;
+    overflow-y: auto;
+  }
+  #ruta-title {
+    font-size: clamp(15px, 3vw, 20px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  #ruta-form {
+    max-width: 60ch;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #ruta-form input[type="text"] {
+    font-family: var(--font-display);
+    font-size: clamp(12px, 2.4vw, 14px);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--fg-dim);
+    border-radius: 8px;
+    padding: 0.6em 0.8em;
+    color: var(--fg);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #ruta-waypoints { display: flex; flex-direction: column; gap: 8px; }
+  #ruta-waypoints .ruta-waypoint-row { display: flex; gap: 6px; align-items: center; }
+  #ruta-waypoints .ruta-waypoint-row input { flex: 1 1 auto; }
+  .ruta-waypoint-quitar {
+    flex: 0 0 auto;
+    font-size: clamp(11px, 2vw, 13px);
+    color: var(--fg-dim);
+    border: 1px solid var(--fg-dim);
+    border-radius: 8px;
+    padding: 0.4em 0.7em;
+    cursor: pointer;
+  }
+  #ruta-status {
+    max-width: 60ch;
+    margin: 0 auto;
+    width: 100%;
+    font-size: clamp(11px, 2.2vw, 13px);
+    color: var(--fg-dim);
+  }
+  #ruta-status.ruta-status-error { color: #ff8a8a; }
+  #ruta-plan {
+    max-width: 60ch;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ruta-parada {
+    border: 1px solid var(--fg-dim);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: var(--font-display);
+    font-size: clamp(11px, 2.2vw, 13px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .ruta-parada-info { line-height: 1.4; }
+  .ruta-parada-tipo { font-weight: 700; }
+  .ruta-parada-probar {
+    flex: 0 0 auto;
+    font-size: clamp(10px, 2vw, 12px);
+    color: var(--fg-dim);
+    border: 1px solid var(--fg-dim);
+    border-radius: 8px;
+    padding: 0.4em 0.7em;
+    cursor: pointer;
+    white-space: nowrap;
   }
 
   .bitacora-jornada {
@@ -2656,6 +2744,11 @@
     <div id="ferry-invalid-note" class="status-pill" hidden></div>
     <div id="export-btn" class="status-pill">exportar registro</div>
     <div id="nav-bitacora" class="status-pill">ver bitácora</div>
+    <!-- Organizador de ruta (capa 2), primera pieza con entrada real de coordenadas —
+         5/9. PROYECTO.md: "el planificador de ruta... será su propia pantalla, no una
+         cuarta variante" del mapa de Tacógrafo/Simulación/Bitácora — vive aparte, solo
+         alcanzable desde Ayuda como las otras piezas auxiliares. -->
+    <div id="nav-ruta" class="status-pill">organizador de ruta (beta)</div>
   </div>
   <div id="nav-tacografo">◂ Volver al tacógrafo</div>
   <!-- Reiniciar se ha quitado de la pantalla del tacógrafo (vista SE5000): en el
@@ -2671,6 +2764,28 @@
   <div id="bitacora-title">Bitácora</div>
   <div id="bitacora-content">cargando…</div>
   <div id="nav-tacografo-desde-bitacora">◂ Volver a Ayuda</div>
+</div>
+
+<!-- Organizador de ruta (capa 2) — 5/9, primera versión con entrada real. Beta a
+     propósito: calcula sobre una llamada real a HERE y proyecta el plan desde el estado
+     EN VIVO del conductor activo (deadline/dailyDrive/jornadaWindowMs — nunca un reloj
+     nuevo, ver rutaProyectarPlan()), pero simplifica dos cosas que quedan pendientes de
+     verdad: no modela tiempo de espera en las paradas de trabajo intermedias, y en modo
+     doble solo mira la ventana del equipo, no los límites individuales de cada uno. No
+     mueve todavía la franja de aviso sola por GPS — cada parada del plan tiene un botón
+     para probarla a mano en la pantalla del tacógrafo mientras esa pieza no existe. -->
+<div id="ruta" class="screen" hidden>
+  <div id="ruta-title">Organizador de ruta (beta)</div>
+  <div id="ruta-form">
+    <input id="ruta-origen" type="text" placeholder="Origen: lat,lng o nombre de lugar">
+    <div id="ruta-waypoints"></div>
+    <div id="ruta-add-waypoint" class="status-pill">+ añadir parada de trabajo</div>
+    <input id="ruta-destino" type="text" placeholder="Destino: lat,lng o nombre de lugar">
+    <div id="ruta-calcular" class="status-pill">calcular ruta</div>
+    <div id="ruta-status" hidden></div>
+  </div>
+  <div id="ruta-plan"></div>
+  <div id="nav-tacografo-desde-ruta">◂ Volver a Ayuda</div>
 </div>
 
 <script>
@@ -3077,6 +3192,16 @@
   var bitacoraContentEl = document.getElementById("bitacora-content");
   var navBitacoraBtn = document.getElementById("nav-bitacora");
   var navTacografoDesdeBitacoraBtn = document.getElementById("nav-tacografo-desde-bitacora");
+  var rutaScreen = document.getElementById("ruta");
+  var navRutaBtn = document.getElementById("nav-ruta");
+  var navTacografoDesdeRutaBtn = document.getElementById("nav-tacografo-desde-ruta");
+  var rutaOrigenEl = document.getElementById("ruta-origen");
+  var rutaDestinoEl = document.getElementById("ruta-destino");
+  var rutaWaypointsEl = document.getElementById("ruta-waypoints");
+  var rutaAddWaypointBtn = document.getElementById("ruta-add-waypoint");
+  var rutaCalcularBtn = document.getElementById("ruta-calcular");
+  var rutaStatusEl = document.getElementById("ruta-status");
+  var rutaPlanEl = document.getElementById("ruta-plan");
   var tgActivityBtn = document.getElementById("tg-activity-btn");
   var tgDdsUpBtn = document.getElementById("tg-dds-up");
   var tgDdsDownBtn = document.getElementById("tg-dds-down");
@@ -4905,6 +5030,28 @@
     ayudaScreen.hidden = false;
   });
 
+  navRutaBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    ayudaScreen.hidden = true;
+    rutaScreen.hidden = false;
+  });
+
+  navTacografoDesdeRutaBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    rutaScreen.hidden = true;
+    ayudaScreen.hidden = false;
+  });
+
+  rutaAddWaypointBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    rutaAgregarWaypointRow();
+  });
+
+  rutaCalcularBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    rutaCalcular();
+  });
+
   for (var gi = 0; gi < gapClassifyBtns.length; gi++) {
     gapClassifyBtns[gi].addEventListener("click", function (e) {
       e.stopPropagation();
@@ -6532,6 +6679,214 @@
   function renderBitacoraScreen() {
     bitacoraContentEl.textContent = "cargando…";
     readBitacoraEvents(renderBitacoraFromEvents);
+  }
+
+  // ============================================================
+  // Organizador de ruta (beta), capa 2 — 5/9. Primera pieza con entrada real de
+  // coordenadas: acepta "lat,lng" pegado tal cual (así llegan la mayoría de los
+  // encargos por WhatsApp, copiloto-especificacion.md §8) o un nombre de lugar
+  // (geocodificado vía HERE), pide una ruta real con perfil de camión, y proyecta el
+  // plan de paradas desde el estado EN VIVO del conductor activo — nunca desde un reloj
+  // nuevo (PROYECTO.md, regla 1: la app siempre va por detrás, nunca por delante).
+  //
+  // Simplificaciones documentadas de esta primera versión (no del organizador final):
+  // - No modela tiempo de espera en las paradas de trabajo intermedias (carga/descarga).
+  // - En modo doble solo mira la ventana del equipo (jornadaWindowMs2), no los límites
+  //   individuales de cada conductor por separado.
+  // - La posición de cada parada es una interpolación lineal entre los extremos del
+  //   tramo de HERE, no la curva real de la carretera (pendiente: decodificar el
+  //   polyline). Sirve para tener una coordenada aproximada donde buscar un sitio real.
+  // - Todavía no mueve la franja de aviso sola por GPS (eso es la pieza siguiente) — cada
+  //   parada del plan lleva un botón para probarla a mano en la pantalla del tacógrafo.
+  // ============================================================
+  var RUTA_HERE_KEY = "VfyWJUCnUkAbishfK-hnxjRyEJLqr59Iyx-EUhZfvvo"; // restringida por dominio en HERE Access Manager
+  var RUTA_TRUCK = { grossWeight: 40000, height: 400 }; // kg/cm — pendiente hacerlos configurables en Ajuste
+  var RUTA_MARGEN_MS = 20 * 60 * 1000; // nunca apurar hasta el último minuto
+  var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
+
+  function rutaParsearCoordenadas(texto) {
+    var m = texto.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return null;
+    return { lat: parseFloat(m[1]), lng: parseFloat(m[2]), nombre: texto.trim() };
+  }
+
+  function rutaGeocodificar(texto) {
+    var url = "https://geocode.search.hereapi.com/v1/geocode?q=" + encodeURIComponent(texto) + "&apikey=" + RUTA_HERE_KEY;
+    return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      if (!data.items || !data.items.length) throw new Error("No se encontró \"" + texto + "\"");
+      var it = data.items[0];
+      return { lat: it.position.lat, lng: it.position.lng, nombre: it.title };
+    });
+  }
+
+  function rutaResolverPunto(texto) {
+    var coords = rutaParsearCoordenadas(texto);
+    if (coords) return Promise.resolve(coords);
+    if (!texto || !texto.trim()) return Promise.reject(new Error("Falta un punto por rellenar"));
+    return rutaGeocodificar(texto);
+  }
+
+  function rutaPedirHere(puntos) {
+    var origin = puntos[0].lat + "," + puntos[0].lng;
+    var destinoStr = puntos[puntos.length - 1].lat + "," + puntos[puntos.length - 1].lng;
+    var vias = puntos.slice(1, -1).map(function (p) { return "via=" + p.lat + "," + p.lng; }).join("&");
+    var url = "https://router.hereapi.com/v8/routes?transportMode=truck&origin=" + origin +
+      "&destination=" + destinoStr + (vias ? "&" + vias : "") +
+      "&return=summary&truck[grossWeight]=" + RUTA_TRUCK.grossWeight + "&truck[height]=" + RUTA_TRUCK.height +
+      "&apikey=" + RUTA_HERE_KEY;
+    return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      if (!data.routes || !data.routes.length) throw new Error("HERE no devolvió ninguna ruta para esos puntos");
+      return data.routes[0].sections.map(function (s) { return { durationMs: s.summary.duration * 1000, lengthM: s.summary.length }; });
+    });
+  }
+
+  function rutaInterpolar(a, b, frac) {
+    return { lat: a.lat + (b.lat - a.lat) * frac, lng: a.lng + (b.lng - a.lng) * frac };
+  }
+
+  function rutaProyectarPlan(tramos, puntos) {
+    var modo = doubleCrewOn ? "doble" : "solo";
+    var now = Date.now();
+
+    var blockRemainingMs = deadline !== null ? Math.max(0, deadline - now) : BLOCK_MS;
+    var dailyCeiling = dailyDrive.extensionUsed ? DAILY_DRIVE_EXTENDED_LIMIT_MS : DAILY_DRIVE_LIMIT_MS;
+    var dailyRemainingMs = Math.max(0, dailyCeiling - dailyDrive.drivenMs);
+    var windowRemainingMs = modo === "doble"
+      ? Math.max(0, (jornadaStartAt2 || now) + jornadaWindowMs2() - now)
+      : Math.max(0, (jornadaStartAt || now) + jornadaWindowMs() - now);
+    // En doble no hay elección: jornadaRestFloorMs2() es el único suelo (9h, art. 8(5)).
+    // En solitario, jornadaRestFloorMs() puede devolver el reducido (9h) mientras queden
+    // reducciones semanales, pero ESO es una elección que el conductor no ha tomado
+    // todavía en un plan futuro — usar el reducido aquí sería optimista (PROYECTO.md,
+    // regla 1: el margen de seguridad asume siempre el caso peor). Se usa REGULAR_DAILY_MIN_MS
+    // (11h) sin condiciones para la proyección en solitario.
+    var restDurationMs = modo === "doble" ? jornadaRestFloorMs2() : REGULAR_DAILY_MIN_MS;
+
+    var reloj = now;
+    var plan = [];
+
+    for (var i = 0; i < tramos.length; i++) {
+      var restanteMs = tramos[i].durationMs;
+      var fracRecorrida = 0;
+
+      while (restanteMs > 0) {
+        var margenBloque = blockRemainingMs - RUTA_MARGEN_MS;
+        var margenLimite = modo === "doble"
+          ? (windowRemainingMs - RUTA_MARGEN_MS)
+          : Math.min(dailyRemainingMs - RUTA_MARGEN_MS, windowRemainingMs - RUTA_MARGEN_MS);
+        var limite = Math.min(margenBloque, margenLimite, restanteMs);
+
+        if (limite >= restanteMs) {
+          reloj += restanteMs;
+          blockRemainingMs -= restanteMs;
+          dailyRemainingMs -= restanteMs;
+          windowRemainingMs -= restanteMs;
+          restanteMs = 0;
+          break;
+        }
+
+        reloj += limite;
+        blockRemainingMs -= limite;
+        dailyRemainingMs -= limite;
+        windowRemainingMs -= limite;
+        restanteMs -= limite;
+        fracRecorrida += limite / tramos[i].durationMs;
+
+        var puntoAprox = rutaInterpolar(puntos[i], puntos[i + 1], fracRecorrida);
+        var esFinVentana = margenLimite <= margenBloque;
+        var tipo, duracionParadaMs;
+        if (modo === "doble") {
+          tipo = esFinVentana ? "Descanso del equipo (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Cambio de conductor — gasolinera apta";
+          duracionParadaMs = esFinVentana ? restDurationMs : RUTA_RELEVO_MS;
+        } else {
+          tipo = esFinVentana ? "Descanso diario (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Pausa de 45 min — gasolinera apta";
+          duracionParadaMs = esFinVentana ? restDurationMs : FULL_BREAK_MS;
+        }
+
+        plan.push({ hora: reloj, tipo: tipo, lat: puntoAprox.lat, lng: puntoAprox.lng });
+
+        reloj += duracionParadaMs;
+        blockRemainingMs = BLOCK_MS;
+        if (esFinVentana) {
+          dailyRemainingMs = dailyCeiling;
+          windowRemainingMs = modo === "doble" ? jornadaWindowMs2() : jornadaWindowMs();
+        }
+      }
+    }
+
+    plan.push({ hora: reloj, tipo: "Llegada a destino", lat: puntos[puntos.length - 1].lat, lng: puntos[puntos.length - 1].lng });
+    return plan;
+  }
+
+  function rutaFmtHora(ts) {
+    var d = new Date(ts);
+    return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" }) + " " +
+      d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderRutaPlan(plan) {
+    rutaPlanEl.innerHTML = "";
+    plan.forEach(function (p, idx) {
+      var row = document.createElement("div");
+      row.className = "ruta-parada";
+      var info = document.createElement("div");
+      info.className = "ruta-parada-info";
+      info.innerHTML = "<div class=\"ruta-parada-tipo\"></div>" + rutaFmtHora(p.hora) +
+        " · cerca de " + p.lat.toFixed(4) + "," + p.lng.toFixed(4);
+      info.querySelector(".ruta-parada-tipo").textContent = p.tipo;
+      row.appendChild(info);
+      if (idx < plan.length - 1) {
+        var btn = document.createElement("div");
+        btn.className = "ruta-parada-probar";
+        btn.textContent = "probar en pantalla";
+        btn.addEventListener("click", function () {
+          setRouteAlert(p.tipo.toUpperCase(), p.tipo + ", cerca de aquí.", "ruta-plan-" + idx);
+        });
+        row.appendChild(btn);
+      }
+      rutaPlanEl.appendChild(row);
+    });
+  }
+
+  function rutaSetStatus(texto, esError) {
+    rutaStatusEl.hidden = !texto;
+    rutaStatusEl.textContent = texto || "";
+    rutaStatusEl.classList.toggle("ruta-status-error", !!esError);
+  }
+
+  function rutaAgregarWaypointRow(valor) {
+    var row = document.createElement("div");
+    row.className = "ruta-waypoint-row";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Parada: lat,lng o nombre de lugar";
+    if (valor) input.value = valor;
+    var quitar = document.createElement("div");
+    quitar.className = "ruta-waypoint-quitar";
+    quitar.textContent = "quitar";
+    quitar.addEventListener("click", function () { row.remove(); });
+    row.appendChild(input);
+    row.appendChild(quitar);
+    rutaWaypointsEl.appendChild(row);
+  }
+
+  function rutaCalcular() {
+    rutaSetStatus("Calculando ruta…", false);
+    rutaPlanEl.innerHTML = "";
+    var textos = [rutaOrigenEl.value];
+    var waypointInputs = rutaWaypointsEl.querySelectorAll("input");
+    for (var wi = 0; wi < waypointInputs.length; wi++) textos.push(waypointInputs[wi].value);
+    textos.push(rutaDestinoEl.value);
+
+    Promise.all(textos.map(rutaResolverPunto)).then(function (puntos) {
+      return rutaPedirHere(puntos).then(function (tramos) {
+        var plan = rutaProyectarPlan(tramos, puntos);
+        renderRutaPlan(plan);
+        rutaSetStatus(tramos.length + " tramo(s) calculado(s) con HERE — plan " + (doubleCrewOn ? "en doble tripulación." : "en solitario."), false);
+      });
+    }).catch(function (e) {
+      rutaSetStatus("No se pudo calcular: " + e.message, true);
+    });
   }
 
   // Art. 7: el bloque de 4h30 se reinicia con una pausa válida — 45 min de un tirón, o
