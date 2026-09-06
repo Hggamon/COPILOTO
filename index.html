@@ -2790,6 +2790,7 @@
     <div id="ruta-add-waypoint" class="status-pill">+ añadir parada de trabajo</div>
     <input id="ruta-destino" type="text" placeholder="Destino: lat,lng o nombre de lugar">
     <div id="ruta-ducha-toggle" class="status-pill">necesito ducha en este viaje: no</div>
+    <div id="ruta-jornada10h-toggle" class="status-pill">jornada de hoy: 9h</div>
     <div id="ruta-calcular" class="status-pill">calcular ruta</div>
     <div id="ruta-status" hidden></div>
   </div>
@@ -3211,6 +3212,8 @@
   var rutaCalcularBtn = document.getElementById("ruta-calcular");
   var rutaDuchaToggleEl = document.getElementById("ruta-ducha-toggle");
   var rutaNecesitaDucha = false;
+  var rutaJornada10hToggleEl = document.getElementById("ruta-jornada10h-toggle");
+  var rutaJornada10h = false; // 7/9, Hugo: el conductor decide si hoy planifica sobre 9h o 10h, la app no lo adivina
   var rutaStatusEl = document.getElementById("ruta-status");
   var rutaPlanEl = document.getElementById("ruta-plan");
   var rutaTramosCache = null;  // tramos de HERE de la ultima ruta calculada — se va acortando en cada recalculo, nunca se vuelve a llamar a HERE
@@ -5067,6 +5070,12 @@
     rutaDuchaToggleEl.textContent = "necesito ducha en este viaje: " + (rutaNecesitaDucha ? "sí" : "no");
   });
 
+  rutaJornada10hToggleEl.addEventListener("click", function (e) {
+    e.stopPropagation();
+    rutaJornada10h = !rutaJornada10h;
+    rutaJornada10hToggleEl.textContent = "jornada de hoy: " + (rutaJornada10h ? "10h" : "9h");
+  });
+
   rutaCalcularBtn.addEventListener("click", function (e) {
     e.stopPropagation();
     rutaCalcular();
@@ -6731,15 +6740,14 @@
   var RUTA_RECALC_MS = 5 * 60 * 1000;   // cada cuanto se reintenta el recalculo en segundo plano
   var RUTA_GPS_STALE_MS = 90 * 1000;    // mismo umbral que ya usa el resto de la app para "señal GPS perdida"
   var RUTA_OFFROUTE_M = 5000;           // si el GPS cae mas lejos que esto de la ruta guardada, no se recalcula ese ciclo (mejor no tocar el plan que tocarlo con un dato sin sentido)
-  // Ventana de paradas largas (6/9, a partir de un caso real de Hugo: Cestas con 25 min de
-  // margen todavia no se recomendaba, y la app empujaba a la siguiente area, peor equipada,
-  // solo porque esa SI caia dentro del margen de 20 min). Para un descanso diario/semanal
-  // en solitario, en vez de clavar la parada en el punto exacto del margen, se mira una
-  // ventana de sitios candidatos en los ultimos RUTA_VENTANA_LARGA_MS de conduccion antes de
-  // ese punto y se elige el mejor de verdad — no el primero que cae dentro del margen. No se
-  // aplica a paradas cortas (45 min, relevo): ahi no importa la comodidad, el sitio mas
-  // cercano de siempre sigue siendo correcto.
-  var RUTA_VENTANA_LARGA_MS = 45 * 60 * 1000;
+  // Ventana de paradas largas (6/9, caso real: Cestas con 25 min de margen todavia no se
+  // recomendaba, y la app empujaba a la siguiente area, peor equipada, solo porque esa SI
+  // caia dentro del margen de 20 min). Para un descanso diario/semanal en solitario, en vez
+  // de clavar la parada en el punto exacto del margen, se mira TODO el tramo conducido desde
+  // la ultima pausa (ventana dinamica, ver fracInicioSegmento en rutaProyectarPlan — 7/9,
+  // Hugo: el hueco real de ese dia, no un numero fijo) y se elige el mejor sitio de verdad.
+  // No se aplica a paradas cortas (45 min, relevo): ahi no importa la comodidad, el sitio
+  // mas cercano de siempre sigue siendo correcto.
   var AMENIDADES_KEY = "copiloto-amenidades-fr"; // { lat, lng, nombre, ducha: true|false, anotadoEn } — solo lo que Hugo anota a mano, nunca inventado
 
   // ------------------------------------------------------------
@@ -6903,7 +6911,10 @@
     var now = Date.now();
 
     var blockRemainingMs = deadline !== null ? Math.max(0, deadline - now) : BLOCK_MS;
-    var dailyCeiling = dailyDrive.extensionUsed ? DAILY_DRIVE_EXTENDED_LIMIT_MS : DAILY_DRIVE_LIMIT_MS;
+    // Hugo, 7/9: la extensión 9h->10h no es algo que el planificador deba adivinar — es una
+    // decisión del conductor, y la marca él mismo (rutaJornada10h). Si ya se usó de verdad
+    // hoy (dailyDrive.extensionUsed), eso manda igual, no se puede "desusar".
+    var dailyCeiling = (dailyDrive.extensionUsed || rutaJornada10h) ? DAILY_DRIVE_EXTENDED_LIMIT_MS : DAILY_DRIVE_LIMIT_MS;
     var dailyRemainingMs = Math.max(0, dailyCeiling - dailyDrive.drivenMs);
     var windowRemainingMs = modo === "doble"
       ? Math.max(0, (jornadaStartAt2 || now) + jornadaWindowMs2() - now)
@@ -6919,12 +6930,23 @@
     var reloj = now;
     var plan = [];
 
+    // Hugo, 7/9: "el primer bloque conduce lo que puede con margen de seguridad... eso no
+    // tiene mayor importancia a no ser que vaya a usar la ventana extra". El margen de 20
+    // min solo hace falta aplicarlo UNA VEZ por jornada (para no apurar el tope diario/de
+    // jornada hasta el último minuto) — no cada vez que el bloque de 4h30 se resetea tras
+    // una pausa corta. Aplicarlo de nuevo en cada bloque es lo que dejaba un sobrante de
+    // minutos (los "35-40 min" del ejemplo de Hugo) que forzaba una pausa de más antes del
+    // descanso largo. primerBloqueDia controla esto: solo el primer bloque de cada jornada
+    // resta el margen de su propio tope; los siguientes se comparan con su tope de 4h30
+    // real, contra el tope diario/de jornada que YA lleva su margen restado.
     for (var i = 0; i < tramos.length; i++) {
       var restanteMs = tramos[i].durationMs;
       var fracRecorrida = 0;
+      var primerBloqueDia = true;
+      var fracInicioSegmento = 0;
 
       while (restanteMs > 0) {
-        var margenBloque = blockRemainingMs - RUTA_MARGEN_MS;
+        var margenBloque = (primerBloqueDia ? blockRemainingMs - RUTA_MARGEN_MS : blockRemainingMs);
         var margenLimite = modo === "doble"
           ? (windowRemainingMs - RUTA_MARGEN_MS)
           : Math.min(dailyRemainingMs - RUTA_MARGEN_MS, windowRemainingMs - RUTA_MARGEN_MS);
@@ -6945,6 +6967,7 @@
         windowRemainingMs -= limite;
         restanteMs -= limite;
         fracRecorrida += limite / tramos[i].durationMs;
+        primerBloqueDia = false;
 
         var esFinVentana = margenLimite <= margenBloque;
         var tipo, duracionParadaMs;
@@ -6957,14 +6980,17 @@
         }
 
         // Parada larga en solitario: en vez de clavar el punto exacto del margen, se mira
-        // la ventana de los ultimos RUTA_VENTANA_LARGA_MS de conduccion y se elige el mejor
-        // sitio real de esa ventana (plazas, seguridad, ducha si hace falta) — no el primero
-        // que cae dentro del margen. Las paradas cortas (45 min) siguen exactamente igual
-        // que antes: el punto del margen, sin ventana ni ranking.
+        // TODO el tramo conducido desde la ultima pausa (fracInicioSegmento) hasta el
+        // corte legal, y se elige el mejor sitio real de esa ventana (plazas, seguridad,
+        // ducha si hace falta) — no el primero que cae dentro del margen. Hugo, 7/9: si el
+        // hueco disponible ese dia es corto (un dia de 9h sin extension deja apenas 20-40
+        // min) la ventana tambien lo es; si se usa la extension y sobra jornada, la ventana
+        // puede ser de horas — no un numero fijo, el hueco real de ese dia. Las paradas
+        // cortas (45 min) siguen exactamente igual que antes: el punto del margen, sin
+        // ventana ni ranking.
         var puntoElegido = null, sitioElegido = null, avisoDucha = null;
         if (esFinVentana && modo !== "doble") {
-          var fracVentana = Math.min(fracRecorrida, RUTA_VENTANA_LARGA_MS / tramos[i].durationMs);
-          var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracRecorrida - fracVentana, fracRecorrida, RUTA_AIRE_FR_RADIO_M);
+          var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracRecorrida, RUTA_AIRE_FR_RADIO_M);
           if (candidatos.length) {
             candidatos.sort(function (a, b) {
               return rutaPuntuarCandidato(b, rutaNecesitaDucha) - rutaPuntuarCandidato(a, rutaNecesitaDucha) || a.distanciaM - b.distanciaM;
@@ -6993,9 +7019,11 @@
 
         reloj += duracionParadaMs;
         blockRemainingMs = BLOCK_MS;
+        fracInicioSegmento = fracRecorrida; // el siguiente tramo de conduccion empieza aqui
         if (esFinVentana) {
           dailyRemainingMs = dailyCeiling;
           windowRemainingMs = modo === "doble" ? jornadaWindowMs2() : jornadaWindowMs();
+          primerBloqueDia = true; // jornada nueva: el primer bloque vuelve a llevar su propio margen
         }
       }
     }
@@ -7016,9 +7044,16 @@
   // Siempre UN punto, nunca la ruta entera de golpe (pendiente sin confirmar: cuántas
   // paradas admite de verdad el enlace multi-parada, ver DUDAS.md) — esto evita el
   // problema de raíz sin depender de esa respuesta.
+  // Hugo, 7/9: el pin caía a 300-800 m del sitio real (verificado con dos casos reales,
+  // Meillac y Saugon Ouest) — la coordenada que calculamos era correcta, el desvío lo
+  // metía el propio Google Maps. Confirmado contra la documentación oficial de Android:
+  // "geo:lat,lng?q=lat,lng(etiqueta)" con una etiqueta de texto activa una BÚSQUEDA por
+  // ese texto (no un marcador exacto) en versiones recientes de Maps — como la etiqueta
+  // ("Descanso diario (11h) — parking real") no es el nombre real de ningún sitio, Maps
+  // resolvía a lo más parecido que encontraba cerca (p. ej. la carretera más próxima).
+  // La propia guía de Android dice, literal: para máxima precisión, sin etiqueta.
   function rutaAbrirNavegador(p) {
-    var etiqueta = encodeURIComponent(p.tipo);
-    location.href = "geo:" + p.lat + "," + p.lng + "?q=" + p.lat + "," + p.lng + "(" + etiqueta + ")";
+    location.href = "geo:" + p.lat + "," + p.lng;
   }
 
   // Base propia de comodidades conocidas (6/9) — nunca se rellena sola, solo lo que Hugo
