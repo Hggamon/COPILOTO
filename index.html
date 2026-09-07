@@ -7113,9 +7113,21 @@
           primerBloqueDia = true; // jornada nueva: el primer bloque vuelve a llevar su propio margen
         }
       }
+      // Waypoint intermedio ("parada de trabajo") — no es una pausa legal, es un punto que
+      // el conductor puso a mano (una descarga, p. ej.) y por el que hay que pasar sí o sí.
+      // Hugo, 7/9: antes solo daba forma a la ruta (via= en HERE) pero nunca aparecía en la
+      // lista de paradas — el conductor no tenía forma de que la app le llevara allí en
+      // concreto. esPreciso=true: es la coordenada que el propio conductor escribió, se
+      // marca con pin exacto (a diferencia de un sitio real descubierto, que solo centra el
+      // mapa — Hugo, misma sesión: el dato del dataset/OSM puede caer sobre la carretera de
+      // entrada, no dentro del parking, y un pin "exacto" pero desplazado confunde más de lo
+      // que ayuda; un punto escrito a mano no tiene ese problema).
+      if (i < tramos.length - 1) {
+        plan.push({ hora: reloj, tipo: "Parada de trabajo", lat: puntos[i + 1].lat, lng: puntos[i + 1].lng, esPreciso: true });
+      }
     }
 
-    plan.push({ hora: reloj, tipo: "Llegada a destino", lat: puntos[puntos.length - 1].lat, lng: puntos[puntos.length - 1].lng });
+    plan.push({ hora: reloj, tipo: "Llegada a destino", lat: puntos[puntos.length - 1].lat, lng: puntos[puntos.length - 1].lng, esPreciso: true });
     return plan;
   }
 
@@ -7145,8 +7157,12 @@
   // sitio se quede corto. Prefiere que el mapa solo centre sin marcar: así se ve el
   // entorno y se ubica el parking a simple vista, en vez de fiarse de un punto que puede
   // estar a un lado. Vuelta a "geo:lat,lng" a secas — decisión de Hugo, no error de código.
+  // Excepción, misma sesión: p.esPreciso (parada de trabajo o destino final) es una
+  // coordenada que el propio conductor escribió a mano — ahí sí se sabe que es exacta, así
+  // que sí se marca con pin ("geo:0,0?q=lat,lng", ver más arriba por qué ese formato y no
+  // "geo:lat,lng?q=...(etiqueta)").
   function rutaAbrirNavegador(p) {
-    location.href = "geo:" + p.lat + "," + p.lng;
+    location.href = p.esPreciso ? ("geo:0,0?q=" + p.lat + "," + p.lng) : ("geo:" + p.lat + "," + p.lng);
   }
 
   // Base propia de comodidades conocidas (6/9) — nunca se rellena sola, solo lo que Hugo
@@ -7353,8 +7369,10 @@
   function rutaEnriquecerConSitios(plan) {
     // Una parada larga en solitario puede llegar aqui con "sitio" ya resuelto por la
     // ventana de rutaProyectarPlan() — no se vuelve a buscar, ni en el dataset frances ni
-    // en Overpass, para no pisar la eleccion ya hecha por ranking.
-    var pendientes = plan.filter(function (p) { return p.tipo !== "Llegada a destino" && !p.sitio; });
+    // en Overpass, para no pisar la eleccion ya hecha por ranking. "esPreciso" (parada de
+    // trabajo, destino final) tampoco busca sitio: ya ES el punto exacto, buscar "el sitio
+    // real mas cercano" solo lo desplazaria a otra cosa.
+    var pendientes = plan.filter(function (p) { return p.tipo !== "Llegada a destino" && !p.sitio && !p.esPreciso; });
     return Promise.all(pendientes.map(function (p) {
       // No hay polyline aqui, solo la secuencia de paradas ya calculada — de la parada al
       // siguiente punto del plan (la que sea, incluido el propio destino) basta como rumbo
@@ -7387,6 +7405,10 @@
         ubicacionTxt = partesSitio.join(", ");
       } else if (p.sitio) {
         ubicacionTxt = p.sitio.nombre + ", a " + Math.round(p.sitio.distanciaM) + " m de donde toca parar (sin verificar)";
+      } else if (p.esPreciso) {
+        // Parada de trabajo o destino final: coordenada que el conductor escribió a mano,
+        // no un sitio descubierto — no tiene sentido decir "sin sitio confirmado cerca".
+        ubicacionTxt = p.lat.toFixed(4) + "," + p.lng.toFixed(4);
       } else {
         ubicacionTxt = "cerca de " + p.lat.toFixed(4) + "," + p.lng.toFixed(4) + " (sin sitio confirmado cerca)";
       }
@@ -7415,7 +7437,7 @@
       var btnIr = document.createElement("div");
       btnIr.className = "ruta-parada-probar";
       btnIr.textContent = "ir aquí";
-      btnIr.addEventListener("click", function () { rutaAbrirNavegador({ lat: destinoLat, lng: destinoLng, tipo: p.tipo }); });
+      btnIr.addEventListener("click", function () { rutaAbrirNavegador({ lat: destinoLat, lng: destinoLng, tipo: p.tipo, esPreciso: p.esPreciso }); });
       botones.appendChild(btnIr);
 
       // Anotar a mano si el sitio tiene ducha o no (6/9) — solo se puede marcar un sitio
