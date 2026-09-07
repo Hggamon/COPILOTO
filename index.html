@@ -7374,6 +7374,11 @@
         if (!data.elements || !data.elements.length) return null;
         var mejor = null, mejorDist = Infinity;
         data.elements.forEach(function (el) {
+          // mismo limite de tramo que rutaBuscarAireFrancia — Hugo, 7/9: al rechazar el
+          // dataset frances por caer en el tramo equivocado, el respaldo de Overpass
+          // devolvia igual un sitio de un pueblo pasado el waypoint, porque nunca miraba
+          // en que tramo caia.
+          if (limiteTramo && rutaFraccionDeUnPunto(limiteTramo.puntos, el.lat, el.lon) > limiteTramo.fracMax + 0.01) return;
           var d = haversineMeters(lat, lng, el.lat, el.lon);
           if (d < mejorDist) { mejorDist = d; mejor = el; }
         });
