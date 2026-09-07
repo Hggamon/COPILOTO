@@ -7026,10 +7026,17 @@
     // descanso largo. primerBloqueDia controla esto: solo el primer bloque de cada jornada
     // resta el margen de su propio tope; los siguientes se comparan con su tope de 4h30
     // real, contra el tope diario/de jornada que YA lleva su margen restado.
+    // Hugo, 7/9 (ruta con parada de trabajo en la A28): vivía DENTRO del "for" de tramos,
+    // así que cruzar un waypoint (una "parada de trabajo" añadida a mano, sin parar de
+    // verdad) lo reseteaba a true otra vez — el margen se restaba una segunda vez sin que
+    // hubiera pasado ningún descanso real ahí, la misma familia de bug que el margen
+    // redundante del bloque de 4h30, solo que disparado por el waypoint en vez de la pausa.
+    // Es un dato del CONDUCTOR (cuánto lleva conducido hoy), no de la ruta (en qué tramo
+    // va) — solo se inicializa una vez, antes de entrar en el primer tramo.
+    var primerBloqueDia = true;
     for (var i = 0; i < tramos.length; i++) {
       var restanteMs = tramos[i].durationMs;
       var fracRecorrida = 0;
-      var primerBloqueDia = true;
       var fracInicioSegmento = 0;
 
       while (restanteMs > 0) {
@@ -7102,7 +7109,17 @@
         }
         if (!puntoElegido) puntoElegido = rutaPointAtFraction(tramos[i].puntos, fracRecorrida);
 
-        plan.push({ hora: reloj, tipo: tipo, lat: puntoElegido.lat, lng: puntoElegido.lng, sitio: sitioElegido || undefined, avisoDucha: avisoDucha || undefined });
+        // tramoPuntos/fracMax: para que rutaEnriquecerConSitios() (paradas de 45 min, que
+        // buscan su sitio real DESPUES, no aqui) nunca elija un sitio pasado el final de
+        // ESTE tramo — Hugo, 7/9 (ruta con parada de trabajo en la A28): el sitio real de
+        // una pausa de 45 salía 10 km más allá del waypoint que tenía que cruzar primero,
+        // porque la búsqueda por radio no sabía en qué tramo iba ni dónde acababa.
+        plan.push({
+          hora: reloj, tipo: tipo, lat: puntoElegido.lat, lng: puntoElegido.lng,
+          sitio: sitioElegido || undefined, avisoDucha: avisoDucha || undefined,
+          tramoPuntos: sitioElegido ? undefined : tramos[i].puntos,
+          fracMax: sitioElegido ? undefined : fracRecorrida
+        });
 
         reloj += duracionParadaMs;
         blockRemainingMs = BLOCK_MS;
@@ -7324,11 +7341,17 @@
   // rumboAvanceDeg (opcional): rumbo real de avance del conductor en ese punto — filtra los
   // aires cuya "via" sirve el carril contrario (ver rutaSentidoCorrecto, Hugo 7/9: BOISREDON
   // via "A10/Paris" saliendo yendo hacia Bilbao). Sin rumbo, no se filtra por sentido.
-  function rutaBuscarAireFrancia(lat, lng, radioM, rumboAvanceDeg) {
+  // limiteTramo (opcional, {puntos, fracMax}): no elegir un sitio que caiga pasado el final
+  // de ESE tramo. Hugo, 7/9 (ruta con parada de trabajo en la A28): la pausa de 45 salía en
+  // un sitio real 10 km más allá del waypoint que el conductor tenía que cruzar primero —
+  // la búsqueda por radio no sabe en qué tramo va, así que sin este límite puede colarse un
+  // sitio del SIGUIENTE tramo aunque el punto teórico de la pausa caiga en el actual.
+  function rutaBuscarAireFrancia(lat, lng, radioM, rumboAvanceDeg, limiteTramo) {
     var mejor = null, mejorDist = Infinity;
     for (var i = 0; i < AIRES_FRANCIA.length; i++) {
       var s = AIRES_FRANCIA[i];
       if (!rutaSentidoCorrecto(s, rumboAvanceDeg)) continue;
+      if (limiteTramo && rutaFraccionDeUnPunto(limiteTramo.puntos, s.lat, s.lng) > limiteTramo.fracMax + 0.01) continue;
       var d = haversineMeters(lat, lng, s.lat, s.lng);
       if (d <= radioM && d < mejorDist) { mejorDist = d; mejor = s; }
     }
@@ -7340,8 +7363,8 @@
     };
   }
 
-  function rutaBuscarSitioReal(lat, lng, radioM, rumboAvanceDeg) {
-    var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M, rumboAvanceDeg);
+  function rutaBuscarSitioReal(lat, lng, radioM, rumboAvanceDeg, limiteTramo) {
+    var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M, rumboAvanceDeg, limiteTramo);
     if (aireFr) return Promise.resolve(aireFr);
     var query = "[out:json][timeout:15];(node[\"amenity\"=\"fuel\"](around:" + radioM + "," + lat + "," + lng +
       ");node[\"amenity\"=\"parking\"][\"access\"!=\"private\"](around:" + radioM + "," + lat + "," + lng + "););out body 20;";
@@ -7380,7 +7403,8 @@
       var idx = plan.indexOf(p);
       var siguiente = plan[idx + 1];
       var rumbo = siguiente ? haversineBearingDeg(p.lat, p.lng, siguiente.lat, siguiente.lng) : null;
-      return rutaBuscarSitioReal(p.lat, p.lng, 10000, rumbo).then(function (sitio) {
+      var limiteTramo = p.tramoPuntos ? { puntos: p.tramoPuntos, fracMax: p.fracMax } : null;
+      return rutaBuscarSitioReal(p.lat, p.lng, 10000, rumbo, limiteTramo).then(function (sitio) {
         if (sitio) { p.sitio = sitio; }
       });
     })).then(function () { return plan; });
