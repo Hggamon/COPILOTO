@@ -3615,6 +3615,17 @@
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
+  // Rumbo inicial (grados, 0=norte, sentido horario) del punto 1 al punto 2 — fórmula
+  // estándar de navegación esférica. Se usa para saber hacia dónde se dirige un tramo de
+  // ruta o hacia dónde queda una ciudad respecto a un punto, nunca para distancias.
+  function haversineBearingDeg(lat1, lon1, lat2, lon2) {
+    var toRad = Math.PI / 180;
+    var y = Math.sin((lon2 - lon1) * toRad) * Math.cos(lat2 * toRad);
+    var x = Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+      Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos((lon2 - lon1) * toRad);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
   function updateGeoStaleUI() {
     var stale = lastFixTs !== null && (Date.now() - lastFixTs) > GEO_STALE_WARN_MS;
     geoStatusEl.hidden = !stale;
@@ -6733,6 +6744,82 @@
   var RUTA_MARGEN_MS = 20 * 60 * 1000; // nunca apurar hasta el último minuto
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
   var RUTA_AIRE_FR_RADIO_M = 20000; // radio de busqueda en el dataset oficial frances, mas amplio que Overpass
+
+  // Hugo, 7/9 (ruta Cherbourg-Bilbao con parada en Angers): "BOISREDON" (via "A10/Paris")
+  // salio como parada yendo HACIA Bilbao, en sentido contrario. El campo "via" del dataset
+  // oficial frances no es solo la autopista: trae el sentido, con el nombre de la ciudad a
+  // la que sirve ese carril ("A10/Paris" = carril que va hacia Paris). El codigo nunca lo
+  // comprobaba contra hacia donde conduce el conductor — solo lo enseñaba en pantalla.
+  // Coordenadas aproximadas (centro de ciudad, solo para saber "por delante" o "por detras"
+  // del sentido de marcha — nunca para distancias ni para elegir el sitio en si).
+  var RUTA_CIUDADES_VIA = {
+    "alencon": [48.4319, 0.0919], "aix en provence": [43.5297, 5.4474],
+    "albertville": [45.6764, 6.3923], "amiens": [49.8942, 2.2957], "angers": [47.4784, -0.5632],
+    "annecy": [45.8992, 6.1294], "anse": [45.9333, 4.7167], "aubagne": [43.2930, 5.5701],
+    "beaune": [47.0267, 4.8397], "bellegarde": [46.1075, 5.8264], "biarritz": [43.4832, -1.5586],
+    "bordeaux": [44.8378, -0.5792], "boulogne": [50.7264, 1.6147],
+    "bourg en bresse": [46.2058, 5.2255], "bourges": [47.0810, 2.3987], "brive": [45.1594, 1.5335],
+    "bruxelles": [50.8503, 4.3517], "caen": [49.1829, -0.3707], "calais": [50.9513, 1.8587],
+    "chambery": [45.5646, 5.9178], "chamonix": [45.9237, 6.8694],
+    "charmont sous barbuise": [48.4167, 4.0833], "clermont ferrand": [45.7772, 3.0870],
+    "cormontreuil": [49.2167, 4.0500], "cosne sur loire": [47.4114, 2.9236],
+    "courtenay": [47.9995, 3.0447], "digoin": [46.4833, 3.9833], "dijon": [47.3220, 5.0415],
+    "dordives": [48.1167, 2.7667], "espagne": [43.3720, -1.7660], "evreux": [49.0270, 1.1510],
+    "foix": [42.9653, 1.6053], "francilienne": [48.7000, 2.4000],
+    "frontiere italienne": [43.7900, 7.4300], "gap": [44.5594, 6.0786], "geneve": [46.2044, 6.1432],
+    "givors": [45.5897, 4.7758], "grenoble": [45.1885, 5.7245], "incarville": [49.2833, 1.2167],
+    "la rochelle": [46.1603, -1.1511], "langres": [47.8627, 5.3350], "le havre": [49.4944, 0.1079],
+    "le mans": [48.0061, 0.1996], "lille": [50.6292, 3.0573], "lyon": [45.7640, 4.8357],
+    "macon": [46.3069, 4.8286], "marseille": [43.2965, 5.3698], "martigues": [43.4055, 5.0473],
+    "modane": [45.2000, 6.6500], "montauban": [44.0181, 1.3533], "montlucon": [46.3403, 2.6039],
+    "montmarault": [46.3333, 2.9500], "moulins montmarault": [46.5653, 3.3327],
+    "mulhouse": [47.7508, 7.3359], "nantes": [47.2184, -1.5536], "narbonne": [43.1839, 3.0038],
+    "neufchatel": [49.7333, 1.4333], "neyron": [45.8167, 4.9000], "niort": [46.3238, -0.4585],
+    "nimes": [43.8367, 4.3601], "orange": [44.1358, 4.8078], "orleans": [47.9029, 1.9093],
+    "paris": [48.8566, 2.3522], "pau": [43.2951, -0.3708], "reims": [49.2583, 4.0317],
+    "rennes": [48.1173, -1.6778], "roanne": [46.0333, 4.0667], "rouen": [49.4431, 1.0993],
+    "saint quentin": [49.8489, 3.2876], "saint saens": [49.6667, 1.2833],
+    "saintes": [45.7460, -0.6337], "salon de provence": [43.6406, 5.0975], "sens": [48.1975, 3.2836],
+    "sisteron": [44.1936, 5.9469], "st etienne": [45.4397, 4.3872], "st priest": [45.6975, 4.9503],
+    "strasbourg": [48.5734, 7.7521], "tancarville": [49.4833, 0.4667], "toul": [48.6833, 5.9000],
+    "toulon": [43.1242, 5.9280], "toulouse": [43.6047, 1.4442], "tours": [47.3941, 0.6848],
+    "troyes": [48.2973, 4.0744], "valence": [44.9334, 4.8924], "vierzon": [47.2236, 2.0770],
+    "villefranche": [45.9833, 4.7167]
+  };
+
+  function rutaNormalizarCiudad(s) {
+    var sinAcentos = s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return sinAcentos.replace(/[^a-z]+/g, " ").trim();
+  }
+
+  // Del campo "via" ("A10/Paris", "A20/+", "A1 (Sortie)"...) extrae la ciudad de destino de
+  // ese carril, si la trae. "+"/"-" (sentido por PK) y "Entrada"/"Salida" no traen ciudad —
+  // se devuelve null, y el llamador no filtra por sentido ante la duda (PROYECTO.md regla 1
+  // dice del lado malo ante la duda, pero aqui "el lado malo" es NO descartar un sitio real
+  // por un dato que no se pudo leer, no al reves — descartar sin saber perderia candidatos
+  // buenos en ventanas ya de por si estrechas).
+  function rutaCiudadDeVia(via) {
+    if (!via) return null;
+    var m = via.match(/\/\s*([A-Za-zÀ-ÖØ-öø-ÿ .\-]+)\s*$/);
+    if (!m) return null;
+    var norm = rutaNormalizarCiudad(m[1]);
+    if (!norm || !RUTA_CIUDADES_VIA.hasOwnProperty(norm)) return null;
+    return RUTA_CIUDADES_VIA[norm];
+  }
+
+  // ¿La via de este aire sirve el sentido en el que se conduce? Compara el rumbo del propio
+  // aire hacia la ciudad de su "via" contra el rumbo real de avance en ese punto de la ruta
+  // — si quedan a mas de 90 grados de diferencia, la ciudad de la via esta detras, luego esa
+  // via es el carril contrario. Sin ciudad reconocida, no descarta (ver rutaCiudadDeVia).
+  function rutaSentidoCorrecto(aire, rumboAvanceDeg) {
+    if (rumboAvanceDeg === null || rumboAvanceDeg === undefined) return true;
+    var ciudad = rutaCiudadDeVia(aire.via);
+    if (!ciudad) return true;
+    var rumboCiudad = haversineBearingDeg(aire.lat, aire.lng, ciudad[0], ciudad[1]);
+    var diff = Math.abs(rumboAvanceDeg - rumboCiudad) % 360;
+    if (diff > 180) diff = 360 - diff;
+    return diff < 90;
+  }
   // Recalculo continuo (6/9): la app no tiene trafico en vivo, pero si recalcula desde la
   // posicion real y el tiempo legal real restante, el retraso queda incorporado solo
   // (PROYECTO.md, capa 2). Sin esto el plan se queda congelado desde el momento de pulsar
@@ -7139,6 +7226,19 @@
     return total > 0 ? acumulada / total : 0;
   }
 
+  // Rumbo real de avance de la ruta en una fraccion dada — un tramito pequeño centrado en
+  // esa fraccion (antes-despues), recortado en los bordes, para que rutaSentidoCorrecto()
+  // pueda comparar contra el rumbo del aire hacia la ciudad de su "via".
+  function rutaRumboEnFraccion(puntosPolyline, frac) {
+    var DELTA = 0.01;
+    var f1 = Math.max(0, frac - DELTA);
+    var f2 = Math.min(1, frac + DELTA);
+    if (f1 === f2) return null;
+    var p1 = rutaPointAtFraction(puntosPolyline, f1);
+    var p2 = rutaPointAtFraction(puntosPolyline, f2);
+    return haversineBearingDeg(p1.lat, p1.lng, p2.lat, p2.lng);
+  }
+
   function rutaCandidatosEnVentana(puntosPolyline, fracInicio, fracFin, radioM) {
     var MUESTRAS = 20;
     var TOLERANCIA_FRAC = 0.01; // el sitio real puede estar unos metros a un lado de la carretera, no exactamente sobre ella
@@ -7160,6 +7260,8 @@
         var fracCandidato = rutaFraccionDeUnPunto(puntosPolyline, AIRES_FRANCIA[i].lat, AIRES_FRANCIA[i].lng);
         if (fracCandidato > fracFin + TOLERANCIA_FRAC) continue;
         if (fracCandidato < fracInicio - TOLERANCIA_FRAC) continue;
+        // descartado si la "via" del aire sirve el sentido contrario (ver rutaSentidoCorrecto)
+        if (!rutaSentidoCorrecto(AIRES_FRANCIA[i], rutaRumboEnFraccion(puntosPolyline, fracCandidato))) continue;
         candidatos.push({ aire: AIRES_FRANCIA[i], distanciaM: d });
       }
     }
@@ -7203,10 +7305,14 @@
   // Busca en AIRES_FRANCIA el sitio mas cercano dentro del radio. Solo tiene entradas
   // de Francia, asi que fuera de Francia esta funcion nunca encuentra nada y
   // rutaBuscarSitioReal() cae a Overpass como hacia antes de hoy.
-  function rutaBuscarAireFrancia(lat, lng, radioM) {
+  // rumboAvanceDeg (opcional): rumbo real de avance del conductor en ese punto — filtra los
+  // aires cuya "via" sirve el carril contrario (ver rutaSentidoCorrecto, Hugo 7/9: BOISREDON
+  // via "A10/Paris" saliendo yendo hacia Bilbao). Sin rumbo, no se filtra por sentido.
+  function rutaBuscarAireFrancia(lat, lng, radioM, rumboAvanceDeg) {
     var mejor = null, mejorDist = Infinity;
     for (var i = 0; i < AIRES_FRANCIA.length; i++) {
       var s = AIRES_FRANCIA[i];
+      if (!rutaSentidoCorrecto(s, rumboAvanceDeg)) continue;
       var d = haversineMeters(lat, lng, s.lat, s.lng);
       if (d <= radioM && d < mejorDist) { mejorDist = d; mejor = s; }
     }
@@ -7218,8 +7324,8 @@
     };
   }
 
-  function rutaBuscarSitioReal(lat, lng, radioM) {
-    var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M);
+  function rutaBuscarSitioReal(lat, lng, radioM, rumboAvanceDeg) {
+    var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M, rumboAvanceDeg);
     if (aireFr) return Promise.resolve(aireFr);
     var query = "[out:json][timeout:15];(node[\"amenity\"=\"fuel\"](around:" + radioM + "," + lat + "," + lng +
       ");node[\"amenity\"=\"parking\"][\"access\"!=\"private\"](around:" + radioM + "," + lat + "," + lng + "););out body 20;";
@@ -7250,7 +7356,13 @@
     // en Overpass, para no pisar la eleccion ya hecha por ranking.
     var pendientes = plan.filter(function (p) { return p.tipo !== "Llegada a destino" && !p.sitio; });
     return Promise.all(pendientes.map(function (p) {
-      return rutaBuscarSitioReal(p.lat, p.lng, 10000).then(function (sitio) {
+      // No hay polyline aqui, solo la secuencia de paradas ya calculada — de la parada al
+      // siguiente punto del plan (la que sea, incluido el propio destino) basta como rumbo
+      // aproximado de avance para descartar aires del carril contrario (ver rutaSentidoCorrecto).
+      var idx = plan.indexOf(p);
+      var siguiente = plan[idx + 1];
+      var rumbo = siguiente ? haversineBearingDeg(p.lat, p.lng, siguiente.lat, siguiente.lng) : null;
+      return rutaBuscarSitioReal(p.lat, p.lng, 10000, rumbo).then(function (sitio) {
         if (sitio) { p.sitio = sitio; }
       });
     })).then(function () { return plan; });
