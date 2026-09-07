@@ -7138,15 +7138,15 @@
   // ese texto (no un marcador exacto) en versiones recientes de Maps — como la etiqueta
   // ("Descanso diario (11h) — parking real") no es el nombre real de ningún sitio, Maps
   // resolvía a lo más parecido que encontraba cerca (p. ej. la carretera más próxima).
-  // Hugo, 7/9 (segunda ronda, probado en el móvil real Cherbourg-Bilbao): quitar la
-  // etiqueta con "geo:lat,lng" a secas soluciona el desvío pero deja de soltar el pin —
-  // ese formato solo centra el mapa, el conductor tiene que marcar el punto él mismo.
-  // La propia doc de Android lo dice explícito: "geo:0,0?q=lat,lng" SIN paréntesis de
-  // etiqueta sí dispara un marcador exacto (q con coordenadas puras no activa búsqueda de
-  // texto — las etiquetas solo existen cuando q ya es lat,lng). Con esto se sueltan las
-  // dos cosas a la vez: coordenada exacta y pin visible.
+  // Hugo, 7/9 (segunda ronda, probado en el móvil real Cherbourg-Bilbao): probó
+  // "geo:0,0?q=lat,lng" (pin exacto, sin etiqueta) y decidió que NO lo quiere — la
+  // coordenada del dataset/OSM cae a veces sobre la carretera de entrada, no dentro del
+  // parking, y un pin "exacto" pero equivocado puede hacer que alguien que no conoce el
+  // sitio se quede corto. Prefiere que el mapa solo centre sin marcar: así se ve el
+  // entorno y se ubica el parking a simple vista, en vez de fiarse de un punto que puede
+  // estar a un lado. Vuelta a "geo:lat,lng" a secas — decisión de Hugo, no error de código.
   function rutaAbrirNavegador(p) {
-    location.href = "geo:0,0?q=" + p.lat + "," + p.lng;
+    location.href = "geo:" + p.lat + "," + p.lng;
   }
 
   // Base propia de comodidades conocidas (6/9) — nunca se rellena sola, solo lo que Hugo
