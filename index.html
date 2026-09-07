@@ -7051,9 +7051,15 @@
   // ese texto (no un marcador exacto) en versiones recientes de Maps — como la etiqueta
   // ("Descanso diario (11h) — parking real") no es el nombre real de ningún sitio, Maps
   // resolvía a lo más parecido que encontraba cerca (p. ej. la carretera más próxima).
-  // La propia guía de Android dice, literal: para máxima precisión, sin etiqueta.
+  // Hugo, 7/9 (segunda ronda, probado en el móvil real Cherbourg-Bilbao): quitar la
+  // etiqueta con "geo:lat,lng" a secas soluciona el desvío pero deja de soltar el pin —
+  // ese formato solo centra el mapa, el conductor tiene que marcar el punto él mismo.
+  // La propia doc de Android lo dice explícito: "geo:0,0?q=lat,lng" SIN paréntesis de
+  // etiqueta sí dispara un marcador exacto (q con coordenadas puras no activa búsqueda de
+  // texto — las etiquetas solo existen cuando q ya es lat,lng). Con esto se sueltan las
+  // dos cosas a la vez: coordenada exacta y pin visible.
   function rutaAbrirNavegador(p) {
-    location.href = "geo:" + p.lat + "," + p.lng;
+    location.href = "geo:0,0?q=" + p.lat + "," + p.lng;
   }
 
   // Base propia de comodidades conocidas (6/9) — nunca se rellena sola, solo lo que Hugo
@@ -7147,7 +7153,13 @@
         if (d > radioM) continue;
         vistos[i] = true;
         // descartado si, aunque cerca en línea recta, cae pasado el corte legal en la ruta
-        if (rutaFraccionDeUnPunto(puntosPolyline, AIRES_FRANCIA[i].lat, AIRES_FRANCIA[i].lng) > fracFin + TOLERANCIA_FRAC) continue;
+        // — o ANTES del inicio de esta ventana (ya recorrido, detrás de la parada anterior).
+        // Hugo, 7/9 (ruta por Tours): "Aire de Saugon Ouest" salía como el descanso de 9/11h
+        // a pesar de estar 11 km POR DETRÁS de "Saint Christoly", la parada de 45 min ya
+        // elegida — solo se filtraba el límite de arriba, nunca el de abajo.
+        var fracCandidato = rutaFraccionDeUnPunto(puntosPolyline, AIRES_FRANCIA[i].lat, AIRES_FRANCIA[i].lng);
+        if (fracCandidato > fracFin + TOLERANCIA_FRAC) continue;
+        if (fracCandidato < fracInicio - TOLERANCIA_FRAC) continue;
         candidatos.push({ aire: AIRES_FRANCIA[i], distanciaM: d });
       }
     }
