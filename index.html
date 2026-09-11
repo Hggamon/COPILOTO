@@ -7074,16 +7074,38 @@
     // Es un dato del CONDUCTOR (cuánto lleva conducido hoy), no de la ruta (en qué tramo
     // va) — solo se inicializa una vez, antes de entrar en el primer tramo.
     var primerBloqueDia = true;
+    // Sitio elegido en la ultima parada real (11/9, guarda contra bucle
+    // infinito): con el avance real hasta el candidato (en vez de hasta el
+    // limite teorico), el siguiente ciclo empieza a buscar justo en la
+    // posicion de ese mismo sitio -- sin excluirlo, rutaCandidatosEnVentana lo
+    // volveria a encontrar a distancia 0 y a elegirlo otra vez, sin avanzar
+    // nunca restanteMs.
+    var sitioAnterior = null;
     for (var i = 0; i < tramos.length; i++) {
       var restanteMs = tramos[i].durationMs;
       var fracRecorrida = 0;
       var fracInicioSegmento = 0;
 
       while (restanteMs > 0) {
+        // Hugo, 11/9 (caso Rouille-Pamproux/Cestas): el margen de 20 min solo se
+        // resta UNA VEZ por jornada (regla ya fijada el 7/9) — antes solo se
+        // aplicaba esa condicion al lado del bloque, nunca al lado del
+        // dia/jornada, asi que a partir del segundo bloque del dia esta
+        // comparacion quedaba sesgada: el bloque siempre se comparaba limpio
+        // (sin restar nada) contra un dia/jornada que SI llevaba los 20 min
+        // restados en cada ciclo. Bastaba con que quedaran menos de ~290 min
+        // de dia para que la comparacion declarara "manda el dia" aunque
+        // sobraran horas de verdad, forzando un descanso largo muy prematuro.
         var margenBloque = (primerBloqueDia ? blockRemainingMs - RUTA_MARGEN_SEGURO_MS : blockRemainingMs);
+        var margenSeguroLimite = primerBloqueDia ? RUTA_MARGEN_SEGURO_MS : 0;
         var margenLimite = modo === "doble"
-          ? (windowRemainingMs - RUTA_MARGEN_SEGURO_MS)
-          : Math.min(dailyRemainingMs - RUTA_MARGEN_SEGURO_MS, windowRemainingMs - RUTA_MARGEN_SEGURO_MS);
+          ? (windowRemainingMs - margenSeguroLimite)
+          : Math.min(dailyRemainingMs - margenSeguroLimite, windowRemainingMs - margenSeguroLimite);
+        // ¿el día/la jornada manda más que el bloque en este ciclo? No depende de
+        // dónde acabe cayendo la parada real (eso se decide más abajo), solo de
+        // los techos con los que se entra a este ciclo — se guarda aparte de
+        // esFinVentana porque esa sí necesita saber el avance REAL.
+        var esVentanaLimitante = margenLimite <= margenBloque;
 
         // Techo legal estricto antes de agotar tacógrafo en este tramo
         var maximoLegalMs = Math.min(blockRemainingMs, dailyRemainingMs, windowRemainingMs);
@@ -7100,29 +7122,15 @@
         }
 
         var duracionAvanceMs = Math.min(corteLimiteMs, restanteMs);
-        reloj += duracionAvanceMs;
-        blockRemainingMs -= duracionAvanceMs;
-        dailyRemainingMs -= duracionAvanceMs;
-        windowRemainingMs -= duracionAvanceMs;
-        restanteMs -= duracionAvanceMs;
-        fracRecorrida += duracionAvanceMs / tramos[i].durationMs;
-        primerBloqueDia = false;
-
-        // Hugo, 7/9 (caso Burdeos): si a la jornada diaria le quedan <= 45 min de conducción,
-        // no forzar una pausa de 45 min para rodar 20 min y parar para el descanso diario.
-        // Se consolida directamente como fin de jornada / descanso diario.
-        var esFinVentana = (margenLimite <= margenBloque) || (dailyRemainingMs <= RUTA_FIN_JORNADA_UMBRAL_MS);
-        var tipo, duracionParadaMs;
-        if (modo === "doble") {
-          tipo = esFinVentana ? "Descanso del equipo (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Cambio de conductor — gasolinera apta";
-          duracionParadaMs = esFinVentana ? restDurationMs : RUTA_RELEVO_MS;
-        } else {
-          tipo = esFinVentana ? "Descanso diario (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Pausa de 45 min — gasolinera/área apta";
-          duracionParadaMs = esFinVentana ? restDurationMs : FULL_BREAK_MS;
-        }
+        // Límite TEÓRICO de la ventana de búsqueda — solo para saber hasta dónde
+        // mirar candidatos, todavía no es el avance real del reloj (Hugo, 11/9,
+        // caso Rouillé-Pamproux/Cestas: antes el reloj avanzaba hasta aquí
+        // aunque el sitio elegido estuviera mucho más cerca, regalando margen
+        // legal real que nunca se llegó a conducir).
+        var fracFinVentana = fracInicioSegmento + duracionAvanceMs / tramos[i].durationMs;
 
         // Búsqueda de candidatos en la ventana de este tramo
-        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracRecorrida, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracFinVentana, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
         var candidatosAptos = [];
         for (var cIdx = 0; cIdx < candidatos.length; cIdx++) {
           var cand = candidatos[cIdx];
@@ -7138,8 +7146,9 @@
           });
         }
 
-        var seguros = candidatosAptos.filter(function (c) { return c.margenMin >= 20; });
-        var alLimite = candidatosAptos.filter(function (c) { return c.margenMin >= 5 && c.margenMin < 20; });
+        var candidatosSinRepetir = candidatosAptos.filter(function (c) { return c.aire !== sitioAnterior; });
+        var seguros = candidatosSinRepetir.filter(function (c) { return c.margenMin >= 20; });
+        var alLimite = candidatosSinRepetir.filter(function (c) { return c.margenMin >= 5 && c.margenMin < 20; });
 
         seguros.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
         alLimite.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
@@ -7152,6 +7161,37 @@
           alternativaSegura = seguros.length > 0 ? seguros[0] : null;
         } else if (seguros.length > 0) {
           elegido = seguros[0];
+        }
+        if (elegido) sitioAnterior = elegido.aire;
+
+        // Avance REAL: hasta el candidato elegido si está antes del límite
+        // teórico, no hasta el límite en sí — el tiempo entre el candidato y el
+        // límite no se ha conducido de verdad, así que ni el reloj ni los
+        // presupuestos (bloque/día/jornada) pueden gastarlo.
+        var tiempoRealAvanceMs = elegido
+          ? Math.min(duracionAvanceMs, (elegido.frac - fracInicioSegmento) * tramos[i].durationMs)
+          : duracionAvanceMs;
+        reloj += tiempoRealAvanceMs;
+        blockRemainingMs -= tiempoRealAvanceMs;
+        dailyRemainingMs -= tiempoRealAvanceMs;
+        windowRemainingMs -= tiempoRealAvanceMs;
+        restanteMs -= tiempoRealAvanceMs;
+        var fracRecorrida = elegido ? elegido.frac : fracFinVentana;
+        primerBloqueDia = false;
+
+        // Hugo, 7/9 (caso Burdeos): si a la jornada diaria le quedan <= 45 min de conducción,
+        // no forzar una pausa de 45 min para rodar 20 min y parar para el descanso diario.
+        // Se consolida directamente como fin de jornada / descanso diario. Usa
+        // dailyRemainingMs YA corregido por el avance real (arriba), no el que
+        // habría quedado si se hubiera gastado hasta el límite teórico.
+        var esFinVentana = esVentanaLimitante || (dailyRemainingMs <= RUTA_FIN_JORNADA_UMBRAL_MS);
+        var tipo, duracionParadaMs;
+        if (modo === "doble") {
+          tipo = esFinVentana ? "Descanso del equipo (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Cambio de conductor — gasolinera apta";
+          duracionParadaMs = esFinVentana ? restDurationMs : RUTA_RELEVO_MS;
+        } else {
+          tipo = esFinVentana ? "Descanso diario (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Pausa de 45 min — gasolinera/área apta";
+          duracionParadaMs = esFinVentana ? restDurationMs : FULL_BREAK_MS;
         }
 
         var puntoElegido = null, sitioElegido = null, avisoDucha = null;
