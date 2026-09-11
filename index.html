@@ -853,6 +853,8 @@
   .ruta-parada-info { line-height: 1.4; }
   .ruta-parada-tipo { font-weight: 700; }
   .ruta-parada-aviso-ducha { color: #e0b23c; margin-top: 4px; font-size: 0.9em; }
+  .ruta-parada-opcion-limite { color: #e0b23c; font-size: 0.9em; margin-top: 2px; }
+  .ruta-parada-alt-segura { color: #9c998b; font-size: 0.85em; margin-top: 3px; font-style: italic; }
   .ruta-parada-botones {
     flex: 0 0 auto;
     display: flex;
@@ -2792,6 +2794,7 @@
     <div id="ruta-ducha-toggle" class="status-pill">necesito ducha en este viaje: no</div>
     <div id="ruta-jornada10h-toggle" class="status-pill">jornada de hoy: 9h</div>
     <div id="ruta-calcular" class="status-pill">calcular ruta</div>
+    <div id="ruta-limpiar" class="status-pill" style="opacity: 0.7; font-size: 0.85em;">limpiar ruta</div>
     <div id="ruta-status" hidden></div>
   </div>
   <div id="ruta-plan"></div>
@@ -3210,6 +3213,7 @@
   var rutaWaypointsEl = document.getElementById("ruta-waypoints");
   var rutaAddWaypointBtn = document.getElementById("ruta-add-waypoint");
   var rutaCalcularBtn = document.getElementById("ruta-calcular");
+  var rutaLimpiarBtn = document.getElementById("ruta-limpiar");
   var rutaDuchaToggleEl = document.getElementById("ruta-ducha-toggle");
   var rutaNecesitaDucha = false;
   var rutaJornada10hToggleEl = document.getElementById("ruta-jornada10h-toggle");
@@ -3218,6 +3222,16 @@
   var rutaPlanEl = document.getElementById("ruta-plan");
   var rutaTramosCache = null;  // tramos de HERE de la ultima ruta calculada — se va acortando en cada recalculo, nunca se vuelve a llamar a HERE
   var rutaPuntosCache = null;  // waypoints originales (solo hace falta el destino final, no cambia entre recalculos)
+  var rutaCandidatosCorredorCache = null; // áreas y parkings identificados a lo largo del corredor para recálculos 100% offline
+  var rutaPlanCache = null;    // último plan proyectado y enriquecido con sitios reales
+  var rutaParadaActivaId = null; // id de la parada recomendada en curso para detectar cambios o retención
+  var RUTA_STORAGE_KEY = "copiloto_ruta_activa";
+  // Guardar/recuperar la ruta activa en localStorage quedó preparado (esta
+  // clave) pero nunca se llegó a escribir — rutaGuardarEstadoLocal() se
+  // llamaba sin existir (ReferenceError real en "limpiar ruta", 11/9).
+  // Stub seguro a proposito: no inventa la funcion de guardado completa,
+  // solo evita el fallo. Pendiente de verdad: implementar guardado/carga.
+  function rutaGuardarEstadoLocal() {}
   var rutaRecalcTimer = null;
   var tgActivityBtn = document.getElementById("tg-activity-btn");
   var tgDdsUpBtn = document.getElementById("tg-dds-up");
@@ -3791,17 +3805,22 @@
 
     var speedKmh = null;
     var speedSource = null;
+    var now = pos.timestamp || Date.now();
     if (typeof pos.coords.speed === "number" && !isNaN(pos.coords.speed)) {
       speedKmh = pos.coords.speed * 3.6;
       speedSource = "dispositivo";
     } else if (pos.coords.accuracy <= 50) {
-      var now = pos.timestamp || Date.now();
       if (lastGeoFix && (now - lastGeoFix.t) >= 4000) {
         var distM = haversineMeters(lastGeoFix.lat, lastGeoFix.lon, pos.coords.latitude, pos.coords.longitude);
         speedKmh = (distM / ((now - lastGeoFix.t) / 1000)) * 3.6;
         speedSource = "calculada";
       }
+    }
+    if (pos.coords.accuracy <= 100) {
       lastGeoFix = { lat: pos.coords.latitude, lon: pos.coords.longitude, t: now };
+      if (typeof rutaActualizarAlertaParada === "function" && rutaPlanCache && rutaPlanCache.length) {
+        rutaActualizarAlertaParada(rutaPlanCache);
+      }
     }
 
     geoDebug.lastFixAt = now2;
@@ -5091,6 +5110,24 @@
     e.stopPropagation();
     rutaCalcular();
   });
+
+  if (rutaLimpiarBtn) {
+    rutaLimpiarBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      rutaOrigenEl.value = "";
+      rutaDestinoEl.value = "";
+      rutaWaypointsEl.innerHTML = "";
+      rutaPlanEl.innerHTML = "";
+      rutaTramosCache = null;
+      rutaPuntosCache = null;
+      rutaCandidatosCorredorCache = null;
+      rutaPlanCache = null;
+      rutaParadaActivaId = null;
+      clearRouteAlert();
+      rutaGuardarEstadoLocal();
+      rutaSetStatus("Ruta limpiada.", false);
+    });
+  }
 
   for (var gi = 0; gi < gapClassifyBtns.length; gi++) {
     gapClassifyBtns[gi].addEventListener("click", function (e) {
@@ -6740,8 +6777,11 @@
   //   parada del plan lleva un botón para probarla a mano en la pantalla del tacógrafo.
   // ============================================================
   var RUTA_HERE_KEY = "VfyWJUCnUkAbishfK-hnxjRyEJLqr59Iyx-EUhZfvvo"; // restringida por dominio en HERE Access Manager
-  var RUTA_TRUCK = { grossWeight: 40000, height: 400 }; // kg/cm — pendiente hacerlos configurables en Ajuste
-  var RUTA_MARGEN_MS = 20 * 60 * 1000; // nunca apurar hasta el último minuto
+  var RUTA_TRUCK = { grossWeight: 40000, height: 400 }; // perfil fijo: 40.000 kg / 4 m (400 cm) de altura
+  var RUTA_MARGEN_SEGURO_MS = 20 * 60 * 1000; // margen conservador recomendado (>= 20 min)
+  var RUTA_MARGEN_MINIMO_MS = 5 * 60 * 1000;  // margen mínimo operativo al límite (5-20 min) si el área es óptima
+  var RUTA_MARGEN_MS = RUTA_MARGEN_SEGURO_MS; // compatibilidad
+  var RUTA_FIN_JORNADA_UMBRAL_MS = 45 * 60 * 1000; // si tras un bloque quedan <= 45 min de jornada, consolidar descanso diario en vez de pausa corta
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
   var RUTA_AIRE_FR_RADIO_M = 20000; // radio de busqueda en el dataset oficial frances, mas amplio que Overpass
 
@@ -7040,13 +7080,17 @@
       var fracInicioSegmento = 0;
 
       while (restanteMs > 0) {
-        var margenBloque = (primerBloqueDia ? blockRemainingMs - RUTA_MARGEN_MS : blockRemainingMs);
+        var margenBloque = (primerBloqueDia ? blockRemainingMs - RUTA_MARGEN_SEGURO_MS : blockRemainingMs);
         var margenLimite = modo === "doble"
-          ? (windowRemainingMs - RUTA_MARGEN_MS)
-          : Math.min(dailyRemainingMs - RUTA_MARGEN_MS, windowRemainingMs - RUTA_MARGEN_MS);
-        var limite = Math.min(margenBloque, margenLimite, restanteMs);
+          ? (windowRemainingMs - RUTA_MARGEN_SEGURO_MS)
+          : Math.min(dailyRemainingMs - RUTA_MARGEN_SEGURO_MS, windowRemainingMs - RUTA_MARGEN_SEGURO_MS);
 
-        if (limite >= restanteMs) {
+        // Techo legal estricto antes de agotar tacógrafo en este tramo
+        var maximoLegalMs = Math.min(blockRemainingMs, dailyRemainingMs, windowRemainingMs);
+        var corteLimiteMs = Math.max(0, maximoLegalMs - RUTA_MARGEN_MINIMO_MS);
+
+        // Si se puede llegar al final de este tramo (waypoint o destino) con al menos el margen mínimo de 5 min:
+        if (restanteMs <= corteLimiteMs) {
           reloj += restanteMs;
           blockRemainingMs -= restanteMs;
           dailyRemainingMs -= restanteMs;
@@ -7055,96 +7099,124 @@
           break;
         }
 
-        reloj += limite;
-        blockRemainingMs -= limite;
-        dailyRemainingMs -= limite;
-        windowRemainingMs -= limite;
-        restanteMs -= limite;
-        fracRecorrida += limite / tramos[i].durationMs;
+        var duracionAvanceMs = Math.min(corteLimiteMs, restanteMs);
+        reloj += duracionAvanceMs;
+        blockRemainingMs -= duracionAvanceMs;
+        dailyRemainingMs -= duracionAvanceMs;
+        windowRemainingMs -= duracionAvanceMs;
+        restanteMs -= duracionAvanceMs;
+        fracRecorrida += duracionAvanceMs / tramos[i].durationMs;
         primerBloqueDia = false;
 
-        var esFinVentana = margenLimite <= margenBloque;
+        // Hugo, 7/9 (caso Burdeos): si a la jornada diaria le quedan <= 45 min de conducción,
+        // no forzar una pausa de 45 min para rodar 20 min y parar para el descanso diario.
+        // Se consolida directamente como fin de jornada / descanso diario.
+        var esFinVentana = (margenLimite <= margenBloque) || (dailyRemainingMs <= RUTA_FIN_JORNADA_UMBRAL_MS);
         var tipo, duracionParadaMs;
         if (modo === "doble") {
           tipo = esFinVentana ? "Descanso del equipo (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Cambio de conductor — gasolinera apta";
           duracionParadaMs = esFinVentana ? restDurationMs : RUTA_RELEVO_MS;
         } else {
-          tipo = esFinVentana ? "Descanso diario (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Pausa de 45 min — gasolinera apta";
+          tipo = esFinVentana ? "Descanso diario (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Pausa de 45 min — gasolinera/área apta";
           duracionParadaMs = esFinVentana ? restDurationMs : FULL_BREAK_MS;
         }
 
-        // Parada larga en solitario: en vez de clavar el punto exacto del margen, se mira
-        // TODO el tramo conducido desde la ultima pausa (fracInicioSegmento) hasta el
-        // corte legal, y se elige el mejor sitio real de esa ventana (plazas, seguridad,
-        // ducha si hace falta) — no el primero que cae dentro del margen. Hugo, 7/9: si el
-        // hueco disponible ese dia es corto (un dia de 9h sin extension deja apenas 20-40
-        // min) la ventana tambien lo es; si se usa la extension y sobra jornada, la ventana
-        // puede ser de horas — no un numero fijo, el hueco real de ese dia. Las paradas
-        // cortas (45 min) siguen exactamente igual que antes: el punto del margen, sin
-        // ventana ni ranking.
+        // Búsqueda de candidatos en la ventana de este tramo
+        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracRecorrida, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+        var candidatosAptos = [];
+        for (var cIdx = 0; cIdx < candidatos.length; cIdx++) {
+          var cand = candidatos[cIdx];
+          var tiempoHastaCandMs = (cand.frac - fracInicioSegmento) * tramos[i].durationMs;
+          var margenCandMs = maximoLegalMs - tiempoHastaCandMs;
+          var margenCandMin = Math.round(margenCandMs / 60000);
+          candidatosAptos.push({
+            aire: cand.aire,
+            frac: cand.frac,
+            distanciaM: cand.distanciaM,
+            margenMin: margenCandMin,
+            score: rutaPuntuarCandidato(cand, rutaNecesitaDucha)
+          });
+        }
+
+        var seguros = candidatosAptos.filter(function (c) { return c.margenMin >= 20; });
+        var alLimite = candidatosAptos.filter(function (c) { return c.margenMin >= 5 && c.margenMin < 20; });
+
+        seguros.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
+        alLimite.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
+
+        var elegido = null;
+        var alternativaSegura = null;
+
+        if (alLimite.length > 0 && alLimite[0].score >= 20) {
+          elegido = alLimite[0];
+          alternativaSegura = seguros.length > 0 ? seguros[0] : null;
+        } else if (seguros.length > 0) {
+          elegido = seguros[0];
+        }
+
         var puntoElegido = null, sitioElegido = null, avisoDucha = null;
-        if (esFinVentana && modo !== "doble") {
-          var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracRecorrida, RUTA_AIRE_FR_RADIO_M);
-          if (candidatos.length) {
-            candidatos.sort(function (a, b) {
-              return rutaPuntuarCandidato(b, rutaNecesitaDucha) - rutaPuntuarCandidato(a, rutaNecesitaDucha) || a.distanciaM - b.distanciaM;
-            });
-            var elegido = candidatos[0].aire;
-            puntoElegido = { lat: elegido.lat, lng: elegido.lng };
-            sitioElegido = {
-              lat: elegido.lat, lng: elegido.lng, nombre: elegido.nombre, distanciaM: 0,
-              plazasLibres: elegido.plazasLibres, plazasPago: elegido.plazasPago, seguro: elegido.seguro,
-              via: elegido.via, fuente: "data.gouv.fr"
-            };
-            if (rutaNecesitaDucha) {
-              var amenidadElegida = buscarAmenidadConocida(elegido.lat, elegido.lng, 1500);
-              if (!(amenidadElegida && amenidadElegida.ducha === true)) {
-                var ultimaDucha = rutaUltimaDuchaConocida(elegido.lat, elegido.lng);
-                avisoDucha = ultimaDucha
-                  ? "Sin ducha confirmada aquí. Última ducha que conoces: " + ultimaDucha.nombre + "."
-                  : "Sin ducha confirmada aquí, y todavía no tienes ninguna anotada por esta zona.";
-              }
+        if (elegido) {
+          var a = elegido.aire;
+          puntoElegido = { lat: a.lat, lng: a.lng };
+          sitioElegido = {
+            lat: a.lat, lng: a.lng, nombre: a.nombre, distanciaM: 0,
+            plazasLibres: a.plazasLibres, plazasPago: a.plazasPago, seguro: a.seguro,
+            via: a.via, fuente: a.fuente || "data.gouv.fr"
+          };
+          if (rutaNecesitaDucha) {
+            var amenidadElegida = buscarAmenidadConocida(a.lat, a.lng, 1500);
+            if (!(amenidadElegida && amenidadElegida.ducha === true)) {
+              var ultimaDucha = rutaUltimaDuchaConocida(a.lat, a.lng);
+              avisoDucha = ultimaDucha
+                ? "Sin ducha confirmada aquí. Última ducha que conoces: " + ultimaDucha.nombre + "."
+                : "Sin ducha confirmada aquí, y todavía no tienes ninguna anotada por esta zona.";
             }
           }
         }
         if (!puntoElegido) puntoElegido = rutaPointAtFraction(tramos[i].puntos, fracRecorrida);
 
-        // tramoPuntos/fracMax: para que rutaEnriquecerConSitios() (paradas de 45 min, que
-        // buscan su sitio real DESPUES, no aqui) nunca elija un sitio pasado el final de
-        // ESTE tramo — Hugo, 7/9 (ruta con parada de trabajo en la A28): el sitio real de
-        // una pausa de 45 salía 10 km más allá del waypoint que tenía que cruzar primero,
-        // porque la búsqueda por radio no sabía en qué tramo iba ni dónde acababa.
         plan.push({
           hora: reloj, tipo: tipo, lat: puntoElegido.lat, lng: puntoElegido.lng,
           sitio: sitioElegido || undefined, avisoDucha: avisoDucha || undefined,
+          margenMin: elegido ? elegido.margenMin : Math.round((maximoLegalMs - duracionAvanceMs) / 60000),
+          esAlLimite: !!(elegido && elegido.margenMin < 20),
+          alternativaSegura: alternativaSegura ? {
+            nombre: alternativaSegura.aire.nombre,
+            lat: alternativaSegura.aire.lat,
+            lng: alternativaSegura.aire.lng,
+            margenMin: alternativaSegura.margenMin
+          } : undefined,
           tramoPuntos: sitioElegido ? undefined : tramos[i].puntos,
           fracMax: sitioElegido ? undefined : fracRecorrida
         });
 
         reloj += duracionParadaMs;
         blockRemainingMs = BLOCK_MS;
-        fracInicioSegmento = fracRecorrida; // el siguiente tramo de conduccion empieza aqui
+        fracInicioSegmento = fracRecorrida;
         if (esFinVentana) {
           dailyRemainingMs = dailyCeiling;
           windowRemainingMs = modo === "doble" ? jornadaWindowMs2() : jornadaWindowMs();
-          primerBloqueDia = true; // jornada nueva: el primer bloque vuelve a llevar su propio margen
+          primerBloqueDia = true;
         }
       }
-      // Waypoint intermedio ("parada de trabajo") — no es una pausa legal, es un punto que
-      // el conductor puso a mano (una descarga, p. ej.) y por el que hay que pasar sí o sí.
-      // Hugo, 7/9: antes solo daba forma a la ruta (via= en HERE) pero nunca aparecía en la
-      // lista de paradas — el conductor no tenía forma de que la app le llevara allí en
-      // concreto. esPreciso=true: es la coordenada que el propio conductor escribió, se
-      // marca con pin exacto (a diferencia de un sitio real descubierto, que solo centra el
-      // mapa — Hugo, misma sesión: el dato del dataset/OSM puede caer sobre la carretera de
-      // entrada, no dentro del parking, y un pin "exacto" pero desplazado confunde más de lo
-      // que ayuda; un punto escrito a mano no tiene ese problema).
+
+      // Waypoint intermedio ("Parada de trabajo"): se inserta en su posición cronológica exacta
       if (i < tramos.length - 1) {
-        plan.push({ hora: reloj, tipo: "Parada de trabajo", lat: puntos[i + 1].lat, lng: puntos[i + 1].lng, esPreciso: true });
+        plan.push({
+          hora: reloj, tipo: "Parada de trabajo",
+          lat: puntos[i + 1].lat, lng: puntos[i + 1].lng,
+          esPreciso: true,
+          nombre: puntos[i + 1].nombre || ("Parada de trabajo " + (i + 1))
+        });
       }
     }
 
-    plan.push({ hora: reloj, tipo: "Llegada a destino", lat: puntos[puntos.length - 1].lat, lng: puntos[puntos.length - 1].lng, esPreciso: true });
+    plan.push({
+      hora: reloj, tipo: "Llegada a destino",
+      lat: puntos[puntos.length - 1].lat, lng: puntos[puntos.length - 1].lng,
+      esPreciso: true,
+      nombre: puntos[puntos.length - 1].nombre || "Destino final"
+    });
     return plan;
   }
 
@@ -7272,39 +7344,78 @@
     return haversineBearingDeg(p1.lat, p1.lng, p2.lat, p2.lng);
   }
 
-  function rutaCandidatosEnVentana(puntosPolyline, fracInicio, fracFin, radioM) {
-    var MUESTRAS = 20;
-    var TOLERANCIA_FRAC = 0.01; // el sitio real puede estar unos metros a un lado de la carretera, no exactamente sobre ella
+  // Distancia minima de un punto al vertice mas cercano de una polilinea —
+  // misma nocion de "distancia a la ruta" que ya usa rutaFraccionDeUnPunto,
+  // reutilizada aqui para poder comparar "cerca de que tramo esta esto" entre
+  // varios tramos distintos.
+  function rutaDistanciaMinAPuntos(lat, lng, puntos) {
+    var mejor = Infinity;
+    for (var i = 0; i < puntos.length; i++) {
+      var d = haversineMeters(lat, lng, puntos[i].lat, puntos[i].lng);
+      if (d < mejor) mejor = d;
+    }
+    return mejor;
+  }
+
+  // Hugo, 11/9 (caso real Cherbourg-Bilbao con waypoint A28 direccion Tours,
+  // reproducido en scripts/test-suite.js caso 1.1): cerca de un waypoint, dos
+  // carreteras distintas (la de antes y la de despues del cruce) pueden pasar
+  // a menos de RUTA_AIRE_FR_RADIO_M una de otra. Sin este chequeo, un area
+  // que esta fisicamente en el tramo SIGUIENTE (radioM de un punto muestreado
+  // del tramo actual) se colaba en la ventana del tramo actual y aparecia
+  // ANTES del waypoint, con rutaFraccionDeUnPunto asignandole una fraccion
+  // inventada sobre una carretera por la que ese sitio no esta. No se reduce
+  // el radio (existe a proposito, ver comentario de RUTA_AIRE_FR_RADIO_M: el
+  // dataset frances trae coordenadas imprecisas) — en vez de eso, si el
+  // candidato esta mas cerca de la carretera de un tramo futuro que de la de
+  // este tramo, es que pertenece a ese tramo futuro, no a este.
+  function rutaCandidatosEnVentana(puntosPolyline, fracInicio, fracFin, radioM, tramosFuturos) {
+    var MUESTRAS = 25;
+    var TOLERANCIA_INICIO = 0.005;
     var vistos = {};
     var candidatos = [];
+    var pool = AIRES_FRANCIA;
+    if (rutaCandidatosCorredorCache && rutaCandidatosCorredorCache.length) {
+      pool = rutaCandidatosCorredorCache;
+    }
+
     for (var s = 0; s <= MUESTRAS; s++) {
       var frac = fracInicio + (fracFin - fracInicio) * (s / MUESTRAS);
       var p = rutaPointAtFraction(puntosPolyline, frac);
-      for (var i = 0; i < AIRES_FRANCIA.length; i++) {
+      for (var i = 0; i < pool.length; i++) {
         if (vistos[i]) continue;
-        var d = haversineMeters(p.lat, p.lng, AIRES_FRANCIA[i].lat, AIRES_FRANCIA[i].lng);
+        var cand = pool[i];
+        var d = haversineMeters(p.lat, p.lng, cand.lat, cand.lng);
         if (d > radioM) continue;
+
+        if (tramosFuturos && tramosFuturos.length) {
+          var distEsteTramo = rutaDistanciaMinAPuntos(cand.lat, cand.lng, puntosPolyline);
+          var perteneceAOtroTramo = false;
+          for (var tf = 0; tf < tramosFuturos.length; tf++) {
+            if (rutaDistanciaMinAPuntos(cand.lat, cand.lng, tramosFuturos[tf].puntos) < distEsteTramo) {
+              perteneceAOtroTramo = true;
+              break;
+            }
+          }
+          if (perteneceAOtroTramo) continue;
+        }
+
+        var fracCandidato = rutaFraccionDeUnPunto(puntosPolyline, cand.lat, cand.lng);
+        // Descartado si cae más allá del corte legal de esta ventana o por detrás del inicio
+        if (fracCandidato > fracFin) continue;
+        if (fracCandidato < fracInicio - TOLERANCIA_INICIO) continue;
+
+        // Descartado si la vía del área sirve el sentido contrario
+        if (!rutaSentidoCorrecto(cand, rutaRumboEnFraccion(puntosPolyline, fracCandidato))) continue;
+
         vistos[i] = true;
-        // descartado si, aunque cerca en línea recta, cae pasado el corte legal en la ruta
-        // — o ANTES del inicio de esta ventana (ya recorrido, detrás de la parada anterior).
-        // Hugo, 7/9 (ruta por Tours): "Aire de Saugon Ouest" salía como el descanso de 9/11h
-        // a pesar de estar 11 km POR DETRÁS de "Saint Christoly", la parada de 45 min ya
-        // elegida — solo se filtraba el límite de arriba, nunca el de abajo.
-        var fracCandidato = rutaFraccionDeUnPunto(puntosPolyline, AIRES_FRANCIA[i].lat, AIRES_FRANCIA[i].lng);
-        if (fracCandidato > fracFin + TOLERANCIA_FRAC) continue;
-        if (fracCandidato < fracInicio - TOLERANCIA_FRAC) continue;
-        // descartado si la "via" del aire sirve el sentido contrario (ver rutaSentidoCorrecto)
-        if (!rutaSentidoCorrecto(AIRES_FRANCIA[i], rutaRumboEnFraccion(puntosPolyline, fracCandidato))) continue;
-        candidatos.push({ aire: AIRES_FRANCIA[i], distanciaM: d });
+        candidatos.push({ aire: cand, distanciaM: d, frac: fracCandidato });
       }
     }
     return candidatos;
   }
 
-  // Puntuacion de un candidato dentro de la ventana de parada larga: ducha confirmada (si
-  // hace falta) pesa mas que cualquier otra cosa, luego seguridad y plazas reales. Sin dato
-  // de plazas cuenta un poco en contra frente a uno que si lo tiene — no es que sea peor,
-  // es que no lo sabemos, y ante la duda no se prefiere lo desconocido (PROYECTO.md regla 1).
+  // Puntuación de un candidato en ventana: ducha (si se necesita), seguridad y plazas reales.
   function rutaPuntuarCandidato(c, necesitaDucha) {
     var amenidad = buscarAmenidadConocida(c.aire.lat, c.aire.lng, 1500);
     var duchaConocida = amenidad ? amenidad.ducha : null;
@@ -7313,9 +7424,10 @@
       if (duchaConocida === true) score += 1000;
       else if (duchaConocida === false) score -= 500;
     }
-    if (c.aire.seguro) score += 50;
+    if (c.aire.seguro) score += 60;
     if (typeof c.aire.plazasLibres === "number") score += Math.min(c.aire.plazasLibres, 100);
-    else score -= 20;
+    else score += 10;
+    if (c.aire.esGasolinera) score += 20;
     return score;
   }
 
@@ -7366,13 +7478,34 @@
   function rutaBuscarSitioReal(lat, lng, radioM, rumboAvanceDeg, limiteTramo) {
     var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M, rumboAvanceDeg, limiteTramo);
     if (aireFr) return Promise.resolve(aireFr);
+
+    if (rutaCandidatosCorredorCache && rutaCandidatosCorredorCache.length) {
+      var mejorC = null, mejorDistC = Infinity;
+      for (var ci = 0; ci < rutaCandidatosCorredorCache.length; ci++) {
+        var sc = rutaCandidatosCorredorCache[ci];
+        if (limiteTramo && rutaFraccionDeUnPunto(limiteTramo.puntos, sc.lat, sc.lng) > limiteTramo.fracMax + 0.01) continue;
+        var dc = haversineMeters(lat, lng, sc.lat, sc.lng);
+        if (dc <= radioM && dc < mejorDistC) {
+          mejorDistC = dc;
+          mejorC = sc;
+        }
+      }
+      if (mejorC) {
+        return Promise.resolve({
+          lat: mejorC.lat, lng: mejorC.lng, nombre: mejorC.nombre, distanciaM: mejorDistC,
+          plazasLibres: mejorC.plazasLibres, plazasPago: mejorC.plazasPago, seguro: mejorC.seguro,
+          via: mejorC.via, fuente: mejorC.fuente || "caché-corredor"
+        });
+      }
+    }
+
     var query = "[out:json][timeout:15];(node[\"amenity\"=\"fuel\"](around:" + radioM + "," + lat + "," + lng +
       ");node[\"amenity\"=\"parking\"][\"access\"!=\"private\"](around:" + radioM + "," + lat + "," + lng + "););out body 20;";
     return fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: query })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (!data.elements || !data.elements.length) return null;
-        var mejor = null, mejorDist = Infinity;
+        var mejor = null, mejorDist = Infinity, mejorScore = -Infinity;
         data.elements.forEach(function (el) {
           // mismo limite de tramo que rutaBuscarAireFrancia — Hugo, 7/9: al rechazar el
           // dataset frances por caer en el tramo equivocado, el respaldo de Overpass
@@ -7380,13 +7513,20 @@
           // en que tramo caia.
           if (limiteTramo && rutaFraccionDeUnPunto(limiteTramo.puntos, el.lat, el.lon) > limiteTramo.fracMax + 0.01) return;
           var d = haversineMeters(lat, lng, el.lat, el.lon);
-          if (d < mejorDist) { mejorDist = d; mejor = el; }
+          // Hugo: prioridad absoluta a gasolineras y parkings de camiones frente a parkings urbanos genéricos
+          var esGasolinera = el.tags && el.tags.amenity === "fuel";
+          var hgvApto = el.tags && (el.tags.hgv === "yes" || el.tags.hgv === "designated");
+          var score = (esGasolinera ? 100 : 0) + (hgvApto ? 60 : 0) - (d / 200);
+          if (score > mejorScore) { mejorScore = score; mejorDist = d; mejor = el; }
         });
         if (!mejor) return null;
         var esGasolinera = mejor.tags && mejor.tags.amenity === "fuel";
         var nombre = (mejor.tags && (mejor.tags.name || mejor.tags.brand)) ||
           (esGasolinera ? "Gasolinera sin nombre en OSM" : "Aparcamiento sin nombre en OSM");
-        return { lat: mejor.lat, lng: mejor.lon, nombre: nombre, distanciaM: mejorDist, fuente: "OSM" };
+        var sitioDescubierto = { lat: mejor.lat, lng: mejor.lon, nombre: nombre, distanciaM: mejorDist, fuente: "OSM", esGasolinera: esGasolinera };
+        if (!rutaCandidatosCorredorCache) rutaCandidatosCorredorCache = [];
+        rutaCandidatosCorredorCache.push(sitioDescubierto);
+        return sitioDescubierto;
       })
       .catch(function () { return null; }); // si Overpass falla, se sigue con el punto de la carretera — nunca romper el plan por esto
   }
