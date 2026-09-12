@@ -7178,6 +7178,19 @@
         seguros.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
         alLimite.sort(function (a, b) { return b.score - a.score || b.frac - a.frac; });
 
+        // Hugo, 12/9: la alternativa tiene que ser la SIGUIENTE parada real por
+        // delante en la carretera, no la que mejor puntúe sin más -- un conductor
+        // que ya pasó (o está a punto de pasar) una ciudad prefiere seguir hasta
+        // la próxima parada real, no que se le ofrezca una de antes de la ciudad
+        // solo porque tenía más margen/plazas. Si no hay ninguna por delante
+        // dentro de esta ventana, no se inventa una peor solo por rellenar.
+        function rutaSiguienteCandidato(lista, fracDesde) {
+          var porDelante = lista.filter(function (c) { return c.frac > fracDesde; });
+          if (!porDelante.length) return null;
+          porDelante.sort(function (a, b) { return a.frac - b.frac; });
+          return porDelante[0];
+        }
+
         var elegido = null;
         var alternativaSegura = null;
 
@@ -7188,11 +7201,15 @@
         // puede saber de verdad si un sitio es accesible; dar una alternativa es
         // mas barato y mas fiable que intentar adivinarlo).
         if (alLimite.length > 0 && alLimite[0].score >= 20) {
+          // Al límite: la alternativa es a propósito una opción MÁS TEMPRANA y segura
+          // (por construcción, todo "seguro" cae antes que un "al límite" en la misma
+          // ventana) — aquí el conductor decide entre arriesgar el margen ajustado o
+          // conformarse con una parada más cómoda que todavía puede alcanzar.
           elegido = alLimite[0];
           alternativaSegura = seguros.length > 0 ? seguros[0] : null;
         } else if (seguros.length > 0) {
           elegido = seguros[0];
-          alternativaSegura = seguros.length > 1 ? seguros[1] : null;
+          alternativaSegura = rutaSiguienteCandidato(seguros, elegido.frac);
         }
         if (elegido) sitioAnterior = elegido.aire;
 
