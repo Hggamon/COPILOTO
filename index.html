@@ -7867,16 +7867,18 @@
   function rutaAbrirRutaCompleta() {
     if (!rutaPuntosCache || rutaPuntosCache.length < 2) return;
     var puntos = rutaPuntosCache;
-    var origen = puntos[0].lat + "," + puntos[0].lng;
-    var destino = puntos[puntos.length - 1].lat + "," + puntos[puntos.length - 1].lng;
-    var intermediosLista = puntos.slice(1, -1).map(function (p) { return p.lat + "," + p.lng; });
-    var url = "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(origen) + "&destination=" + encodeURIComponent(destino);
-    // Hugo, 12/9: en el navegador de escritorio el orden salía correcto sin
-    // esto, pero en la app del móvil reordenaba las paradas (iba primero al
-    // destino final y volvía atrás a por la intermedia) — optimize:false lo
-    // fuerza explícitamente a respetar el orden dado, por si la app por
-    // defecto reordena y el navegador no.
-    if (intermediosLista.length) url += "&waypoints=" + encodeURIComponent("optimize:false|" + intermediosLista.join("|"));
+    // Hugo, 12/9: el formato "api=1&waypoints=..." (pensado para incrustar en
+    // webs de terceros) lo reordenaba mal en la app móvil de Maps, y añadir
+    // "optimize:false" lo empeoró — la app lo interpretó como una parada más
+    // en vez de una instrucción. Se cambia al formato de ruta plano
+    // (/maps/dir/A/B/C/), que es al que el propio Google Maps redirige por
+    // dentro cuando abres una ruta multi-punto — cada parada es un tramo de
+    // la URL, sin ningún parámetro que la app tenga que interpretar aparte.
+    // Coma sin codificar a propósito: son siempre números (lat/lng ya
+    // resueltos por HERE/el geocodificador), nunca texto libre, y así queda
+    // idéntico al formato literal que genera el propio Google Maps.
+    var segmentos = puntos.map(function (p) { return p.lat + "," + p.lng; });
+    var url = "https://www.google.com/maps/dir/" + segmentos.join("/") + "/";
     window.open(url, "_blank");
   }
   if (rutaVerCompletaBtn) {
