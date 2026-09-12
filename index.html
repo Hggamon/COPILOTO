@@ -7209,7 +7209,14 @@
           alternativaSegura = seguros.length > 0 ? seguros[0] : null;
         } else if (seguros.length > 0) {
           elegido = seguros[0];
-          alternativaSegura = rutaSiguienteCandidato(seguros, elegido.frac);
+          // Hugo, 12/9: preferir la siguiente por delante (para no mandar al
+          // conductor hacia atrás sin necesidad), pero si no hay ninguna dentro
+          // de esta ventana, mejor una alternativa real aunque caiga antes que
+          // dejar al conductor sin ninguna — sobre todo si el sitio elegido
+          // resulta inaccesible (sentido contrario, cerrado, lleno), quedarse
+          // sin alternativa es peor que que sea una de más atrás.
+          alternativaSegura = rutaSiguienteCandidato(seguros, elegido.frac) ||
+            (seguros.length > 1 ? seguros[1] : null);
         }
         if (elegido) sitioAnterior = elegido.aire;
 
