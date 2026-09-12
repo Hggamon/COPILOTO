@@ -7869,9 +7869,14 @@
     var puntos = rutaPuntosCache;
     var origen = puntos[0].lat + "," + puntos[0].lng;
     var destino = puntos[puntos.length - 1].lat + "," + puntos[puntos.length - 1].lng;
-    var intermedios = puntos.slice(1, -1).map(function (p) { return p.lat + "," + p.lng; }).join("|");
+    var intermediosLista = puntos.slice(1, -1).map(function (p) { return p.lat + "," + p.lng; });
     var url = "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(origen) + "&destination=" + encodeURIComponent(destino);
-    if (intermedios) url += "&waypoints=" + encodeURIComponent(intermedios);
+    // Hugo, 12/9: en el navegador de escritorio el orden salía correcto sin
+    // esto, pero en la app del móvil reordenaba las paradas (iba primero al
+    // destino final y volvía atrás a por la intermedia) — optimize:false lo
+    // fuerza explícitamente a respetar el orden dado, por si la app por
+    // defecto reordena y el navegador no.
+    if (intermediosLista.length) url += "&waypoints=" + encodeURIComponent("optimize:false|" + intermediosLista.join("|"));
     window.open(url, "_blank");
   }
   if (rutaVerCompletaBtn) {
