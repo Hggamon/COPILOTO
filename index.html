@@ -5239,6 +5239,13 @@
       if (tickTimer2) clearInterval(tickTimer2);
       clearThresholdTimers2();
       deadline2 = null;
+      // Hugo, 11/9: "reiniciar (solo pruebas)" solo tocaba el bloque/pausa activos,
+      // dejando dailyDrive y jornadaStartAt del día anterior intactos — un conductor
+      // que reinicia para probar desde cero podía seguir arrastrando horas sin saberlo.
+      dailyDrive2 = { drivenMs: 0, extensionUsed: false, warned: false };
+      saveDailyDrive2();
+      jornadaStartAt2 = null;
+      saveJornadaStartAt2();
     } else {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(FLAGS_KEY);
@@ -5256,6 +5263,10 @@
       if (tickTimer) clearInterval(tickTimer);
       clearThresholdTimers();
       deadline = null;
+      dailyDrive = { drivenMs: 0, extensionUsed: false, warned: false };
+      saveDailyDrive();
+      jornadaStartAt = null;
+      saveJornadaStartAt();
     }
     countdownScreen.hidden = true;
     countdownScreen.classList.remove("state-normal", "state-amber", "state-red", "state-red-dim");
