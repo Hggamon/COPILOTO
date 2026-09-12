@@ -6803,6 +6803,15 @@
   // candidatos se restringe a los últimos RUTA_VENTANA_DECISION_MS del margen legal
   // restante, nunca a todo el tramo conducido desde la última parada.
   var RUTA_VENTANA_DECISION_MS = 30 * 60 * 1000;
+  // Hugo, 12/9: cuando no hay ninguna alternativa real por delante dentro del
+  // margen legal (caso real "La Divatte", entrada a Nantes, sentido contrario
+  // y nada más por delante en la ventana), el conductor prefiere seguir hasta
+  // la siguiente parada real conocida aunque exceda el límite legal, con el
+  // exceso mostrado claramente — nunca una recomendación, solo información
+  // para decidir — antes que quedarse sin ninguna opción o que se le ofrezca
+  // una de más atrás. Esta es la distancia extra (más allá del límite legal)
+  // en la que se busca esa siguiente parada real.
+  var RUTA_VENTANA_ALTERNATIVA_EXTRA_MS = 60 * 60 * 1000;
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
   var RUTA_AIRE_FR_RADIO_M = 20000; // radio de busqueda en el dataset oficial frances, mas amplio que Overpass
 
@@ -7184,11 +7193,33 @@
         // la próxima parada real, no que se le ofrezca una de antes de la ciudad
         // solo porque tenía más margen/plazas. Si no hay ninguna por delante
         // dentro de esta ventana, no se inventa una peor solo por rellenar.
-        function rutaSiguienteCandidato(lista, fracDesde) {
-          var porDelante = lista.filter(function (c) { return c.frac > fracDesde; });
+        function rutaSiguienteCandidato(lista, fracDesde, evitarAire) {
+          var porDelante = lista.filter(function (c) { return c.frac > fracDesde && c.aire !== evitarAire; });
           if (!porDelante.length) return null;
           porDelante.sort(function (a, b) { return a.frac - b.frac; });
           return porDelante[0];
+        }
+
+        // Hugo, 12/9: si no hay ninguna parada real por delante dentro del margen
+        // legal (ventana ya estrecha a propósito), se amplía la búsqueda más allá
+        // del límite —RUTA_VENTANA_ALTERNATIVA_EXTRA_MS— y se toma la primera real
+        // que aparezca (la más cercana, no la de más puntuación: es la "siguiente",
+        // no "la mejor"). margenMin sale negativo a propósito, para que quede claro
+        // en pantalla cuánto excede el límite legal.
+        function rutaSiguienteMasAllaDelLimite(fracDesde, evitarAire) {
+          var fracFinExtendida = Math.min(1, fracDesde + RUTA_VENTANA_ALTERNATIVA_EXTRA_MS / tramos[i].durationMs);
+          if (fracFinExtendida <= fracDesde) return null;
+          var extra = rutaCandidatosEnVentana(tramos[i].puntos, fracDesde, fracFinExtendida, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+          extra = extra.filter(function (c) { return c.aire !== evitarAire; });
+          if (!extra.length) return null;
+          extra.sort(function (a, b) { return a.frac - b.frac; });
+          var c = extra[0];
+          var tiempoHastaCandMs = (c.frac - fracInicioSegmento) * tramos[i].durationMs;
+          return {
+            aire: c.aire, frac: c.frac, distanciaM: c.distanciaM,
+            margenMin: Math.round((maximoLegalMs - tiempoHastaCandMs) / 60000),
+            score: rutaPuntuarCandidato(c, rutaNecesitaDucha)
+          };
         }
 
         var elegido = null;
@@ -7215,7 +7246,8 @@
           // dejar al conductor sin ninguna — sobre todo si el sitio elegido
           // resulta inaccesible (sentido contrario, cerrado, lleno), quedarse
           // sin alternativa es peor que que sea una de más atrás.
-          alternativaSegura = rutaSiguienteCandidato(seguros, elegido.frac) ||
+          alternativaSegura = rutaSiguienteCandidato(seguros, elegido.frac, elegido.aire) ||
+            rutaSiguienteMasAllaDelLimite(elegido.frac, elegido.aire) ||
             (seguros.length > 1 ? seguros[1] : null);
         }
         if (elegido) sitioAnterior = elegido.aire;
@@ -7696,7 +7728,13 @@
       if (p.alternativaSegura) {
         var altEl = document.createElement("div");
         altEl.className = "ruta-parada-alt-segura";
-        altEl.textContent = "alternativa: " + p.alternativaSegura.nombre + " (margen " + p.alternativaSegura.margenMin + "min) — ";
+        // Hugo, 12/9: si la alternativa viene de la búsqueda ampliada más allá
+        // del límite legal, margenMin sale negativo — decirlo claro en vez de
+        // mostrar "margen -15min", que no se entiende de un vistazo.
+        var altTxtMargen = p.alternativaSegura.margenMin >= 0
+          ? "margen " + p.alternativaSegura.margenMin + "min"
+          : "excede el límite legal por " + Math.abs(p.alternativaSegura.margenMin) + "min";
+        altEl.textContent = "alternativa: " + p.alternativaSegura.nombre + " (" + altTxtMargen + ") — ";
         var altBtn = document.createElement("span");
         altBtn.className = "ruta-parada-alt-segura-ir";
         altBtn.textContent = "ir aquí";
