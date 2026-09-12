@@ -6793,6 +6793,15 @@
   var RUTA_MARGEN_MINIMO_MS = 5 * 60 * 1000;  // margen mínimo operativo al límite (5-20 min) si el área es óptima
   var RUTA_MARGEN_MS = RUTA_MARGEN_SEGURO_MS; // compatibilidad
   var RUTA_FIN_JORNADA_UMBRAL_MS = 45 * 60 * 1000; // si tras un bloque quedan <= 45 min de jornada, consolidar descanso diario en vez de pausa corta
+  // Hugo, 12/9 (caso real Rouillé-Pamproux/Cestas): buscar candidatos en TODO el margen
+  // legal restante (a veces 4h+) hacía que un sitio con más plazas a mitad de bloque
+  // ganara por puntuación a uno igual de válido mucho más adelante — parando pronto sin
+  // necesidad y encadenando un descanso diario prematuro más tarde (menos jornada
+  // disponible tras gastar solo una fracción del bloque). Solo tiene sentido preferir
+  // "más plazas" cuando de verdad no queda margen para seguir mirando: la búsqueda de
+  // candidatos se restringe a los últimos RUTA_VENTANA_DECISION_MS del margen legal
+  // restante, nunca a todo el tramo conducido desde la última parada.
+  var RUTA_VENTANA_DECISION_MS = 30 * 60 * 1000;
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
   var RUTA_AIRE_FR_RADIO_M = 20000; // radio de busqueda en el dataset oficial frances, mas amplio que Overpass
 
@@ -7140,8 +7149,12 @@
         // legal real que nunca se llegó a conducir).
         var fracFinVentana = fracInicioSegmento + duracionAvanceMs / tramos[i].durationMs;
 
-        // Búsqueda de candidatos en la ventana de este tramo
-        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioSegmento, fracFinVentana, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+        // Búsqueda de candidatos: solo en los últimos RUTA_VENTANA_DECISION_MS del margen
+        // legal restante (Hugo, 12/9) — no en todo el tramo desde la última parada, para
+        // no parar a mitad de bloque solo porque hay un sitio con más plazas ahí.
+        var ventanaBusquedaMs = Math.min(duracionAvanceMs, RUTA_VENTANA_DECISION_MS);
+        var fracInicioVentanaBusqueda = Math.max(fracInicioSegmento, fracFinVentana - ventanaBusquedaMs / tramos[i].durationMs);
+        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioVentanaBusqueda, fracFinVentana, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
         var candidatosAptos = [];
         for (var cIdx = 0; cIdx < candidatos.length; cIdx++) {
           var cand = candidatos[cIdx];
