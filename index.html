@@ -2795,6 +2795,7 @@
     <div id="ruta-ducha-toggle" class="status-pill">necesito ducha en este viaje: no</div>
     <div id="ruta-jornada10h-toggle" class="status-pill">jornada de hoy: 9h</div>
     <div id="ruta-calcular" class="status-pill">calcular ruta</div>
+    <div id="ruta-ver-completa" class="status-pill" hidden>ver ruta completa en Maps</div>
     <div id="ruta-limpiar" class="status-pill" style="opacity: 0.7; font-size: 0.85em;">limpiar ruta</div>
     <div id="ruta-status" hidden></div>
   </div>
@@ -3214,6 +3215,7 @@
   var rutaWaypointsEl = document.getElementById("ruta-waypoints");
   var rutaAddWaypointBtn = document.getElementById("ruta-add-waypoint");
   var rutaCalcularBtn = document.getElementById("ruta-calcular");
+  var rutaVerCompletaBtn = document.getElementById("ruta-ver-completa");
   var rutaLimpiarBtn = document.getElementById("ruta-limpiar");
   var rutaDuchaToggleEl = document.getElementById("ruta-ducha-toggle");
   var rutaNecesitaDucha = false;
@@ -5124,6 +5126,7 @@
       rutaCandidatosCorredorCache = null;
       rutaPlanCache = null;
       rutaParadaActivaId = null;
+      if (rutaVerCompletaBtn) rutaVerCompletaBtn.hidden = true;
       clearRouteAlert();
       rutaGuardarEstadoLocal();
       rutaSetStatus("Ruta limpiada.", false);
@@ -7854,11 +7857,36 @@
     return [tramoRestante].concat(tramos.slice(mejorTramoIdx + 1));
   }
 
+  // Hugo, 12/9: "ir aquí" de cada parada solo lleva al GPS del camión hasta ESE
+  // punto — nunca se ha visto la ruta entera de una vez, tramo a tramo, para
+  // detectar si HERE se desvía de lo que el conductor esperaría (caso real:
+  // un waypoint fuera de autopista puede hacer que el tramo siguiente vuelva
+  // a la red de autopistas por un camino distinto al que Hugo habría tomado).
+  // Se abre en Google Maps como ruta multi-punto (origen + cada parada de
+  // trabajo + destino), no como navegación turn-by-turn de la app.
+  function rutaAbrirRutaCompleta() {
+    if (!rutaPuntosCache || rutaPuntosCache.length < 2) return;
+    var puntos = rutaPuntosCache;
+    var origen = puntos[0].lat + "," + puntos[0].lng;
+    var destino = puntos[puntos.length - 1].lat + "," + puntos[puntos.length - 1].lng;
+    var intermedios = puntos.slice(1, -1).map(function (p) { return p.lat + "," + p.lng; }).join("|");
+    var url = "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=" + encodeURIComponent(origen) + "&destination=" + encodeURIComponent(destino);
+    if (intermedios) url += "&waypoints=" + encodeURIComponent(intermedios);
+    window.open(url, "_blank");
+  }
+  if (rutaVerCompletaBtn) {
+    rutaVerCompletaBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      rutaAbrirRutaCompleta();
+    });
+  }
+
   function rutaCalcular() {
     rutaSetStatus("Calculando ruta…", false);
     rutaPlanEl.innerHTML = "";
     rutaTramosCache = null;
     rutaPuntosCache = null;
+    if (rutaVerCompletaBtn) rutaVerCompletaBtn.hidden = true;
     var textos = [rutaOrigenEl.value];
     var waypointInputs = rutaWaypointsEl.querySelectorAll("input");
     for (var wi = 0; wi < waypointInputs.length; wi++) textos.push(waypointInputs[wi].value);
@@ -7872,6 +7900,7 @@
           renderRutaPlan(planConSitios);
           rutaTramosCache = tramos;
           rutaPuntosCache = puntos;
+          if (rutaVerCompletaBtn) rutaVerCompletaBtn.hidden = false;
           rutaSetStatus(tramos.length + " tramo(s) calculado(s) con HERE — plan " + (doubleCrewOn ? "en doble tripulación." : "en solitario.") + " Se actualiza solo cada 5 min desde tu posición real.", false);
         });
       });
