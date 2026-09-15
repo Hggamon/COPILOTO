@@ -6817,6 +6817,15 @@
   var RUTA_VENTANA_ALTERNATIVA_EXTRA_MS = 60 * 60 * 1000;
   var RUTA_RELEVO_MS = 15 * 60 * 1000; // cambio de conductor en doble: parada corta, no una pausa de 45 completa
   var RUTA_AIRE_FR_RADIO_M = 20000; // radio de busqueda en el dataset oficial frances, mas amplio que Overpass
+  // Hugo, 15/9 (caso real GIGNAC LA NERTHE, via "A55/Marseille"): un sitio a
+  // 17,8 km de la carretera real (A7/A8 por Croix de Coudoux, sin pasar por
+  // Marsella) caia dentro del radio de 20 km y se coló como parada, aunque
+  // esta fisicamente en la A55 -- una autopista distinta y cercana, no la que
+  // se va a conducir. No se reduce RUTA_AIRE_FR_RADIO_M (existe a proposito
+  // para no perder sitios reales con coordenadas imprecisas) -- en vez de
+  // eso, se prefieren los candidatos genuinamente cerca de la carretera
+  // (este radio ajustado) y solo se cae al radio amplio si no hay ninguno.
+  var RUTA_AIRE_FR_RADIO_AJUSTADO_M = 3000;
 
   // Hugo, 7/9 (ruta Cherbourg-Bilbao con parada en Angers): "BOISREDON" (via "A10/Paris")
   // salio como parada yendo HACIA Bilbao, en sentido contrario. El campo "via" del dataset
@@ -7167,7 +7176,7 @@
         // no parar a mitad de bloque solo porque hay un sitio con más plazas ahí.
         var ventanaBusquedaMs = Math.min(duracionAvanceMs, RUTA_VENTANA_DECISION_MS);
         var fracInicioVentanaBusqueda = Math.max(fracInicioSegmento, fracFinVentana - ventanaBusquedaMs / tramos[i].durationMs);
-        var candidatos = rutaCandidatosEnVentana(tramos[i].puntos, fracInicioVentanaBusqueda, fracFinVentana, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+        var candidatos = rutaCandidatosEnVentanaPreferida(tramos[i].puntos, fracInicioVentanaBusqueda, fracFinVentana, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
         var candidatosAptos = [];
         for (var cIdx = 0; cIdx < candidatos.length; cIdx++) {
           var cand = candidatos[cIdx];
@@ -7212,7 +7221,7 @@
         function rutaSiguienteMasAllaDelLimite(fracDesde, evitarAire) {
           var fracFinExtendida = Math.min(1, fracDesde + RUTA_VENTANA_ALTERNATIVA_EXTRA_MS / tramos[i].durationMs);
           if (fracFinExtendida <= fracDesde) return null;
-          var extra = rutaCandidatosEnVentana(tramos[i].puntos, fracDesde, fracFinExtendida, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
+          var extra = rutaCandidatosEnVentanaPreferida(tramos[i].puntos, fracDesde, fracFinExtendida, RUTA_AIRE_FR_RADIO_M, tramos.slice(i + 1));
           extra = extra.filter(function (c) { return c.aire !== evitarAire; });
           if (!extra.length) return null;
           extra.sort(function (a, b) { return a.frac - b.frac; });
@@ -7544,6 +7553,19 @@
       }
     }
     return candidatos;
+  }
+
+  // Hugo, 15/9: preferir los candidatos genuinamente cerca de la carretera
+  // real (RUTA_AIRE_FR_RADIO_AJUSTADO_M) — un sitio en una autopista distinta
+  // pero cercana (ej. A55 cuando se conduce por A7/A8) puede caer dentro del
+  // radio amplio de siempre sin estar realmente en el camino. Si no hay
+  // ningún candidato dentro del radio ajustado, se cae al radio amplio
+  // (mismo comportamiento de antes) — nunca se busca dos veces, solo se
+  // filtra sobre el resultado ya calculado con distanciaM.
+  function rutaCandidatosEnVentanaPreferida(puntosPolyline, fracInicio, fracFin, radioM, tramosFuturos) {
+    var todos = rutaCandidatosEnVentana(puntosPolyline, fracInicio, fracFin, radioM, tramosFuturos);
+    var cercanos = todos.filter(function (c) { return c.distanciaM <= RUTA_AIRE_FR_RADIO_AJUSTADO_M; });
+    return cercanos.length ? cercanos : todos;
   }
 
   // Puntuación de un candidato en ventana: ducha (si se necesita), seguridad y plazas reales.
