@@ -4441,10 +4441,14 @@
     } else {
       compPendingEl2.hidden = true;
     }
-    // renderJornadaUI2() ya se guarda sola (jornadaStartAt2 === null → oculta), igual de
-    // seguro llamarla en el primer repintado (antes de cargar el estado) que a partir de
-    // ahí — mismo criterio que el resto de píldoras del conductor 2 de arriba.
-    renderJornadaUI2();
+    // Guarda de null igual que las de arriba: renderJornadaUI2() llama a jornadaWindowMs2(),
+    // que lee reducedRests2.count — y ese argumento se evalúa ANTES de que renderJornadaUI2()
+    // llegue a comprobar doubleCrewOn/jornadaStartAt2, así que sin esta guarda revienta en el
+    // primer repintado (antes de cargar el estado) si la tripulación doble ya venía activa de
+    // una sesión anterior. El bloque de carga de más abajo vuelve a llamar a renderJornadaUI2()
+    // en cuanto reducedRests2 está listo (Hugo, 15/9: encontrado al recargar con doble
+    // tripulación ya activa, la app quedaba rota — ver HISTORIAL.md).
+    if (reducedRests2) renderJornadaUI2();
     // Solo con los dos parados de verdad (nunca en marcha, igual que sacar una tarjeta) y
     // sin un hueco de GPS a medias (ver swapTrays()).
     swapTraysBtn.hidden = !(doubleCrewOn && paused && paused2 && !unobservedGap);
@@ -7149,8 +7153,16 @@
         // esFinVentana porque esa sí necesita saber el avance REAL.
         var esVentanaLimitante = margenLimite <= margenBloque;
 
-        // Techo legal estricto antes de agotar tacógrafo en este tramo
-        var maximoLegalMs = Math.min(blockRemainingMs, dailyRemainingMs, windowRemainingMs);
+        // Techo legal estricto antes de agotar tacógrafo en este tramo.
+        // Hugo, 15/9: dailyRemainingMs es el limite de conduccion de UN
+        // conductor (9h) — en doble tripulacion no debe frenar al vehiculo,
+        // porque el otro conductor sigue al volante. Lo que manda parar de
+        // verdad en doble es el bloque de 4h30 (relevo) y la ventana de 30h/
+        // 9h del equipo (windowRemainingMs, art. 8(5)) — nunca el limite
+        // individual de 9h de quien esta conduciendo ahora mismo.
+        var maximoLegalMs = modo === "doble"
+          ? Math.min(blockRemainingMs, windowRemainingMs)
+          : Math.min(blockRemainingMs, dailyRemainingMs, windowRemainingMs);
         var corteLimiteMs = Math.max(0, maximoLegalMs - RUTA_MARGEN_MINIMO_MS);
 
         // Si se puede llegar al final de este tramo (waypoint o destino) con al menos el margen mínimo de 5 min:
@@ -7284,7 +7296,12 @@
         // Se consolida directamente como fin de jornada / descanso diario. Usa
         // dailyRemainingMs YA corregido por el avance real (arriba), no el que
         // habría quedado si se hubiera gastado hasta el límite teórico.
-        var esFinVentana = esVentanaLimitante || (dailyRemainingMs <= RUTA_FIN_JORNADA_UMBRAL_MS);
+        // En doble tripulación no se mira dailyRemainingMs por el mismo motivo
+        // de arriba: es el límite individual de 9h de quien conduce ahora, no
+        // del equipo — no debe forzar un descanso del equipo por sí solo.
+        var esFinVentana = modo === "doble"
+          ? esVentanaLimitante
+          : (esVentanaLimitante || (dailyRemainingMs <= RUTA_FIN_JORNADA_UMBRAL_MS));
         var tipo, duracionParadaMs;
         if (modo === "doble") {
           tipo = esFinVentana ? "Descanso del equipo (" + Math.round(restDurationMs / 3600000) + "h) — parking real" : "Cambio de conductor — gasolinera apta";
