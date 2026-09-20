@@ -6830,6 +6830,12 @@
   // eso, se prefieren los candidatos genuinamente cerca de la carretera
   // (este radio ajustado) y solo se cae al radio amplio si no hay ninguno.
   var RUTA_AIRE_FR_RADIO_AJUSTADO_M = 3000;
+  // Hugo, 20/9: probado en vivo contra 5 coordenadas reales fuera de Francia (Toscana,
+  // Caserta) -- HERE con estas dos categorias acierta 4/5 veces frente a la consulta
+  // generica de Overpass. Mismo radio que el dataset frances para mantener el mismo
+  // criterio de "no perder sitios reales por precision de coordenadas".
+  var RUTA_HERE_RADIO_M = 20000;
+  var RUTA_HERE_CATEGORIAS = "700-7900-0131,400-4300-0199"; // Parcheggio camion + Area di sosta attrezzata
 
   // Hugo, 7/9 (ruta Cherbourg-Bilbao con parada en Angers): "BOISREDON" (via "A10/Paris")
   // salio como parada yendo HACIA Bilbao, en sentido contrario. El campo "via" del dataset
@@ -7645,10 +7651,46 @@
     };
   }
 
+  // Busca en HERE (browse.search.hereapi.com), con la misma clave restringida por dominio
+  // que ya usa la ruta, areas de servicio/parking de camion reales fuera de Francia. Hugo,
+  // 20/9: probado en vivo en Toscana y Caserta -- los resultados con nombre generico tipo
+  // "Lay by <calle>" fueron el unico falso positivo (una zona rural sin relacion con la
+  // autopista, confirmado en Google Maps); los que llevan nombre de area real (Est/Ovest,
+  // "Area Servizio", marca de gasolinera) acertaron siempre. Por eso se descartan aqui.
+  // No se aplica rutaSentidoCorrecto (formato de "via" distinto al frances, pendiente sin
+  // resolver) -- pendiente igual que el resto del chequeo de sentido de via.
+  function rutaBuscarSitioHere(lat, lng, radioM, limiteTramo) {
+    var url = "https://browse.search.hereapi.com/v1/browse?at=" + lat + "," + lng +
+      "&in=circle:" + lat + "," + lng + ";r=" + radioM +
+      "&categories=" + RUTA_HERE_CATEGORIAS + "&limit=20&apikey=" + RUTA_HERE_KEY;
+    return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      if (!data.items || !data.items.length) return null;
+      var mejor = null, mejorDist = Infinity;
+      data.items.forEach(function (it) {
+        if (/^lay by/i.test(it.title)) return;
+        if (limiteTramo && rutaFraccionDeUnPunto(limiteTramo.puntos, it.position.lat, it.position.lng) > limiteTramo.fracMax + 0.01) return;
+        var d = haversineMeters(lat, lng, it.position.lat, it.position.lng);
+        if (d < mejorDist) { mejorDist = d; mejor = it; }
+      });
+      if (!mejor) return null;
+      return {
+        lat: mejor.position.lat, lng: mejor.position.lng, nombre: mejor.title, distanciaM: mejorDist,
+        plazasLibres: null, plazasPago: null, seguro: null, via: null, fuente: "HERE"
+      };
+    }).catch(function () { return null; }); // si HERE falla, se sigue con Overpass como antes
+  }
+
   function rutaBuscarSitioReal(lat, lng, radioM, rumboAvanceDeg, limiteTramo) {
     var aireFr = rutaBuscarAireFrancia(lat, lng, RUTA_AIRE_FR_RADIO_M, rumboAvanceDeg, limiteTramo);
     if (aireFr) return Promise.resolve(aireFr);
 
+    return rutaBuscarSitioHere(lat, lng, RUTA_HERE_RADIO_M, limiteTramo).then(function (sitioHere) {
+      if (sitioHere) return sitioHere;
+      return rutaBuscarSitioOverpass(lat, lng, radioM, limiteTramo);
+    });
+  }
+
+  function rutaBuscarSitioOverpass(lat, lng, radioM, limiteTramo) {
     if (rutaCandidatosCorredorCache && rutaCandidatosCorredorCache.length) {
       var mejorC = null, mejorDistC = Infinity;
       for (var ci = 0; ci < rutaCandidatosCorredorCache.length; ci++) {
@@ -7742,6 +7784,8 @@
         }
         partesSitio.push("a " + Math.round(p.sitio.distanciaM) + " m de donde toca parar");
         ubicacionTxt = partesSitio.join(", ");
+      } else if (p.sitio && p.sitio.fuente === "HERE") {
+        ubicacionTxt = p.sitio.nombre + ", a " + Math.round(p.sitio.distanciaM) + " m de donde toca parar (área de servicio confirmada)";
       } else if (p.sitio) {
         ubicacionTxt = p.sitio.nombre + ", a " + Math.round(p.sitio.distanciaM) + " m de donde toca parar (sin verificar)";
       } else if (p.esPreciso) {
