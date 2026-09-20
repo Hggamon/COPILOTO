@@ -6836,6 +6836,12 @@
   // criterio de "no perder sitios reales por precision de coordenadas".
   var RUTA_HERE_RADIO_M = 20000;
   var RUTA_HERE_CATEGORIAS = "700-7900-0131,400-4300-0199"; // Parcheggio camion + Area di sosta attrezzata
+  // Hugo, 20/9 (caso real: Q8 en pleno Capua sobre la SS7, a varios km de la A1, coló porque
+  // el circulo de radio no distingue "cerca en linea recta" de "cerca por la carretera real"):
+  // ancho del corredor pegado al trazado real de la ruta. 1500m a cada lado -- generoso para
+  // no perder areas reales con coordenada un poco imprecisa, estrecho para descartar un sitio
+  // en un pueblo a varios km de la autopista.
+  var RUTA_HERE_CORREDOR_ANCHO_M = 1500;
 
   // Hugo, 7/9 (ruta Cherbourg-Bilbao con parada en Angers): "BOISREDON" (via "A10/Paris")
   // salio como parada yendo HACIA Bilbao, en sentido contrario. El campo "via" del dataset
@@ -7000,6 +7006,80 @@
       i += header.thirdDim ? 3 : 2; // se ignora la 3ª dimensión (altitud) si la trae
     }
     return res;
+  }
+
+  // Codificador del "flexible polyline" de HERE -- puerto literal (mismo algoritmo que el
+  // decodificador de arriba, misma fuente oficial MIT) de la mitad que faltaba: encode().
+  // Hugo, 20/9: hace falta para el parametro "route" de /browse (busqueda por corredor
+  // pegado al trazado real, no un circulo alrededor de un punto) -- un error aqui manda a
+  // HERE un trazado deformado y puede devolver sitios fuera de la carretera real, asi que
+  // es puerto literal, no reinvencion.
+  var RUTA_POLY_ENCODE_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  function rutaPolyEncodeUnsignedNumber(val) {
+    var res = "";
+    var numVal = RUTA_POLY_NUM(val);
+    while (numVal > RUTA_POLY_NUM(0x1F)) {
+      var pos = Number((numVal & RUTA_POLY_NUM(0x1F)) | RUTA_POLY_NUM(0x20));
+      res += RUTA_POLY_ENCODE_TABLE[pos];
+      numVal = numVal >> RUTA_POLY_NUM(5);
+    }
+    return res + RUTA_POLY_ENCODE_TABLE[Number(numVal)];
+  }
+  function rutaPolyEncodeScaledValue(value) {
+    var numVal = RUTA_POLY_NUM(value);
+    var negative = numVal < RUTA_POLY_NUM(0);
+    numVal = numVal << RUTA_POLY_NUM(1);
+    if (negative) numVal = ~numVal;
+    return rutaPolyEncodeUnsignedNumber(numVal);
+  }
+  function rutaEncodePolyline(puntos, precision) {
+    precision = precision || 5;
+    var multiplier = Math.pow(10, precision);
+    var header = rutaPolyEncodeUnsignedNumber(1) + rutaPolyEncodeUnsignedNumber(precision); // version 1, sin 3ª dimension
+    var lastLat = RUTA_POLY_NUM(0), lastLng = RUTA_POLY_NUM(0);
+    var partes = [header];
+    for (var i = 0; i < puntos.length; i++) {
+      var lat = RUTA_POLY_NUM(Math.round(puntos[i].lat * multiplier));
+      partes.push(rutaPolyEncodeScaledValue(lat - lastLat));
+      lastLat = lat;
+      var lng = RUTA_POLY_NUM(Math.round(puntos[i].lng * multiplier));
+      partes.push(rutaPolyEncodeScaledValue(lng - lastLng));
+      lastLng = lng;
+    }
+    return partes.join("");
+  }
+
+  // Recorta puntosPolyline a una ventana local alrededor de (lat,lng) -- ida y vuelta hasta
+  // radioM en cada sentido -- y la diezma si hace falta para no superar el limite de 2048
+  // bytes de la URL de HERE (recomendado por su propia documentacion: menos de ~300 puntos).
+  // Sin esto, mandar el tramo entero de una ruta internacional (Barcelona-Caserta) reventaria
+  // la peticion.
+  function rutaVentanaPuntosLocal(puntosPolyline, lat, lng, radioM) {
+    var mejorIdx = 0, mejorDist = Infinity;
+    for (var i = 0; i < puntosPolyline.length; i++) {
+      var d = haversineMeters(lat, lng, puntosPolyline[i].lat, puntosPolyline[i].lng);
+      if (d < mejorDist) { mejorDist = d; mejorIdx = i; }
+    }
+    var inicio = mejorIdx, acumulada = 0;
+    while (inicio > 0 && acumulada < radioM) {
+      acumulada += haversineMeters(puntosPolyline[inicio].lat, puntosPolyline[inicio].lng, puntosPolyline[inicio - 1].lat, puntosPolyline[inicio - 1].lng);
+      inicio--;
+    }
+    var fin = mejorIdx; acumulada = 0;
+    while (fin < puntosPolyline.length - 1 && acumulada < radioM) {
+      acumulada += haversineMeters(puntosPolyline[fin].lat, puntosPolyline[fin].lng, puntosPolyline[fin + 1].lat, puntosPolyline[fin + 1].lng);
+      fin++;
+    }
+    var ventana = puntosPolyline.slice(inicio, fin + 1);
+    var LIMITE_PUNTOS = 120;
+    if (ventana.length > LIMITE_PUNTOS) {
+      var paso = Math.ceil(ventana.length / LIMITE_PUNTOS);
+      var diezmada = [];
+      for (var j = 0; j < ventana.length; j += paso) diezmada.push(ventana[j]);
+      if (diezmada[diezmada.length - 1] !== ventana[ventana.length - 1]) diezmada.push(ventana[ventana.length - 1]);
+      ventana = diezmada;
+    }
+    return ventana;
   }
 
   // Punto real sobre la carretera a una fracción de distancia dada de un tramo — sustituye
@@ -7654,15 +7734,29 @@
   // Busca en HERE (browse.search.hereapi.com), con la misma clave restringida por dominio
   // que ya usa la ruta, areas de servicio/parking de camion reales fuera de Francia. Hugo,
   // 20/9: probado en vivo en Toscana y Caserta -- los resultados con nombre generico tipo
-  // "Lay by <calle>" fueron el unico falso positivo (una zona rural sin relacion con la
-  // autopista, confirmado en Google Maps); los que llevan nombre de area real (Est/Ovest,
-  // "Area Servizio", marca de gasolinera) acertaron siempre. Por eso se descartan aqui.
-  // No se aplica rutaSentidoCorrecto (formato de "via" distinto al frances, pendiente sin
-  // resolver) -- pendiente igual que el resto del chequeo de sentido de via.
+  // "Lay by <calle>" fueron un falso positivo (zona rural sin relacion con la autopista,
+  // confirmado en Google Maps), pero no el unico: un Q8 real en pleno Capua sobre la SS7,
+  // a varios km de la A1, tambien coló -- el filtro de nombre no lo pillaba porque el nombre
+  // no tenia nada raro. Causa real: "in=circle" solo mide distancia en linea recta, no si el
+  // sitio esta pegado a la carretera de verdad. Arreglado buscando por corredor pegado al
+  // trazado real (parametro "route" de HERE, documentacion oficial: search along the route)
+  // en vez de un circulo, siempre que haya trazado del tramo disponible; si no lo hay, cae
+  // al circulo de antes como respaldo. No se aplica rutaSentidoCorrecto (formato de "via"
+  // distinto al frances, pendiente sin resolver) -- pendiente igual que el resto del chequeo
+  // de sentido de via.
   function rutaBuscarSitioHere(lat, lng, radioM, limiteTramo) {
     var url = "https://browse.search.hereapi.com/v1/browse?at=" + lat + "," + lng +
-      "&in=circle:" + lat + "," + lng + ";r=" + radioM +
       "&categories=" + RUTA_HERE_CATEGORIAS + "&limit=20&apikey=" + RUTA_HERE_KEY;
+    if (limiteTramo && limiteTramo.puntos && limiteTramo.puntos.length >= 2) {
+      var ventana = rutaVentanaPuntosLocal(limiteTramo.puntos, lat, lng, radioM);
+      if (ventana.length >= 2) {
+        url += "&route=" + rutaEncodePolyline(ventana, 5) + ";w=" + RUTA_HERE_CORREDOR_ANCHO_M;
+      } else {
+        url += "&in=circle:" + lat + "," + lng + ";r=" + radioM;
+      }
+    } else {
+      url += "&in=circle:" + lat + "," + lng + ";r=" + radioM;
+    }
     return fetch(url).then(function (res) { return res.json(); }).then(function (data) {
       if (!data.items || !data.items.length) return null;
       var mejor = null, mejorDist = Infinity;
